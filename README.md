@@ -27,8 +27,7 @@ Most JS frameworks make one of two mistakes: they do too much (Next.js, Remix) o
 
 ## Requirements
 
-- Node.js 25.8.1+
-- npm 9+
+- Node.js 24+ (current LTS)
 
 ---
 
@@ -223,9 +222,14 @@ export default {
   version: '1.0.0',
 
   hooks: {
+    // Action — fires for side effects, return value is ignored
     'request.before': async (ctx) => {
-      console.log('Request received!')
-      return ctx
+      console.log('Request:', ctx.req.url)
+    },
+
+    // Filter — transform a value, return the new value
+    'content.render': async (html, ctx) => {
+      return html.replace(/{{year}}/g, new Date().getFullYear())
     }
   },
 
@@ -234,6 +238,8 @@ export default {
   }
 }
 ```
+
+Plugins and themes can be written in JavaScript or TypeScript — `.ts`/`.tsx` files are compiled at build time via Vite.
 
 ### Creating Themes
 
@@ -366,6 +372,7 @@ basicben make:controller UserController
 // src/controllers/UserController.js
 import { User } from '../models/User.js'
 
+
 export const UserController = {
   index: async (req, res) => {
     const users = await User.all()
@@ -409,7 +416,7 @@ Models are thin wrappers around raw DB queries — no ORM, no magic.
 
 ```js
 // src/models/User.js
-import { db } from '../db/index.js'
+import { db } from '@basicbenframework/core/db'
 
 export const User = {
   all: () => db.all(`SELECT * FROM users`),
@@ -489,7 +496,7 @@ export default (req, res, next) => {
 BasicBen includes a lightweight validation system with 20+ built-in rules:
 
 ```js
-import { validate, rules } from 'basicben/validation'
+import { validate, rules } from '@basicbenframework/core/validation'
 
 const result = await validate(req.body, {
   email: [rules.required, rules.email],
@@ -507,6 +514,23 @@ if (result.fails()) {
 ### Built-in Rules
 
 `required`, `optional`, `string`, `numeric`, `integer`, `boolean`, `array`, `email`, `url`, `min`, `max`, `between`, `in`, `notIn`, `regex`, `confirmed`, `different`, `length`, `alpha`, `alphanumeric`, `date`, `before`, `after`
+
+### Database Rules
+
+Two async rules query the database directly — useful for unique fields and foreign keys:
+
+```js
+await validate(req.body, {
+  // Email must not already exist in users table
+  email: [rules.required, rules.email, rules.unique('users')],
+
+  // On update, exclude the current user's row
+  // email: [rules.required, rules.email, rules.unique('users', 'email', userId)],
+
+  // Referenced category must exist
+  category_id: [rules.required, rules.exists('categories')]
+})
+```
 
 ### Custom Rules
 
@@ -528,7 +552,7 @@ await validate(req.body, {
 BasicBen provides JWT helpers using Node's built-in `crypto` module — no `jsonwebtoken` dependency:
 
 ```js
-import { signJwt, verifyJwt } from 'basicben/auth'
+import { signJwt, verifyJwt } from '@basicbenframework/core/auth'
 
 // Sign a token
 const token = signJwt({ userId: 1 }, process.env.APP_KEY, { expiresIn: '7d' })
@@ -544,14 +568,14 @@ The starter template includes a complete auth system:
 
 ```js
 // src/middleware/auth.js
-import { verifyJwt } from 'basicben/auth'
+import { verifyJwt } from '@basicbenframework/core/auth'
 
 export const auth = async (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
-  if (!token) return res.json({ error: 'Unauthorized' }, 401)
+  if (!token) return res.status(401).json({ error: 'Unauthorized' })
 
   const payload = verifyJwt(token, process.env.APP_KEY)
-  if (!payload) return res.json({ error: 'Invalid token' }, 401)
+  if (!payload) return res.status(401).json({ error: 'Invalid token' })
 
   req.userId = payload.userId
   next()
@@ -681,18 +705,28 @@ await hooks.fire('custom.event', { data: 'value' })
 const result = await hooks.filter('content.render', htmlContent)
 ```
 
+### Actions vs Filters
+
+Hooks come in two flavors:
+
+- **Actions** are fired with `hooks.fire(name, ctx)`. Callbacks run for side effects (logging, notifications, cache invalidation). The return value is **ignored** — if you mutate `ctx`, the mutation is visible to later callbacks and to the caller.
+- **Filters** are fired with `hooks.filter(name, value, ctx)`. Each callback receives the previous callback's return value, and the final value is returned to the caller. Return `undefined` to pass the current value through unchanged.
+
+Errors thrown inside a callback are caught and logged — they do not abort the chain.
+
 ### Available Hooks
 
-| Hook | Description |
-|------|-------------|
-| `server.starting` | Before server starts |
-| `server.started` | Server is ready |
-| `request.before` | Before route handler |
-| `request.after` | After route handler |
-| `post.created` | After post is created |
-| `comment.created` | After comment is created |
-| `theme.activated` | When theme is activated |
-| `plugin.activated` | When plugin is activated |
+| Hook | Type | Description |
+|------|------|-------------|
+| `server.starting` | action | Before server starts |
+| `server.started` | action | Server is ready |
+| `request.before` | action | Before route handler |
+| `request.after` | action | After route handler |
+| `post.created` | action | After post is created |
+| `comment.created` | action | After comment is created |
+| `theme.activated` | action | When theme is activated |
+| `plugin.activated` | action | When plugin is activated |
+| `content.render` | filter | Transform rendered HTML |
 
 ---
 
@@ -751,11 +785,12 @@ BasicBen has **zero runtime dependencies**:
     "@vitejs/plugin-react": ">=5"
   },
   "optionalDependencies": {
-    "better-sqlite3": ">=12",
     "pg": ">=8"
   }
 }
 ```
+
+SQLite uses Node's built-in `node:sqlite` module — no native dependency to install. Install `pg` only if you're using Postgres.
 
 **Everything is written from scratch:**
 

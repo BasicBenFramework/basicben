@@ -25,6 +25,6 @@
     "url": "https://github.com/BasicBenFramework/core"
   },
   "engines": {
-    "node": ">=25.8.1"
+    "node": ">=24.0.0"
   }
 }
