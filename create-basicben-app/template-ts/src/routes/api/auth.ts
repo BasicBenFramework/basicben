@@ -15,4 +15,8 @@ export default (router: Router) => {
   router.post('/api/auth/login', loginByAddress, loginByAccount, AuthController.login)
 
   router.get('/api/user', AuthController.user)
+
+  // The JWT is stateless, so this cannot revoke anything — it exists so that a
+  // sign-out is observable to a plugin (a denylist, an audit log).
+  router.post('/api/auth/logout', AuthController.logout)
 }

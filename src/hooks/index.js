@@ -97,12 +97,13 @@ export class HookManager {
 
     const callbacks = this.hooks.get(hook)
 
-    for (const { callback } of callbacks) {
+    for (const { callback, name } of callbacks) {
       try {
         await callback(context)
       } catch (err) {
-        console.error(`Error in hook "${hook}":`, err.message)
-        // Continue executing other callbacks
+        // One broken callback must not stop the others, or a single bad plugin
+        // silently disables every other plugin listening to the same hook.
+        reportHookError(hook, name, err)
       }
     }
   }
@@ -124,7 +125,7 @@ export class HookManager {
     const callbacks = this.hooks.get(hook)
     let filteredValue = value
 
-    for (const { callback } of callbacks) {
+    for (const { callback, name } of callbacks) {
       try {
         const result = await callback(filteredValue, context)
         // Only update if callback returns a value
@@ -132,8 +133,9 @@ export class HookManager {
           filteredValue = result
         }
       } catch (err) {
-        console.error(`Error in filter hook "${hook}":`, err.message)
-        // Continue with current value
+        // The value from before this callback carries on, so a broken filter
+        // costs its own contribution and nothing else.
+        reportHookError(hook, name, err)
       }
     }
 
@@ -203,6 +205,28 @@ export class HookManager {
 }
 
 // Global hook manager instance
+/**
+ * Report a callback that threw.
+ *
+ * A hook error used to surface as `Error in hook "request.before": x` with no
+ * indication of *which* plugin was at fault — on a site with several plugins
+ * listening to the same hook, that is not enough to act on. Callbacks are
+ * registered with a `plugin:hook` name, so it is available; it just was not
+ * being used.
+ *
+ * The stack is kept on the error rather than printed, so a caller that wants
+ * the detail can have it without every request logging twenty lines.
+ */
+function reportHookError(hook, name, err) {
+  const source = name ? ` (${name})` : ''
+
+  console.error(`Hook "${hook}"${source} threw: ${err.message}`)
+
+  if (process.env.BASICBEN_DEBUG_HOOKS) {
+    console.error(err.stack)
+  }
+}
+
 export const hooks = new HookManager()
 
 // Core hook names as constants for type safety and documentation

@@ -2,9 +2,9 @@
  * Load all plugins from a directory
  *
  * @param {string} dir - Directory to scan (default: plugins)
- * @param {Object} options - Loading options
- * @param {string[]} options.enabled - List of plugin names to auto-activate
- * @param {Object} options.context - Application context (db, router, etc.)
+ * @param {Object} [options] - Loading options
+ * @param {string[]} [options.enabled] - Plugin names to auto-activate
+ * @param {Object} [options.context] - Application context (db, router, etc.)
  * @returns {Promise<{loaded: string[], activated: string[], errors: Array<{name: string, error: string}>}>}
  *
  * @example
@@ -15,8 +15,8 @@
  * })
  */
 export function loadPlugins(dir?: string, options?: {
-    enabled: string[];
-    context: any;
+    enabled?: string[];
+    context?: any;
 }): Promise<{
     loaded: string[];
     activated: string[];

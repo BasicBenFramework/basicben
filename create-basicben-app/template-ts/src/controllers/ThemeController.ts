@@ -1,3 +1,4 @@
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { Settings } from '../models/Settings'
@@ -38,7 +39,11 @@ export const ThemeController = {
       return res.json({ error: 'Active theme not found' }, 404)
     }
 
-    res.json({ theme: { ...theme, active: true } })
+    // A filter, so a plugin can decide which theme actually renders — preview
+    // modes and per-audience themes both need to override the stored choice.
+    const rendered = await hooks.filter(HOOKS.THEME_RENDER, { ...theme, active: true }, { req })
+
+    res.json({ theme: rendered })
   },
 
   async show(req: Request, res: Response) {

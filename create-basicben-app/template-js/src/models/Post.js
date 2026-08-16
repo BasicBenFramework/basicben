@@ -1,4 +1,5 @@
 import { getDb } from '@basicbenframework/core/db'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent } from '@basicbenframework/core/content'
 
 export const Post = {
@@ -47,12 +48,15 @@ export const Post = {
       context: { table: 'posts', userId: data.user_id }
     })
 
+    // The last point a plugin can alter what is stored.
+    const contentSaved = await hooks.filter(HOOKS.CONTENT_SAVE, contentHtml, { type: 'post', data })
+
     const result = await db.run(
       'INSERT INTO posts (user_id, title, content, content_html, published) VALUES (?, ?, ?, ?, ?)',
-      [data.user_id, data.title, data.content, contentHtml, data.published ? 1 : 0]
+      [data.user_id, data.title, data.content, contentSaved, data.published ? 1 : 0]
     )
 
-    return { id: result.lastInsertRowid, ...data, content_html: contentHtml }
+    return { id: result.lastInsertRowid, ...data, content_html: contentSaved }
   },
 
   async update(id, data) {

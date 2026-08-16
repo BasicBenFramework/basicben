@@ -212,6 +212,70 @@ basicben registry add https://plugins.mycompany.com
 basicben registry list
 ```
 
+### How plugins hook in
+
+Every hook the framework declares now fires. A plugin listens with `hooks`,
+and the distinction that matters is between the two kinds:
+
+```js
+export default {
+  name: 'my-plugin',
+  version: '1.0.0',
+
+  hooks: {
+    // A filter: return the value, changed. Return { cancel: true, reason }
+    // to refuse the write entirely.
+    'post.creating': async (data) => ({ ...data, title: data.title.trim() }),
+    'content.render': async (html) => html.replace(/<code>/g, '<code class="hljs">'),
+    'admin.menu': async (items) => [...items, { path: '/admin/seo', label: 'SEO' }],
+
+    // A notification: the return value is ignored.
+    'post.created': async ({ post }) => { await index(post) },
+    'media.uploaded': async ({ key, url }) => { await purgeCdn(url) }
+  }
+}
+```
+
+Available: `server.*`, `request.*`, `post.*`, `page.*`, `comment.*`,
+`content.render/save/delete`, `media.*`, `auth.*`, `admin.*`, `theme.*`,
+`plugin.*`, `mail.*`.
+
+**Settings reach `initialize`, not the hooks.** A hook callback receives the
+hook's own payload — `request.before` gets `{ req, res }` — so a plugin that
+needs its settings later has to keep them:
+
+```js
+let settings = {}
+
+export default {
+  settings: { greeting: 'Hello' },
+  initialize: async (ctx) => { settings = { ...settings, ...ctx.settings } },
+  hooks: { 'server.started': async () => console.log(settings.greeting) }
+}
+```
+
+A hook that throws is reported with the plugin that caused it and the others
+carry on, so one broken plugin cannot silently disable the rest. Set
+`BASICBEN_DEBUG_HOOKS=1` for stack traces.
+
+### Activating plugins
+
+```bash
+basicben plugin activate my-plugin
+```
+
+The choice is stored in the database and read at boot, which is the same list
+the admin panel writes. **Restart the server for it to take effect** — routes
+are registered at boot and there is no deregistration, so a plugin enabled in a
+running process would not mount its routes.
+
+`enabledPlugins` in `basicben.config.js` overrides the stored list when set,
+for a deployment that wants to pin it.
+
+Plugins may be `.js`, `.mjs` or `.ts` — Node strips types natively, so a
+TypeScript plugin needs no build step, as long as it sticks to erasable syntax
+(no `enum`, no `namespace`). `.tsx` needs a build step and is not loaded.
+
 ### Creating Plugins
 
 Plugins are JavaScript modules in the `plugins/` directory:
@@ -241,6 +305,36 @@ export default {
 ```
 
 Plugins and themes can be written in JavaScript or TypeScript — `.ts`/`.tsx` files are compiled at build time via Vite.
+
+### Themes can override React, not just CSS
+
+A theme's `layouts/` and `components/` are real React components, and the app
+resolves them at runtime:
+
+```jsx
+import { createThemeRegistry, ThemeProvider, ThemeLayout } from '@basicbenframework/core/client'
+
+// Declared at build time so Vite can code-split each theme.
+const layouts = createThemeRegistry(import.meta.glob('../../themes/*/layouts/*.tsx'))
+
+createClientApp({
+  provider: ({ children }) => <ThemeProvider layouts={layouts}>{children}</ThemeProvider>,
+  routes: { /* … */ }
+})
+```
+
+Then a page renders through whichever theme is active, falling back to its own
+markup when the theme does not provide that layout:
+
+```jsx
+<ThemeLayout layout="ArchiveLayout" posts={posts} title="Feed">
+  {() => <MyOwnListing posts={posts} />}
+</ThemeLayout>
+```
+
+Resolution walks the active theme, then the fallback theme, then gives up — a
+missing layout is a gap in a theme, not an error. Chunks load lazily, so a site
+with six themes installed ships one theme's layouts to a visitor.
 
 ### Creating Themes
 

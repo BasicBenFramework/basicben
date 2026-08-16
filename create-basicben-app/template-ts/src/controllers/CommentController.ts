@@ -1,4 +1,5 @@
 import { validate, rules } from '@basicbenframework/core/validation'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Comment } from '../models/Comment'
 import { Settings } from '../models/Settings'
 import type { Request, Response } from '../types'
@@ -66,7 +67,9 @@ export const CommentController = {
     // Check if moderation is enabled
     const moderateComments = await Settings.getModerateComments()
 
-    const comment = await Comment.create({
+    // A filter, so a spam plugin can reject a comment or force it into
+    // moderation before it is ever stored.
+    const draft = await hooks.filter(HOOKS.COMMENT_CREATING, {
       post_id: postId,
       user_id: req.userId,
       parent_id,
@@ -74,7 +77,15 @@ export const CommentController = {
       author_email: req.userId ? undefined : author_email,
       content,
       approved: !moderateComments || !!req.userId // Auto-approve if moderation is off or user is logged in
-    })
+    }, { req })
+
+    if (draft?.cancel) {
+      return res.json({ error: draft.reason || 'Comment rejected.' }, 422)
+    }
+
+    const comment = await Comment.create(draft)
+
+    await hooks.fire(HOOKS.COMMENT_CREATED, { comment, userId: req.userId })
 
     res.json({ comment }, 201)
   },
@@ -105,6 +116,9 @@ export const CommentController = {
     }
 
     const approved = await Comment.approve(parseInt(req.params.id))
+
+    await hooks.fire(HOOKS.COMMENT_APPROVED, { comment: approved, userId: req.userId })
+
     res.json({ comment: approved })
   },
 

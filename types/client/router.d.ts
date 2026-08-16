@@ -19,6 +19,10 @@
  * @param {import('react').ComponentType<any>} [config.NotFound] - Component rendered when no route matches.
  *   Receives no props and is wrapped in the default layout, so an unmatched path
  *   keeps the site's navigation instead of rendering a bare string.
+ * @param {import('react').ComponentType<{children: any}>} [config.provider] - Wraps the
+ *   entire tree, outside the auth and router contexts. Use it for anything every
+ *   route needs and that must survive navigation — a theme registry, a data
+ *   cache, an error boundary.
  * @returns {import('react').FunctionComponent} React component
  */
 export function createClientApp(config: {
@@ -27,6 +31,9 @@ export function createClientApp(config: {
     api?: (path: string) => Promise<any>;
     Loading?: import("react").ComponentType<any>;
     NotFound?: import("react").ComponentType<any>;
+    provider?: import("react").ComponentType<{
+        children: any;
+    }>;
 }): import("react").FunctionComponent;
 /**
  * A route entry: either the component itself, or the component plus its guards.

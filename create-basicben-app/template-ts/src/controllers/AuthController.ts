@@ -2,6 +2,7 @@ import { validate, rules } from '@basicbenframework/core/validation'
 import { signJwt, verifyJwt, hashPassword, verifyPassword } from '@basicbenframework/core/auth'
 import { ROLES, DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import { User } from '../models/User'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { sendVerificationEmail } from './EmailVerificationController'
 import { issueChallenge } from './TwoFactorController'
 import { TwoFactor } from '../models/TwoFactor'
@@ -74,6 +75,8 @@ export const AuthController = {
       { expiresIn: '7d' }
     )
 
+    await hooks.fire(HOOKS.AUTH_REGISTER, { user, role, verificationSent })
+
     res.json({
       user: {
         id: user.id,
@@ -129,6 +132,8 @@ export const AuthController = {
       { expiresIn: '7d' }
     )
 
+    await hooks.fire(HOOKS.AUTH_LOGIN, { user, req })
+
     res.json({
       user: {
         id: user.id,
@@ -139,6 +144,20 @@ export const AuthController = {
       },
       token
     })
+  },
+
+  /**
+   * Sign out.
+   *
+   * The token is a stateless JWT, so nothing here can revoke it — it stays
+   * valid until it expires, and the client is what discards it. The endpoint
+   * exists for the hook: a plugin implementing a token denylist, or an audit
+   * log, needs a point at which a sign-out is observable, and there was none.
+   */
+  async logout(req: Request, res: Response) {
+    await hooks.fire(HOOKS.AUTH_LOGOUT, { userId: req.userId, req })
+
+    res.json({ message: 'Signed out.' })
   },
 
   async user(req: Request, res: Response) {

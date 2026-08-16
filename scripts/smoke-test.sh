@@ -68,6 +68,35 @@ cd "$WORK_DIR"
 tar -xzf "$CREATE_TGZ"
 node package/index.js "$APP_NAME" $TS_FLAG > /dev/null
 
+# A plugin that exercises the extension points, installed before the build so
+# it is discovered at boot like a real one.
+mkdir -p "$APP_NAME/plugins"
+cat > "$APP_NAME/plugins/probe.js" <<'PROBE'
+export default {
+  name: 'probe',
+  version: '1.0.0',
+  hooks: {
+    'post.creating': async (data) => ({ ...data, title: `[hooked] ${data.title}` }),
+    'content.save': async (html) => `${html}<p data-probe="1"></p>`,
+    'admin.menu': async (items) => [...items, { path: '/admin/probe', label: 'Probe' }],
+    'server.started': async () => { console.log('PROBE:server.started') }
+  },
+  initialize: async () => { console.log('PROBE:initialized') },
+  routes: (router) => {
+    router.get('/api/probe', (req, res) => res.json({ ok: true }))
+  }
+}
+PROBE
+
+# A plugin that throws, to prove one bad plugin cannot disable the others.
+cat > "$APP_NAME/plugins/broken.js" <<'BROKEN'
+export default {
+  name: 'broken',
+  version: '1.0.0',
+  hooks: { 'post.created': async () => { throw new Error('deliberate') } }
+}
+BROKEN
+
 FILE_COUNT="$(find "$APP_NAME" -type f | wc -l | tr -d ' ')"
 if [ "$FILE_COUNT" -lt 20 ]; then
   fail "scaffolded app has only $FILE_COUNT files"
@@ -141,6 +170,21 @@ pass "built client and server"
 npx basicben migrate > /dev/null 2>&1 || fail "migrations failed"
 pass "ran migrations"
 
+# --- Plugin activation --------------------------------------------------------
+#
+# This used to print a tick directly beneath "is not registered" and exit 0,
+# because activate() returned false and the CLI never looked at it.
+
+if npx basicben plugin activate does-not-exist > "$WORK_DIR/activate.log" 2>&1; then
+  cat "$WORK_DIR/activate.log"
+  fail "activating a missing plugin exited 0"
+fi
+pass "activating a missing plugin fails loudly"
+
+npx basicben plugin activate probe > /dev/null 2>&1 || fail "could not activate the probe plugin"
+npx basicben plugin activate broken > /dev/null 2>&1 || true
+pass "activated a plugin from the CLI"
+
 # --- Boot --------------------------------------------------------------------
 
 # --env-file matches how `basicben start` runs this, so APP_KEY is available
@@ -157,6 +201,23 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 pass "server booted"
+
+# The activation must have survived the CLI process and been read back at boot.
+grep -q "PROBE:initialized" "$WORK_DIR/server.log" \
+  || { cat "$WORK_DIR/server.log"; fail "the plugin was never activated at boot"; }
+pass "plugins activate at boot from the stored list"
+
+grep -q "PROBE:server.started" "$WORK_DIR/server.log" \
+  || fail "server.started never fired — it only fires from app.start(), which nothing calls"
+pass "server.started fires"
+
+# Only the TypeScript template ships a themes/ directory; loadThemes() returns
+# early when there is none, which is correct rather than a failure.
+if [ "$APP_NAME" = "smoke-ts" ]; then
+  grep -qi "Loaded themes" "$WORK_DIR/server.log" \
+    || fail "loadThemes() is not being called"
+  pass "themes load at boot"
+fi
 
 status() { curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT$1"; }
 
@@ -456,6 +517,40 @@ POST_ID="$(printf '%s' "$CREATED" | sed -n 's/.*"id":\([0-9]*\).*/\1/p' | head -
 
 STORED="$(curl -s "http://localhost:$PORT/api/posts/$POST_ID" \
   -H "Authorization: Bearer $MD_TOKEN")"
+
+# The plugin's filters must have altered what was actually written.
+case "$CREATED" in
+  *'[hooked] Markdown test'*) pass "post.creating filtered the write" ;;
+  *) echo "$CREATED"; fail "post.creating did not alter the stored title" ;;
+esac
+
+case "$CREATED" in
+  *'data-probe'*) pass "content.save filtered the stored HTML" ;;
+  *) fail "content.save did not affect what was stored" ;;
+esac
+
+grep -qi 'Hook "post.created" (broken' "$WORK_DIR/server.log" \
+  && pass "a failing hook is reported with the plugin that caused it" \
+  || fail "a failing plugin hook was swallowed, or does not name the plugin"
+
+PROBE_ROUTE="$(curl -s "http://localhost:$PORT/api/probe")"
+case "$PROBE_ROUTE" in
+  *'"ok"'*) pass "plugin routes are mounted" ;;
+  *) echo "$PROBE_ROUTE"; fail "the plugin's route was never registered" ;;
+esac
+
+# The admin API only exists in the TypeScript template.
+if [ "$APP_NAME" = "smoke-ts" ]; then
+  MENU="$(curl -s "http://localhost:$PORT/api/admin/menu" -H "Authorization: Bearer $OWNER_TOKEN")"
+  case "$MENU" in
+    *'/admin/probe'*) pass "a plugin can extend the admin menu" ;;
+    *) echo "$MENU"; fail "admin.menu did not reach the UI" ;;
+  esac
+  case "$MENU" in
+    *'/admin/posts'*) pass "and the built-in menu items survive" ;;
+    *) fail "the plugin replaced the menu instead of extending it" ;;
+  esac
+fi
 
 case "$STORED" in
   *'<h1'*) pass "markdown is rendered on save" ;;

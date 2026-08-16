@@ -1,5 +1,14 @@
 import { validate, rules } from '@basicbenframework/core/validation'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Post } from '../models/Post.js'
+
+/**
+ * Hooks fire from here so plugins can take part in the content lifecycle.
+ *
+ * `*.creating` and `*.updating` are filters — a plugin returns the data,
+ * possibly changed, or `{ cancel: true }` to refuse the write. `*.created`
+ * and `*.updated` are notifications; their return value is ignored.
+ */
 
 export const PostController = {
   async index(req, res) {
@@ -26,12 +35,21 @@ export const PostController = {
     }
 
     const { title, content, published } = req.body
-    const post = await Post.create({
+
+    const draft = await hooks.filter(HOOKS.POST_CREATING, {
       user_id: req.userId,
       title,
       content,
       published: published || false
-    })
+    }, { req })
+
+    if (draft?.cancel) {
+      return res.json({ error: draft.reason || 'Post rejected.' }, 422)
+    }
+
+    const post = await Post.create(draft)
+
+    await hooks.fire(HOOKS.POST_CREATED, { post, userId: req.userId })
 
     res.json({ post }, 201)
   },
@@ -52,11 +70,20 @@ export const PostController = {
     }
 
     const { title, content, published } = req.body
-    const updated = await Post.update(req.params.id, {
+
+    const changes = await hooks.filter(HOOKS.POST_UPDATING, {
       title,
       content,
       published: published ? 1 : 0
-    })
+    }, { req, post })
+
+    if (changes?.cancel) {
+      return res.json({ error: changes.reason || 'Update rejected.' }, 422)
+    }
+
+    const updated = await Post.update(req.params.id, changes)
+
+    await hooks.fire(HOOKS.POST_UPDATED, { post: updated, previous: post, userId: req.userId })
 
     res.json({ post: updated })
   },
@@ -67,7 +94,16 @@ export const PostController = {
       return res.json({ error: 'Post not found' }, 404)
     }
 
+    const intent = await hooks.filter(HOOKS.POST_DELETING, { post, cancel: false }, { req })
+
+    if (intent?.cancel) {
+      return res.json({ error: intent.reason || 'Deletion rejected.' }, 422)
+    }
+
     await Post.delete(req.params.id)
+
+    await hooks.fire(HOOKS.POST_DELETED, { post, userId: req.userId })
+
     res.json({ message: 'Post deleted' })
   },
 

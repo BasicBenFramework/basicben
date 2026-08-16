@@ -89,9 +89,17 @@
       "types": "./types/plugins/index.d.ts",
       "default": "./src/plugins/index.js"
     },
+    "./plugins/loader": {
+      "types": "./types/plugins/loader.d.ts",
+      "default": "./src/plugins/loader.js"
+    },
     "./themes": {
       "types": "./types/themes/index.d.ts",
       "default": "./src/themes/index.js"
+    },
+    "./themes/loader": {
+      "types": "./types/themes/loader.d.ts",
+      "default": "./src/themes/loader.js"
     },
     "./updates": {
       "types": "./types/updates/index.d.ts",

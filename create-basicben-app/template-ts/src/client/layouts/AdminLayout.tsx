@@ -1,6 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { api } from '../../helpers/api'
 import { useAuth, useNavigate, usePath } from '@basicbenframework/core/client'
 import UpdateBanner from '../components/admin/UpdateBanner'
+
+interface MenuItem {
+  path: string
+  label: string
+  icon?: string
+}
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -18,7 +25,16 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     navigate('/auth')
   }
 
-  const menuItems = [
+  /*
+    The menu comes from the server because that is the realm plugins load into.
+    Firing admin.menu in the browser would consult a hook registry that no
+    plugin has ever registered with, so a plugin could never add a nav item.
+
+    The same list is hard-coded as a fallback: the sidebar must render even if
+    the request fails, and it must not flash empty while the request is in
+    flight.
+  */
+  const DEFAULT_MENU: MenuItem[] = [
     { path: '/admin', label: 'Dashboard', icon: '📊' },
     { path: '/admin/posts', label: 'Posts', icon: '📝' },
     { path: '/admin/pages', label: 'Pages', icon: '📄' },
@@ -31,6 +47,25 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     { path: '/admin/updates', label: 'Updates', icon: '⬆️' },
     { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
   ]
+
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(DEFAULT_MENU)
+
+  useEffect(() => {
+    let cancelled = false
+
+    api.get<{ menu: MenuItem[] }>('/api/admin/menu')
+      .then((data) => {
+        if (!cancelled && Array.isArray(data?.menu) && data.menu.length > 0) {
+          setMenuItems(data.menu)
+        }
+      })
+      .catch(() => { /* the built-in menu is already showing */ })
+
+    // Lets a plugin do any one-off setup before the first admin screen renders.
+    api.post('/api/admin/init').catch(() => {})
+
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <div className="admin-layout">

@@ -1,7 +1,20 @@
 import { validate, rules } from '@basicbenframework/core/validation'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Post } from '../models/Post'
 import type { Request, Response } from '../types'
 
+/**
+ * Hooks fire from here so plugins can take part in the content lifecycle.
+ *
+ * The `*.creating` and `*.updating` hooks are **filters**: a plugin receives
+ * the data and returns it, possibly changed, or returns `{ cancel: true }` to
+ * refuse the write. The `*.created`, `*.updated` and `*.deleted` hooks are
+ * notifications — the write has happened and their return value is ignored.
+ *
+ * These live in the controller rather than the model because models here are
+ * hand-written plain objects with no base class to hang a lifecycle on. The
+ * cost is that an app which rewrites a controller has to keep the calls.
+ */
 export const PostController = {
   async index(req: Request, res: Response) {
     const posts = await Post.findByUser(req.userId!)
@@ -27,12 +40,21 @@ export const PostController = {
     }
 
     const { title, content, published } = req.body as { title: string; content: string; published?: boolean }
-    const post = await Post.create({
+
+    const draft = await hooks.filter(HOOKS.POST_CREATING, {
       user_id: req.userId!,
       title,
       content,
       published: published || false
-    })
+    }, { req })
+
+    if (draft?.cancel) {
+      return res.json({ error: draft.reason || 'Post rejected.' }, 422)
+    }
+
+    const post = await Post.create(draft)
+
+    await hooks.fire(HOOKS.POST_CREATED, { post, userId: req.userId })
 
     res.json({ post }, 201)
   },
@@ -53,11 +75,20 @@ export const PostController = {
     }
 
     const { title, content, published } = req.body as { title: string; content: string; published?: boolean }
-    const updated = await Post.update(parseInt(req.params.id), {
+
+    const changes = await hooks.filter(HOOKS.POST_UPDATING, {
       title,
       content,
       published: published ? 1 : 0
-    })
+    }, { req, post })
+
+    if (changes?.cancel) {
+      return res.json({ error: changes.reason || 'Update rejected.' }, 422)
+    }
+
+    const updated = await Post.update(parseInt(req.params.id), changes)
+
+    await hooks.fire(HOOKS.POST_UPDATED, { post: updated, previous: post, userId: req.userId })
 
     res.json({ post: updated })
   },
@@ -68,7 +99,16 @@ export const PostController = {
       return res.json({ error: 'Post not found' }, 404)
     }
 
+    const intent = await hooks.filter(HOOKS.POST_DELETING, { post, cancel: false }, { req })
+
+    if (intent?.cancel) {
+      return res.json({ error: intent.reason || 'Deletion rejected.' }, 422)
+    }
+
     await Post.delete(parseInt(req.params.id))
+
+    await hooks.fire(HOOKS.POST_DELETED, { post, userId: req.userId })
+
     res.json({ message: 'Post deleted' })
   },
 

@@ -1,77 +1,108 @@
 /**
- * Hello World Plugin - Example BasicBen Plugin
+ * Hello World — an example BasicBen plugin.
  *
- * This is an example plugin that demonstrates the plugin architecture.
- * It logs request information and adds a custom API endpoint.
+ * Demonstrates the four things a plugin can do: read its own settings, listen
+ * to hooks, filter content, and register routes.
+ *
+ * ## Getting settings into a hook
+ *
+ * This is the one part that catches people out. Hook callbacks receive the
+ * hook's own payload — `request.before` gets `{ req, res }` — and **not** the
+ * plugin context. Settings arrive only in `initialize`, so a plugin that wants
+ * them later has to hold on to them, which is what `settings` below does.
+ *
+ * Reading `ctx.settings` inside a hook, which this example used to do, silently
+ * yields undefined: the callback runs, the condition is always false, and
+ * nothing appears to happen.
+ *
+ * ## Activating it
+ *
+ *   basicben plugin activate hello-world
+ *
+ * then restart the server. Activation is recorded in the database and read at
+ * boot; it does not take effect in a running process.
  */
 
+/** Populated by initialize(), read by the hooks below. */
+let settings = {
+  greeting: 'Hello',
+  logRequests: false
+}
+
 export default {
-  // Required: Unique plugin identifier
   name: 'hello-world',
-
-  // Required: Semantic version
   version: '1.0.0',
-
-  // Optional: Plugin description
   description: 'Example plugin that demonstrates the BasicBen plugin architecture',
-
-  // Optional: Author information
   author: 'BasicBen',
 
-  // Optional: Default settings (can be modified via admin panel)
+  /** Defaults, overridable from the admin panel. */
   settings: {
     greeting: 'Hello',
-    logRequests: true
+    logRequests: false
   },
 
-  // Hook callbacks - automatically registered when plugin is activated
   hooks: {
-    // Fire before each request
-    'request.before': async (ctx) => {
-      // ctx contains { req, res }
-      // Access settings via plugin context
-      if (ctx.settings?.logRequests) {
-        console.log(`[HelloWorld] ${ctx.req.method} ${ctx.req.url}`)
+    /**
+     * Every request, before routing.
+     *
+     * The payload is `{ req, res }` — settings come from the closure above.
+     */
+    'request.before': async ({ req }) => {
+      if (settings.logRequests) {
+        console.log(`[hello-world] ${req.method} ${req.url}`)
       }
-      return ctx
     },
 
-    // Fire when server starts
-    'server.started': async (ctx) => {
-      console.log('[HelloWorld] Server is ready!')
-      console.log(`[HelloWorld] Greeting is set to: ${ctx.settings?.greeting || 'Hello'}`)
+    'server.started': async () => {
+      console.log(`[hello-world] ready — greeting is "${settings.greeting}"`)
+    },
+
+    /**
+     * A filter: whatever it returns replaces the rendered HTML.
+     *
+     * The allowlist in the content sanitizer applies to this output too, so a
+     * tag it does not permit will be stripped after this runs.
+     */
+    'content.render': async (html) => html,
+
+    /** A notification: the return value is ignored. */
+    'post.created': async ({ post }) => {
+      console.log(`[hello-world] post created: ${post.title}`)
     }
   },
 
-  // Called when plugin is activated
-  // Receives context: { router, app, config, hooks, settings, updateSettings }
+  /**
+   * Runs on activation. The only place settings are handed to the plugin.
+   *
+   * @param {Object} ctx - { router, app, config, hooks, settings, updateSettings }
+   */
   initialize: async (ctx) => {
-    console.log('[HelloWorld] Plugin initialized')
+    settings = { ...settings, ...ctx.settings }
 
-    // You can access and update settings
-    const currentSettings = ctx.settings
-    console.log('[HelloWorld] Current settings:', currentSettings)
+    console.log('[hello-world] initialized')
   },
 
-  // Called when plugin is deactivated
-  destroy: async (ctx) => {
-    console.log('[HelloWorld] Plugin destroyed')
+  destroy: async () => {
+    console.log('[hello-world] destroyed')
   },
 
-  // Optional: Register custom routes
-  // Receives the router instance
+  /**
+   * Routes are registered at boot, when the plugin is activated.
+   *
+   * There is no route deregistration, so a plugin activated from the admin
+   * panel while the server is running will not mount these until a restart.
+   */
   routes: (router) => {
-    // Add a custom endpoint
     router.get('/api/hello', (req, res) => {
       res.json({
-        message: 'Hello from the hello-world plugin!',
+        message: `${settings.greeting} from the hello-world plugin!`,
         timestamp: new Date().toISOString()
       })
     })
 
     router.get('/api/hello/:name', (req, res) => {
       res.json({
-        message: `Hello, ${req.params.name}!`,
+        message: `${settings.greeting}, ${req.params.name}!`,
         timestamp: new Date().toISOString()
       })
     })

@@ -13,7 +13,7 @@ export { db, query, getDb, QueryBuilder, Grammar } from './db/index.js'
 // Hooks & Plugins
 export { hooks, HookManager, HOOKS } from './hooks/index.js'
 export { plugins, PluginManager } from './plugins/index.js'
-export { loadPlugins, scanPlugins } from './plugins/loader.js'
+export { loadPlugins, scanPlugins, loadEnabledPlugins, saveEnabledPlugins } from './plugins/loader.js'
 
 // Themes
 export { themes, ThemeManager } from './themes/index.js'

@@ -1,4 +1,4 @@
-import { createClientApp } from '@basicbenframework/core/client'
+import { createClientApp, createThemeRegistry, ThemeProvider } from '@basicbenframework/core/client'
 import { AppLayout } from '../client/layouts/AppLayout'
 import { AuthLayout } from '../client/layouts/AuthLayout'
 import { DocsLayout } from '../client/layouts/DocsLayout'
@@ -32,7 +32,32 @@ import AdminSettings from '../client/pages/admin/Settings'
 // Admin layout wrapper (no default layout)
 const NoLayout = ({ children }: { children: React.ReactNode }) => <>{children}</>
 
+/**
+ * Discover every installed theme's React components.
+ *
+ * The browser cannot read the themes/ directory and a bundler cannot follow an
+ * import path only known at runtime, so the pattern is declared here at build
+ * time. Vite turns each match into its own lazily-loaded chunk, and the active
+ * theme decides which one is fetched — a site with six themes installed does
+ * not ship six sets of layouts to every visitor.
+ */
+const themeLayouts = createThemeRegistry(
+  import.meta.glob('../../themes/*/layouts/*.tsx')
+)
+
+const themeComponents = createThemeRegistry(
+  import.meta.glob('../../themes/*/components/*.tsx')
+)
+
+/** Wraps the app so any page can reach the active theme's components. */
+const withThemes = ({ children }: { children: React.ReactNode }) => (
+  <ThemeProvider layouts={themeLayouts} components={themeComponents} fallback="default">
+    {children}
+  </ThemeProvider>
+)
+
 export default createClientApp({
+  provider: withThemes,
   layout: AppLayout,
   routes: {
     '/': Home,

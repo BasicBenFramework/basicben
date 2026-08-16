@@ -1,4 +1,5 @@
 import { validate, rules } from '@basicbenframework/core/validation'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { signJwt, verifyJwt, hashPassword, verifyPassword } from '@basicbenframework/core/auth'
 import { ROLES, DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import { User } from '../models/User.js'

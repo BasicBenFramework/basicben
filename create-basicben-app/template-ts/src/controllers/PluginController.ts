@@ -135,79 +135,27 @@ export const PluginController = {
   }
 }
 
+/**
+ * The installed plugins, as the plugin manager knows them.
+ *
+ * This used to re-implement discovery here and pull metadata out of each
+ * plugin's source with `content.match(/name:\s*['"]([^'"]+)['"]/)`. That reads
+ * the first thing in the file that looks like a name — a string in a comment,
+ * a nested config object, a route label — and returns nothing at all for a
+ * plugin that computes its metadata rather than writing it as a literal.
+ *
+ * The manager has the real config, because the plugin was actually imported.
+ */
 async function getInstalledPlugins(): Promise<PluginInfo[]> {
-  const pluginsPath = resolve(process.cwd(), PLUGINS_DIR)
-  const plugins: PluginInfo[] = []
+  const { plugins } = await import('@basicbenframework/core/plugins')
+  const { loadPlugins } = await import('@basicbenframework/core/plugins/loader')
 
-  if (!existsSync(pluginsPath)) {
-    return plugins
+  // In the server process these are already loaded at boot. Loading again is
+  // idempotent — register() overwrites by name — and covers the case where this
+  // controller runs somewhere the boot sequence has not.
+  if (plugins.list().length === 0) {
+    await loadPlugins(PLUGINS_DIR, { context: {} })
   }
 
-  const entries = readdirSync(pluginsPath)
-
-  for (const entry of entries) {
-    if (entry.startsWith('.')) continue
-
-    const fullPath = join(pluginsPath, entry)
-
-    // Check if it's a directory with index.js or a single file
-    if (existsSync(join(fullPath, 'index.js')) || existsSync(join(fullPath, 'plugin.json'))) {
-      // Directory plugin
-      const configPath = join(fullPath, 'plugin.json')
-      const indexPath = join(fullPath, 'index.js')
-
-      let config: PluginInfo = { name: entry, version: '1.0.0', active: false }
-
-      if (existsSync(configPath)) {
-        try {
-          const content = readFileSync(configPath, 'utf-8')
-          const parsed = JSON.parse(content)
-          config = { ...config, ...parsed }
-        } catch {
-          // Use defaults
-        }
-      } else if (existsSync(indexPath)) {
-        // Try to extract metadata from the JS file
-        try {
-          const content = readFileSync(indexPath, 'utf-8')
-          const nameMatch = content.match(/name:\s*['"]([^'"]+)['"]/)
-          const versionMatch = content.match(/version:\s*['"]([^'"]+)['"]/)
-          const descMatch = content.match(/description:\s*['"]([^'"]+)['"]/)
-
-          if (nameMatch) config.name = nameMatch[1]
-          if (versionMatch) config.version = versionMatch[1]
-          if (descMatch) config.description = descMatch[1]
-        } catch {
-          // Use defaults
-        }
-      }
-
-      plugins.push(config)
-    } else if (entry.endsWith('.js') || entry.endsWith('.mjs')) {
-      // Single file plugin
-      const pluginPath = join(pluginsPath, entry)
-
-      try {
-        const content = readFileSync(pluginPath, 'utf-8')
-        const nameMatch = content.match(/name:\s*['"]([^'"]+)['"]/)
-        const versionMatch = content.match(/version:\s*['"]([^'"]+)['"]/)
-        const descMatch = content.match(/description:\s*['"]([^'"]+)['"]/)
-
-        plugins.push({
-          name: nameMatch ? nameMatch[1] : entry.replace(/\.(m?js)$/, ''),
-          version: versionMatch ? versionMatch[1] : '1.0.0',
-          description: descMatch ? descMatch[1] : undefined,
-          active: false
-        })
-      } catch {
-        plugins.push({
-          name: entry.replace(/\.(m?js)$/, ''),
-          version: '1.0.0',
-          active: false
-        })
-      }
-    }
-  }
-
-  return plugins
+  return plugins.list() as PluginInfo[]
 }

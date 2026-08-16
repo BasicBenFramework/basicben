@@ -59,9 +59,16 @@ export class PluginManager {
     /**
      * Activate a plugin
      *
+     * Throws on failure rather than returning false. Returning a boolean that
+     * callers did not check is why `basicben plugin activate` printed a tick
+     * directly beneath "is not registered" and exited 0. Callers that want to
+     * tolerate a failure — the loader, activating many plugins at boot — catch it
+     * deliberately; callers that do not, surface it.
+     *
      * @param {string} name - Plugin name
      * @param {Object} [options] - Activation options
-     * @returns {Promise<boolean>}
+     * @returns {Promise<boolean>} true, or throws
+     * @throws {Error} when the plugin is not registered or its initialize fails
      */
     activate(name: string, options?: any): Promise<boolean>;
     /**

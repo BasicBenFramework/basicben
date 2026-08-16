@@ -100,20 +100,32 @@ export class PluginManager {
   /**
    * Activate a plugin
    *
+   * Throws on failure rather than returning false. Returning a boolean that
+   * callers did not check is why `basicben plugin activate` printed a tick
+   * directly beneath "is not registered" and exited 0. Callers that want to
+   * tolerate a failure — the loader, activating many plugins at boot — catch it
+   * deliberately; callers that do not, surface it.
+   *
    * @param {string} name - Plugin name
    * @param {Object} [options] - Activation options
-   * @returns {Promise<boolean>}
+   * @returns {Promise<boolean>} true, or throws
+   * @throws {Error} when the plugin is not registered or its initialize fails
    */
   async activate(name, options = {}) {
     const plugin = this.plugins.get(name)
 
     if (!plugin) {
-      console.error(`Plugin "${name}" is not registered`)
-      return false
+      const known = [...this.plugins.keys()]
+
+      throw new Error(
+        `Plugin "${name}" is not registered.` +
+        (known.length
+          ? ` Registered plugins: ${known.join(', ')}.`
+          : ' No plugins have been loaded — call loadPlugins() first.')
+      )
     }
 
     if (this.activePlugins.has(name)) {
-      console.warn(`Plugin "${name}" is already active`)
       return true
     }
 
@@ -144,11 +156,20 @@ export class PluginManager {
       // Fire plugin activated hook
       await hooks.fire('plugin.activated', { plugin: name, config: plugin })
 
-      console.log(`Plugin "${name}" activated`)
       return true
     } catch (err) {
-      console.error(`Failed to activate plugin "${name}":`, err.message)
-      return false
+      // Roll back the hooks bound above. A plugin whose initialize threw is not
+      // active, and leaving its callbacks attached means a half-initialized
+      // plugin still runs on every request.
+      if (plugin.hooks) {
+        for (const [hook, callback] of Object.entries(plugin.hooks)) {
+          hooks.off(hook, callback)
+        }
+      }
+
+      this.activePlugins.delete(name)
+
+      throw new Error(`Plugin "${name}" failed to activate: ${err.message}`, { cause: err })
     }
   }
 

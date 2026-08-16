@@ -14,8 +14,8 @@ import { themes } from './index.js'
  * Load all themes from a directory
  *
  * @param {string} dir - Directory to scan (default: themes)
- * @param {Object} options - Loading options
- * @param {string} options.activeTheme - Theme to activate after loading
+ * @param {Object} [options] - Loading options
+ * @param {string} [options.activeTheme] - Theme to activate after loading
  * @param {Object} options.context - Application context
  * @returns {Promise<{loaded: string[], errors: Array<{name: string, error: string}>}>}
  */

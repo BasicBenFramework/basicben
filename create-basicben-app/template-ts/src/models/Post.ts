@@ -1,4 +1,5 @@
 import { getDb } from '@basicbenframework/core/db'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent } from '@basicbenframework/core/content'
 import { getStorage } from '@basicbenframework/core/storage'
 import type { Post as PostType } from '../types'
@@ -68,16 +69,20 @@ export const Post = {
       context: { table: 'posts', userId: data.user_id }
     })
 
+    // The last point a plugin can alter what is stored. Its return value has
+    // to be what gets written, or the filter is decoration.
+    const contentSaved = await hooks.filter(HOOKS.CONTENT_SAVE, contentHtml, { type: 'post', data })
+
     const result = await db.run(
       'INSERT INTO posts (user_id, title, content, content_html, published) VALUES (?, ?, ?, ?, ?)',
-      [data.user_id, data.title, data.content, contentHtml, data.published ? 1 : 0]
+      [data.user_id, data.title, data.content, contentSaved, data.published ? 1 : 0]
     )
 
     const now = new Date().toISOString()
     return {
       id: result.lastInsertRowid as number,
       ...data,
-      content_html: contentHtml,
+      content_html: contentSaved,
       published: data.published,
       created_at: now,
       updated_at: now

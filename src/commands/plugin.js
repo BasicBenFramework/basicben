@@ -358,13 +358,51 @@ async function activatePlugin(args, flags) {
   console.log(`\n${dim('Activating plugin...')}\n`)
 
   try {
-    // Import plugins manager
+    // The CLI runs in a fresh process where nothing has been loaded yet, so the
+    // plugin has to be discovered before it can be activated. Without this,
+    // activate() was always called against an empty registry — it failed, and
+    // the tick below printed anyway because nothing checked.
+    const { loadPlugins } = await import('../plugins/loader.js')
     const { plugins } = await import('../plugins/index.js')
+
+    await loadPlugins('plugins', { context: {} })
     await plugins.activate(slug)
-    console.log(`${green('✓')} Plugin ${bold(slug)} activated.\n`)
+
+    // Persist it, or the choice is forgotten the moment this process exits.
+    // The server reads this list at boot; the admin UI writes the same key.
+    await persistEnabled(slug, true)
+
+    console.log(`${green('✓')} Plugin ${bold(slug)} activated.`)
+    console.log(`${dim('  Restart the server for its hooks and routes to take effect.')}\n`)
   } catch (error) {
     console.error(`${red('✗')} ${error.message}\n`)
     process.exit(1)
+  }
+}
+
+/**
+ * Add or remove a plugin from the enabled list the server reads at boot.
+ *
+ * Silently does nothing when there is no database — activation still worked for
+ * this process, and a project without one is configured through
+ * `enabledPlugins` in basicben.config.js instead.
+ */
+async function persistEnabled(slug, enabled) {
+  try {
+    const { getDb } = await import('../db/index.js')
+    const { saveEnabledPlugins } = await import('../plugins/loader.js')
+    const db = await getDb()
+
+    const row = await db.get('SELECT value FROM settings WHERE key = ?', ['enabled_plugins'])
+    const current = row?.value ? JSON.parse(row.value) : []
+
+    const next = enabled
+      ? [...new Set([...current, slug])]
+      : current.filter((name) => name !== slug)
+
+    await saveEnabledPlugins(db, next)
+  } catch {
+    console.log(`${dim('  (no database — add it to enabledPlugins in basicben.config.js to persist)')}`)
   }
 }
 
@@ -383,9 +421,13 @@ async function deactivatePlugin(args, flags) {
   console.log(`\n${dim('Deactivating plugin...')}\n`)
 
   try {
-    const { plugins } = await import('../plugins/index.js')
-    await plugins.deactivate(slug)
-    console.log(`${green('✓')} Plugin ${bold(slug)} deactivated.\n`)
+    // What matters here is the stored list, not this process. The plugin is not
+    // running in the CLI, so "deactivating" it means taking it off the list the
+    // server activates from at boot.
+    await persistEnabled(slug, false)
+
+    console.log(`${green('✓')} Plugin ${bold(slug)} deactivated.`)
+    console.log(`${dim('  Restart the server to unload it.')}\n`)
   } catch (error) {
     console.error(`${red('✗')} ${error.message}\n`)
     process.exit(1)

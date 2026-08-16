@@ -23,10 +23,14 @@ import { RouterContext, AuthContext } from './context.js'
  * @param {import('react').ComponentType<any>} [config.NotFound] - Component rendered when no route matches.
  *   Receives no props and is wrapped in the default layout, so an unmatched path
  *   keeps the site's navigation instead of rendering a bare string.
+ * @param {import('react').ComponentType<{children: any}>} [config.provider] - Wraps the
+ *   entire tree, outside the auth and router contexts. Use it for anything every
+ *   route needs and that must survive navigation — a theme registry, a data
+ *   cache, an error boundary.
  * @returns {import('react').FunctionComponent} React component
  */
 export function createClientApp(config) {
-  const { routes, layout: DefaultLayout, api, Loading, NotFound } = config
+  const { routes, layout: DefaultLayout, api, Loading, NotFound, provider: Provider } = config
 
   // Normalize routes to consistent format
   const normalizedRoutes = Object.entries(routes).map(([path, value]) => {
@@ -151,7 +155,7 @@ export function createClientApp(config) {
     }
 
     // Provide context
-    return createElement(
+    const tree = createElement(
       AuthContext.Provider,
       { value: { user, setUser, logout, loading } },
       createElement(
@@ -160,6 +164,12 @@ export function createClientApp(config) {
         wrapped
       )
     )
+
+    // An app-supplied wrapper goes outside both, so anything it provides is
+    // available to every route and every layout — a theme registry, a query
+    // client, an error boundary. Outside rather than inside because a provider
+    // that only covered the matched route would remount on every navigation.
+    return Provider ? createElement(Provider, null, tree) : tree
   }
 
   return App

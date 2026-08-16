@@ -94,25 +94,30 @@ export async function createServer(options = {}) {
   // Load and register plugins
   if (mergedConfig.plugins !== false) {
     const pluginDir = mergedConfig.pluginsDir || 'plugins'
-    const enabledPlugins = mergedConfig.enabledPlugins || []
 
-    // Set plugin context
-    plugins.setContext({
+    // Which plugins are enabled comes from the database, because that is what
+    // the admin UI writes to. Reading only `enabledPlugins` from config — which
+    // defaults to [] and which the templates never set — meant every plugin was
+    // loaded and registered but none was ever activated, so hooks never bound
+    // and `initialize` never ran. Config still wins when it is set, so a
+    // deployment can pin the list without a database.
+    const enabledPlugins = mergedConfig.enabledPlugins?.length
+      ? mergedConfig.enabledPlugins
+      : await readEnabledPlugins(mergedConfig)
+
+    const pluginContext = {
       router,
       app,
       config: mergedConfig,
       hooks
-    })
+    }
+
+    plugins.setContext(pluginContext)
 
     // Load plugins from directory
     const pluginResult = await loadPlugins(pluginDir, {
       enabled: enabledPlugins,
-      context: {
-        router,
-        app,
-        config: mergedConfig,
-        hooks
-      }
+      context: pluginContext
     })
 
     if (pluginResult.loaded.length > 0) {
@@ -130,8 +135,53 @@ export async function createServer(options = {}) {
     }
   }
 
+  // Load themes. Nothing called this before, so the themes singleton was always
+  // empty at runtime — which is why `basicben theme list` showed no status and
+  // why the theme API could not report an active theme.
+  if (mergedConfig.themes !== false) {
+    const { loadThemes } = await import('../themes/loader.js')
+
+    const themeResult = await loadThemes(mergedConfig.themesDir || 'themes', {
+      activeTheme: mergedConfig.activeTheme || await readActiveTheme(mergedConfig),
+      context: { config: mergedConfig, hooks }
+    })
+
+    if (themeResult.loaded.length > 0) {
+      console.log(`Loaded themes: ${themeResult.loaded.join(', ')}`)
+    }
+
+    for (const error of themeResult.errors) {
+      console.error(`Theme error (${error.name}): ${error.error}`)
+    }
+  }
+
   // Apply plugin routes
   router.applyTo(app)
+
+  // `server.started` used to fire only from app.start(), and nothing calls
+  // app.start() — both the TypeScript template's entry and the generated
+  // production entry call app.listen() directly. So the hook never fired in any
+  // real app, including for the example plugin that listens for it.
+  //
+  // Wrapping listen() means it fires however the server is started, including
+  // from a hand-written entry. The flag stops it firing twice when app.start()
+  // is used, since that calls listen() underneath.
+  const nativeListen = app.listen.bind(app)
+  let announced = false
+
+  const announceStarted = async (port) => {
+    if (announced) return
+    announced = true
+
+    await hooks.fire(HOOKS.SERVER_STARTED, { port, config: mergedConfig })
+  }
+
+  app.listen = (port, callback) => {
+    return nativeListen(port, async (err) => {
+      if (!err) await announceStarted(port)
+      if (callback) callback(err)
+    })
+  }
 
   /**
    * Start the server
@@ -145,12 +195,6 @@ export async function createServer(options = {}) {
           reject(err)
           return
         }
-
-        // Fire server.started hook
-        await hooks.fire(HOOKS.SERVER_STARTED, {
-          port: listenPort,
-          config: mergedConfig
-        })
 
         if (callback) callback()
         resolve(app)
@@ -182,6 +226,49 @@ export async function createServer(options = {}) {
 /**
  * Request hooks middleware - fires request.before and request.after hooks
  */
+/**
+ * Read a setting the admin UI writes, without requiring a database.
+ *
+ * An app with no database, or one whose migrations have not run yet, must still
+ * boot. Every failure here is expected rather than exceptional, so the caller
+ * gets a default and the server starts.
+ *
+ * @param {string} key
+ * @param {Object} config
+ * @returns {Promise<string|null>}
+ */
+async function readSetting(key, config) {
+  if (config.db === false) return null
+
+  try {
+    const { getDb } = await import('../db/index.js')
+    const db = await getDb()
+    const row = await db.get('SELECT value FROM settings WHERE key = ?', [key])
+
+    return row?.value ?? null
+  } catch {
+    return null
+  }
+}
+
+/** The plugins the admin UI has enabled. */
+async function readEnabledPlugins(config) {
+  const value = await readSetting('enabled_plugins', config)
+  if (!value) return []
+
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/** The theme the admin UI has activated. */
+async function readActiveTheme(config) {
+  return await readSetting('active_theme', config)
+}
+
 async function requestHooksMiddleware(req, res, next) {
   // Store original end method
   const originalEnd = res.end.bind(res)

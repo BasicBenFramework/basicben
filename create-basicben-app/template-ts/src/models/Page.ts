@@ -1,4 +1,5 @@
 import { getDb } from '@basicbenframework/core/db'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent, slugify } from '@basicbenframework/core/content'
 import type { Page as PageType } from '../types'
 
@@ -71,6 +72,10 @@ export const Page = {
       context: { table: 'pages', slug }
     })
 
+    // The last point a plugin can alter what is stored. Its return value has
+    // to be what gets written, or the filter is decoration.
+    const contentSaved = await hooks.filter(HOOKS.CONTENT_SAVE, contentHtml, { type: 'page', data })
+
     const result = await db.run(
       `INSERT INTO pages (title, slug, content, content_html, template, published, parent_id, menu_order, meta_title, meta_description, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -78,7 +83,7 @@ export const Page = {
         data.title,
         slug,
         data.content || null,
-        contentHtml,
+        contentSaved,
         data.template || 'default',
         data.published ? 1 : 0,
         data.parent_id || null,
@@ -95,7 +100,7 @@ export const Page = {
       title: data.title,
       slug,
       content: data.content,
-      content_html: contentHtml,
+      content_html: contentSaved,
       template: data.template || 'default',
       published: data.published || false,
       parent_id: data.parent_id,

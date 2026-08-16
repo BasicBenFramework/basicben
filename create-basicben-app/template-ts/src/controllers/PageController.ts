@@ -1,4 +1,5 @@
 import { validate, rules } from '@basicbenframework/core/validation'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Page } from '../models/Page'
 import type { Request, Response } from '../types'
 
@@ -81,7 +82,7 @@ export const PageController = {
       }
     }
 
-    const page = await Page.create({
+    const draft = await hooks.filter(HOOKS.PAGE_CREATING, {
       title,
       slug,
       content,
@@ -91,7 +92,15 @@ export const PageController = {
       menu_order,
       meta_title,
       meta_description
-    })
+    }, { req })
+
+    if (draft?.cancel) {
+      return res.json({ error: draft.reason || 'Page rejected.' }, 422)
+    }
+
+    const page = await Page.create(draft)
+
+    await hooks.fire(HOOKS.PAGE_CREATED, { page, userId: req.userId })
 
     res.json({ page }, 201)
   },
@@ -145,7 +154,7 @@ export const PageController = {
       return res.json({ errors: { parent_id: ['Cannot set page as its own parent'] } }, 422)
     }
 
-    const updated = await Page.update(parseInt(req.params.id), {
+    const changes = await hooks.filter(HOOKS.PAGE_UPDATING, {
       title,
       slug,
       content,
@@ -155,7 +164,15 @@ export const PageController = {
       menu_order,
       meta_title,
       meta_description
-    })
+    }, { req, page })
+
+    if (changes?.cancel) {
+      return res.json({ error: changes.reason || 'Update rejected.' }, 422)
+    }
+
+    const updated = await Page.update(parseInt(req.params.id), changes)
+
+    await hooks.fire(HOOKS.PAGE_UPDATED, { page: updated, previous: page, userId: req.userId })
 
     res.json({ page: updated })
   },
@@ -167,6 +184,9 @@ export const PageController = {
     }
 
     await Page.delete(parseInt(req.params.id))
+
+    await hooks.fire(HOOKS.CONTENT_DELETE, { type: 'page', page, userId: req.userId })
+
     res.json({ message: 'Page deleted' })
   },
 
