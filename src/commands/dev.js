@@ -9,6 +9,7 @@ import { existsSync, readFileSync, watch } from 'node:fs'
 import { resolve, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { bold, cyan, green, yellow, dim, red } from '../cli/colors.js'
+import { spawnBin } from '../cli/spawn.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -83,7 +84,15 @@ export async function run(args, flags) {
 
   // Start Vite dev server
   const vitePort = flags.vitePort || process.env.VITE_PORT || 3000
-  const viteProcess = startViteServer(vitePort, nodePort, viteConfig, cwd)
+
+  let viteProcess
+  try {
+    viteProcess = startViteServer(vitePort, nodePort, viteConfig, cwd)
+  } catch (err) {
+    console.error(`\n${red(err.message)}\n`)
+    nodeProcess.kill()
+    process.exit(1)
+  }
 
   // Handle process cleanup
   const cleanup = () => {
@@ -178,7 +187,7 @@ function startNodeServer(entry, port, cwd) {
 
   nodeArgs.push(entry)
 
-  const proc = spawn('node', nodeArgs, {
+  const proc = spawn(process.execPath, nodeArgs, {
     cwd,
     stdio: ['inherit', 'pipe', 'pipe'],
     env: {
@@ -214,7 +223,6 @@ function startViteServer(port, apiPort, configPath, cwd) {
   console.log()
 
   const viteArgs = [
-    'vite',
     '--port', String(port),
     '--strictPort'
   ]
@@ -223,8 +231,7 @@ function startViteServer(port, apiPort, configPath, cwd) {
     viteArgs.push('--config', configPath)
   }
 
-  const proc = spawn('npx', viteArgs, {
-    cwd,
+  return spawnBin(cwd, 'vite', viteArgs, {
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -232,34 +239,39 @@ function startViteServer(port, apiPort, configPath, cwd) {
       NODE_ENV: 'development'
     }
   })
-
-  return proc
 }
 
 /**
  * Build server with Vite SSR (for TypeScript)
  */
 function buildServerWithVite(cwd, serverEntry) {
-  return new Promise((resolve) => {
-    const proc = spawn('npx', [
-      'vite', 'build',
-      '--ssr', serverEntry,
-      '--outDir', 'dist/server'
-    ], {
-      cwd,
-      stdio: 'pipe',
-      env: {
-        ...process.env,
-        NODE_ENV: 'development'
-      }
-    })
+  return new Promise((done) => {
+    let proc
+
+    try {
+      proc = spawnBin(cwd, 'vite', [
+        'build',
+        '--ssr', serverEntry,
+        '--outDir', 'dist/server'
+      ], {
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          NODE_ENV: 'development'
+        }
+      })
+    } catch (err) {
+      console.error(`\n${red(err.message)}`)
+      done({ success: false })
+      return
+    }
 
     proc.on('exit', (code) => {
-      resolve({ success: code === 0 })
+      done({ success: code === 0 })
     })
 
     proc.on('error', () => {
-      resolve({ success: false })
+      done({ success: false })
     })
   })
 }

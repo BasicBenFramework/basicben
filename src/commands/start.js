@@ -40,7 +40,7 @@ export async function run(args, flags) {
     nodeArgs.unshift('--env-file=.env')
   }
 
-  const proc = spawn('node', nodeArgs, {
+  const proc = spawn(process.execPath, nodeArgs, {
     cwd,
     stdio: 'inherit',
     env: {

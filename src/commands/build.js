@@ -3,10 +3,10 @@
  * Builds the client (Vite) and prepares server for production
  */
 
-import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { bold, cyan, green, yellow, dim, red } from '../cli/colors.js'
+import { spawnBin } from '../cli/spawn.js'
 
 export async function run(args, flags) {
   const cwd = process.cwd()
@@ -84,50 +84,43 @@ function findServerEntry(cwd) {
  * Run Vite build
  */
 function runViteBuild(cwd, outDir = 'dist/client') {
-  return new Promise((resolve) => {
-    const proc = spawn('npx', ['vite', 'build', '--outDir', outDir], {
-      cwd,
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        NODE_ENV: 'production'
-      }
-    })
-
-    proc.on('exit', (code) => {
-      resolve({ success: code === 0 })
-    })
-
-    proc.on('error', () => {
-      resolve({ success: false })
-    })
-  })
+  return runVite(cwd, ['build', '--outDir', outDir])
 }
 
 /**
  * Run Vite SSR build for TypeScript server
  */
 function runViteSSRBuild(cwd, serverEntry) {
-  return new Promise((resolve) => {
-    const proc = spawn('npx', [
-      'vite', 'build',
-      '--ssr', serverEntry,
-      '--outDir', 'dist/server'
-    ], {
-      cwd,
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        NODE_ENV: 'production'
-      }
-    })
+  return runVite(cwd, ['build', '--ssr', serverEntry, '--outDir', 'dist/server'])
+}
+
+/**
+ * Run the project's Vite CLI and report whether it exited cleanly
+ */
+function runVite(cwd, args) {
+  return new Promise((done) => {
+    let proc
+
+    try {
+      proc = spawnBin(cwd, 'vite', args, {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          NODE_ENV: 'production'
+        }
+      })
+    } catch (err) {
+      console.error(`\n${red(err.message)}`)
+      done({ success: false })
+      return
+    }
 
     proc.on('exit', (code) => {
-      resolve({ success: code === 0 })
+      done({ success: code === 0 })
     })
 
     proc.on('error', () => {
-      resolve({ success: false })
+      done({ success: false })
     })
   })
 }

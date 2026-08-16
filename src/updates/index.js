@@ -34,7 +34,7 @@ import {
 } from '../server/environment.js'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { execSync, spawn } from 'node:child_process'
+import { spawnNpm } from '../cli/spawn.js'
 
 // Default configuration
 const DEFAULT_CONFIG = {
@@ -778,7 +778,7 @@ export class UpdateManager {
    */
   async runNpmInstall() {
     return new Promise((resolve, reject) => {
-      const npm = spawn('npm', ['install'], {
+      const npm = spawnNpm(['install'], {
         cwd: process.cwd(),
         stdio: 'pipe'
       })
@@ -841,7 +841,7 @@ export class UpdateManager {
 
     // Run migrations
     return new Promise((resolve, reject) => {
-      const migrate = spawn('npm', ['run', 'migrate'], {
+      const migrate = spawnNpm(['run', 'migrate'], {
         cwd: process.cwd(),
         stdio: 'pipe'
       })

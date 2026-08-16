@@ -3,8 +3,8 @@
  * Runs Vitest for user app tests
  */
 
-import { spawn } from 'node:child_process'
-import { bold, cyan, dim } from '../cli/colors.js'
+import { bold, cyan, dim, red } from '../cli/colors.js'
+import { spawnBin } from '../cli/spawn.js'
 
 export async function run(args, flags) {
   const cwd = process.cwd()
@@ -12,7 +12,7 @@ export async function run(args, flags) {
   console.log(`\n${bold('BasicBen')} ${dim('test')}\n`)
 
   // Build vitest args
-  const vitestArgs = ['vitest', ...args]
+  const vitestArgs = [...args]
 
   // Add common flags
   if (flags.watch || flags.w) {
@@ -31,14 +31,20 @@ export async function run(args, flags) {
 
   console.log(`${cyan('Running tests with Vitest...')}\n`)
 
-  const proc = spawn('npx', vitestArgs, {
-    cwd,
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      NODE_ENV: 'test'
-    }
-  })
+  let proc
+
+  try {
+    proc = spawnBin(cwd, 'vitest', vitestArgs, {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        NODE_ENV: 'test'
+      }
+    })
+  } catch (err) {
+    console.error(`${red(err.message)}\n`)
+    process.exit(1)
+  }
 
   proc.on('exit', (code) => {
     process.exit(code || 0)

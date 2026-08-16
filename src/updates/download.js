@@ -149,13 +149,19 @@ export async function extractTarGz(archivePath, destDir) {
  * @returns {Promise<void>}
  */
 export async function extractZip(archivePath, destDir) {
-  // Use unzip command for simplicity
   const { spawn } = await import('node:child_process')
 
   await mkdir(destDir, { recursive: true })
 
+  // Windows has no unzip, but its bundled bsdtar reads zip archives
+  const isWindows = process.platform === 'win32'
+  const command = isWindows ? 'tar' : 'unzip'
+  const args = isWindows
+    ? ['-xf', archivePath, '-C', destDir]
+    : ['-o', '-q', archivePath, '-d', destDir]
+
   return new Promise((resolve, reject) => {
-    const unzip = spawn('unzip', ['-o', '-q', archivePath, '-d', destDir], {
+    const unzip = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'pipe']
     })
 
@@ -168,7 +174,7 @@ export async function extractZip(archivePath, destDir) {
       if (code === 0) {
         resolve()
       } else {
-        reject(new Error(`unzip extraction failed: ${stderr}`))
+        reject(new Error(`${command} extraction failed: ${stderr}`))
       }
     })
 
