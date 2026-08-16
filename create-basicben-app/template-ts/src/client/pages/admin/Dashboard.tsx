@@ -29,14 +29,14 @@ export default function AdminDashboard() {
       ])
 
       setStats({
-        posts: postsRes.data?.posts?.length || 0,
-        pages: pagesRes.data?.pages?.length || 0,
+        posts: postsRes?.posts?.length || 0,
+        pages: pagesRes?.pages?.length || 0,
         comments: 0,
-        pendingComments: commentsRes.data?.count || 0,
-        media: mediaRes.data?.stats?.total || 0
+        pendingComments: commentsRes?.count || 0,
+        media: mediaRes?.stats?.total || 0
       })
 
-      setRecentPosts((postsRes.data?.posts || []).slice(0, 5))
+      setRecentPosts((postsRes?.posts || []).slice(0, 5))
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
     } finally {

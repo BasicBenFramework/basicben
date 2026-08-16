@@ -29,7 +29,7 @@ export default function AdminSettings() {
   const loadSettings = async () => {
     try {
       const res = await api.get('/api/settings')
-      if (res.data?.settings) {
+      if (res?.settings) {
         setSettings({
           site_name: res.data.settings.site_name || '',
           site_description: res.data.settings.site_description || '',

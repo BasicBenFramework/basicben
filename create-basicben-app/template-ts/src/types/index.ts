@@ -27,7 +27,10 @@ export interface Post {
   content_html?: string
   slug?: string
   excerpt?: string
+  /** Foreign key into `media`. Not a filename — see `featured_image_url`. */
   featured_image?: number
+  /** Resolved by the model through the storage adapter; this is what a theme renders. */
+  featured_image_url?: string | null
   category_id?: number
   meta_title?: string
   meta_description?: string
@@ -97,7 +100,10 @@ export interface Media {
   user_id?: number
   filename: string
   original_name: string
+  /** The storage key. Not a URL — see `url`. */
   path: string
+  /** Resolved per request through the storage adapter, so buckets can move. */
+  url?: string
   mime_type?: string
   size?: number
   alt_text?: string

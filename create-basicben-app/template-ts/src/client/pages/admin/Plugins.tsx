@@ -64,7 +64,7 @@ export default function AdminPlugins() {
   const loadPlugins = async () => {
     try {
       const res = await api.get('/api/plugins')
-      setPlugins(res.data?.plugins || [])
+      setPlugins(res?.plugins || [])
     } catch (error) {
       console.error('Failed to load plugins:', error)
     } finally {
@@ -79,7 +79,7 @@ export default function AdminPlugins() {
       const res = await api.get(`/api/registry/plugins${params}`)
       const installedSlugs = plugins.map(p => p.slug || p.name)
 
-      setRegistryPlugins((res.data?.plugins || []).map((p: RegistryPlugin) => ({
+      setRegistryPlugins((res?.plugins || []).map((p: RegistryPlugin) => ({
         ...p,
         installed: installedSlugs.includes(p.slug)
       })))

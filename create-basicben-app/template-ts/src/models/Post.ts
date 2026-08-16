@@ -1,5 +1,6 @@
 import { getDb } from '@basicbenframework/core/db'
 import { renderContent } from '@basicbenframework/core/content'
+import { getStorage } from '@basicbenframework/core/storage'
 import type { Post as PostType } from '../types'
 
 interface CreatePostData {
@@ -33,23 +34,29 @@ export const Post = {
 
   async findPublished(): Promise<PostType[]> {
     const db = await getDb()
-    return db.all(`
-      SELECT posts.*, users.name as author_name
+    const rows = await db.all(`
+      SELECT posts.*, users.name as author_name, media.path as featured_image_path
       FROM posts
       JOIN users ON posts.user_id = users.id
+      LEFT JOIN media ON media.id = posts.featured_image
       WHERE posts.published = 1
       ORDER BY posts.created_at DESC
     `)
+
+    return withFeaturedImages(rows)
   },
 
   async findPublishedById(id: number): Promise<PostType | undefined> {
     const db = await getDb()
-    return db.get(`
-      SELECT posts.*, users.name as author_name
+    const row = await db.get(`
+      SELECT posts.*, users.name as author_name, media.path as featured_image_path
       FROM posts
       JOIN users ON posts.user_id = users.id
+      LEFT JOIN media ON media.id = posts.featured_image
       WHERE posts.id = ? AND posts.published = 1
     `, [id])
+
+    return row ? (await withFeaturedImages([row]))[0] : undefined
   },
 
   async create(data: CreatePostData): Promise<PostType> {
@@ -102,4 +109,28 @@ export const Post = {
     const db = await getDb()
     await db.run('DELETE FROM posts WHERE id = ?', [id])
   }
+}
+
+/**
+ * Resolve each post's featured image to a URL.
+ *
+ * `featured_image` is a foreign key into `media`, but the themes rendered it as
+ * a filename — producing `/uploads/3` for every post that had one. The join
+ * supplies the storage key and this turns it into a URL, which is the only
+ * thing a browser can use.
+ *
+ * The key is resolved here rather than stored as a URL so that moving buckets,
+ * or putting a CDN in front of one, does not mean rewriting every row.
+ */
+async function withFeaturedImages(rows: Array<Record<string, unknown>>): Promise<PostType[]> {
+  if (!rows.some((row) => row.featured_image_path)) return rows as PostType[]
+
+  const storage = await getStorage()
+
+  return rows.map((row) => ({
+    ...row,
+    featured_image_url: row.featured_image_path
+      ? storage.publicUrl(row.featured_image_path as string)
+      : null
+  })) as PostType[]
 }

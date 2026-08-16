@@ -65,7 +65,7 @@ export default function AdminThemes() {
   const loadThemes = async () => {
     try {
       const res = await api.get('/api/themes')
-      setThemes(res.data?.themes || [])
+      setThemes(res?.themes || [])
     } catch (error) {
       console.error('Failed to load themes:', error)
     } finally {
@@ -80,7 +80,7 @@ export default function AdminThemes() {
       const res = await api.get(`/api/registry/themes${params}`)
       const installedSlugs = themes.map(t => t.slug)
 
-      setRegistryThemes((res.data?.themes || []).map((t: RegistryTheme) => ({
+      setRegistryThemes((res?.themes || []).map((t: RegistryTheme) => ({
         ...t,
         installed: installedSlugs.includes(t.slug)
       })))

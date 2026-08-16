@@ -22,7 +22,7 @@ export default function AdminTags() {
   const loadTags = async () => {
     try {
       const res = await api.get('/api/tags')
-      setTags(res.data?.tags || [])
+      setTags(res?.tags || [])
     } catch (error) {
       console.error('Failed to load tags:', error)
     } finally {

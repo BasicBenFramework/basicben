@@ -469,6 +469,22 @@ case "$RERENDER" in
   *) echo "$RERENDER"; fail "content:rerender should have reported the posts table" ;;
 esac
 
+# --- Media uploads -------------------------------------------------------------
+#
+# The previous upload path could not work: the global body parser drained every
+# non-GET request before the controller ran, so the multipart parser attached
+# its listeners to an already-ended stream. Uploads now go straight from the
+# browser to storage, and this drives that flow against the booted app.
+
+if [ "$APP_NAME" = "smoke-ts" ]; then
+  # The owner's token: uploading needs the media.upload capability, which a
+  # subscriber does not have. It was minted at registration, so the login
+  # lockout above does not affect it — a lockout stops new sign-ins, not tokens
+  # already issued.
+  node "$ROOT_DIR/scripts/storage-smoke.mjs" "http://localhost:$PORT" "$OWNER_TOKEN" \
+    || fail "storage smoke test failed"
+fi
+
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"
 echo ""

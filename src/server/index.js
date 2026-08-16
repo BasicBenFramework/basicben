@@ -50,6 +50,21 @@ export async function createServer(options = {}) {
     app.use(cors(mergedConfig.cors === true ? {} : mergedConfig.cors))
   }
 
+  // Presigned uploads on the local driver land here, and this has to run
+  // *before* the body parser: the parser drains every non-GET request into a
+  // utf8 string, which both consumes the stream and corrupts binary. That is
+  // the reason the previous multipart upload path could never have worked.
+  const storageConfig = mergedConfig.storage || {}
+  if (storageConfig.driver !== false && !storageConfig.bucket && !process.env.S3_BUCKET) {
+    const { localUploadReceiver } = await import('../storage/local-upload.js')
+    app.use(localUploadReceiver({
+      dir: storageConfig.dir,
+      baseUrl: storageConfig.baseUrl,
+      secret: storageConfig.secret,
+      maxSize: storageConfig.maxSize
+    }))
+  }
+
   if (mergedConfig.bodyParser !== false) {
     app.use(bodyParser(mergedConfig.bodyParser || {}))
   }

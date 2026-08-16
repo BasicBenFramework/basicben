@@ -32,9 +32,9 @@ export default function PostCard({ post, variant = 'default' }: PostCardProps) {
   if (variant === 'featured') {
     return (
       <article className="theme-card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-6)' }}>
-        {post.featured_image && (
+        {post.featured_image_url && (
           <img
-            src={`/uploads/${post.featured_image}`}
+            src={post.featured_image_url}
             alt={post.title}
             style={{
               width: '100%',
@@ -69,9 +69,9 @@ export default function PostCard({ post, variant = 'default' }: PostCardProps) {
   // Default variant
   return (
     <article className="theme-card">
-      {post.featured_image && (
+      {post.featured_image_url && (
         <img
-          src={`/uploads/${post.featured_image}`}
+          src={post.featured_image_url}
           alt={post.title}
           className="theme-card-image"
         />

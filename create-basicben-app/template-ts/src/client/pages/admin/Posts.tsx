@@ -23,7 +23,7 @@ export default function AdminPosts() {
   const loadPosts = async () => {
     try {
       const res = await api.get('/api/posts')
-      setPosts(res.data?.posts || [])
+      setPosts(res?.posts || [])
     } catch (error) {
       console.error('Failed to load posts:', error)
     } finally {

@@ -2,9 +2,10 @@
 *.test.js
 **/*.test.js
 
-# Test fixtures. The CommonMark suite is 140kB and is only read by
-# markdown.test.js, which does not ship — so neither should it.
+# Test fixtures. Both are read only by tests, which do not ship, so neither
+# should they — the CommonMark suite alone is 140kB.
 src/content/commonmark-spec.json
+src/storage/aws-sigv4-suite.json
 
 # Development
 .claude/

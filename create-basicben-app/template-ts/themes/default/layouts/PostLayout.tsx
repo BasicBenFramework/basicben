@@ -44,9 +44,9 @@ export default function PostLayout({
           </header>
 
           {/* Featured Image */}
-          {post.featured_image && (
+          {post.featured_image_url && (
             <img
-              src={`/uploads/${post.featured_image}`}
+              src={post.featured_image_url}
               alt={post.title}
               className="theme-post-featured-image"
             />

@@ -794,6 +794,108 @@ address.
 
 ---
 
+## Object Storage (R2, S3, and friends)
+
+Media lives in object storage. Uploads go **straight from the browser to the
+bucket** — this server signs a URL and records a row; the file bytes never pass
+through Node.
+
+```js
+import { getStorage } from '@basicbenframework/core/storage'
+
+const storage = await getStorage()
+
+await storage.put('media/a.png', bytes, { contentType: 'image/png' })
+await storage.get('media/a.png')          // → { body, contentType, size, etag }
+await storage.head('media/a.png')         // → metadata, or null
+await storage.delete('media/a.png')
+await storage.list({ prefix: 'media/' })  // → { items, cursor }
+
+storage.signedUrl('media/a.png', { method: 'PUT', expiresIn: 900 })
+storage.publicUrl('media/a.png')
+```
+
+### One driver, not two
+
+R2 speaks the S3 API, and so do MinIO, Backblaze B2 and DigitalOcean Spaces. The
+difference between them is an endpoint and a region, so there is one driver and
+no branching in application code. Moving from R2 to S3 is two lines of config.
+
+```js
+// basicben.config.js — Cloudflare R2
+storage: {
+  driver: 's3',
+  endpoint: 'https://<account-id>.r2.cloudflarestorage.com',
+  region: 'auto',
+  bucket: process.env.S3_BUCKET,
+  accessKeyId: process.env.S3_ACCESS_KEY_ID,
+  secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+  publicUrl: 'https://cdn.example.com'   // optional CDN or custom domain
+}
+
+// AWS S3 — omit the endpoint, name a real region
+storage: { driver: 's3', region: 'us-east-1', bucket: '…', /* keys */ }
+```
+
+Configure nothing and the `local` driver writes to `public/uploads`, so a new
+project works before anyone has a cloud account.
+
+### No AWS SDK
+
+`@aws-sdk/client-s3` is tens of megabytes for what is, underneath, one HMAC
+chain. SigV4 is HMAC-SHA256 and SHA-256, both already in `node:crypto`, so the
+signer is written here and `dependencies` stays empty.
+
+A hand-rolled signer is only worth trusting if it is checked against something
+outside itself, so it is checked two ways: **AWS's own 34 published test
+vectors**, stage by stage, and **a real MinIO server**, which is the only thing
+that proves an actual S3 implementation accepts what it produces.
+
+### How an upload works
+
+```
+Browser                    BasicBen                  R2 / S3
+   │  POST /api/media/sign    │                         │
+   │─────────────────────────>│  (validate, then sign)  │
+   │  { uploadUrl, key,       │                         │
+   │    ticket, headers }     │                         │
+   │<─────────────────────────│                         │
+   │  PUT <uploadUrl>  ────── file bytes ──────────────> │
+   │  POST /api/media/confirm │                         │
+   │─────────────────────────>│  HEAD, then INSERT      │
+```
+
+The content type and size are validated **before** anything is signed, because a
+caller without a signed URL cannot upload at all — that is the enforcement point,
+not a courtesy check. HTML, SVG and JavaScript are refused outright: a bucket
+served from a domain hands those back with the type they were stored under,
+which is same-origin script execution.
+
+Two things a presigned URL does not do, and what is done about each:
+
+**It does not cap the size.** A URL issued for a thumbnail will accept a
+gigabyte. `confirm` therefore HEADs the stored object and deletes it if it came
+back larger than allowed. The declared size is checked too, but only the stored
+size is believed.
+
+**It does not say who uploaded what.** The key travels through the browser, so
+each signed upload carries a **ticket** — an HMAC over the key, the owner and the
+expiry — checked at confirm time. Without it, a caller could confirm someone
+else's object as its own media row. It is stateless, so there is no pending-upload
+table to clean up.
+
+### Plugins
+
+`media.uploading` runs before signing and can rewrite the key or refuse the
+upload; `media.uploaded` and `media.deleted` fire after the fact.
+
+```js
+hooks.on('media.uploading', (upload) => ({ ...upload, key: `tenant-7/${upload.key}` }))
+hooks.on('media.uploading', (upload) => ({ ...upload, cancel: true, reason: 'Quota exceeded.' }))
+```
+
+---
+
 ## Content & Markdown
 
 Posts and pages are written in Markdown. Every table storing content keeps two

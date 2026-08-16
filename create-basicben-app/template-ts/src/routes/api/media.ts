@@ -14,7 +14,10 @@ export default (router: Router) => {
   router.get('/api/media', auth, MediaController.index)
   router.get('/api/media/stats', auth, MediaController.stats)
   router.get('/api/media/:id', auth, MediaController.show)
-  router.post('/api/media/upload', auth, requireCapability('media.upload'), MediaController.upload)
+  // Uploads are two steps: sign, then PUT straight to storage, then confirm.
+  // The bytes never pass through this server.
+  router.post('/api/media/sign', auth, requireCapability('media.upload'), MediaController.sign)
+  router.post('/api/media/confirm', auth, requireCapability('media.upload'), MediaController.confirm)
   router.put('/api/media/:id', auth, requireCapability('media.upload'), MediaController.update)
   router.delete('/api/media/:id', auth, requireCapability('media.delete'), MediaController.destroy)
 }

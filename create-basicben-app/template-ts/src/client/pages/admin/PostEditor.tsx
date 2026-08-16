@@ -48,12 +48,12 @@ export default function AdminPostEditor() {
         api.get('/api/tags')
       ])
 
-      setCategories(catRes.data?.categories || [])
-      setAllTags(tagRes.data?.tags || [])
+      setCategories(catRes?.categories || [])
+      setAllTags(tagRes?.tags || [])
 
       if (postId) {
         const postRes = await api.get(`/api/posts/${postId}`)
-        const post = postRes.data?.post
+        const post = postRes?.post
         if (post) {
           setFormData({
             title: post.title || '',

@@ -141,9 +141,9 @@ export default function ArchiveLayout({
 function PostCard({ post }: { post: Post }) {
   return (
     <article className="theme-card">
-      {post.featured_image && (
+      {post.featured_image_url && (
         <img
-          src={`/uploads/${post.featured_image}`}
+          src={post.featured_image_url}
           alt={post.title}
           className="theme-card-image"
         />

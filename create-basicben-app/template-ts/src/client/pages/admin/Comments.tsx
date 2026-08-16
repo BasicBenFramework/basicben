@@ -26,7 +26,7 @@ export default function AdminComments() {
     try {
       const endpoint = filter === 'pending' ? '/api/comments/pending' : '/api/comments'
       const res = await api.get(endpoint)
-      setComments(res.data?.comments || [])
+      setComments(res?.comments || [])
     } catch (error) {
       console.error('Failed to load comments:', error)
     } finally {

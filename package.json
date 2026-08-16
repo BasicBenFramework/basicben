@@ -28,6 +28,8 @@
     "./auth/two-factor": "./src/auth/two-factor.js",
     "./auth/webauthn": "./src/auth/webauthn/index.js",
     "./content": "./src/content/index.js",
+    "./storage": "./src/storage/index.js",
+    "./storage/uploads": "./src/storage/uploads.js",
     "./db": "./src/db/index.js",
     "./mail": "./src/mail/index.js",
     "./hooks": "./src/hooks/index.js",
