@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Page } from '../../../../src/types'
+import type { Page } from '../../../src/types'
 
 interface PageLayoutProps {
   page: Page

@@ -217,6 +217,19 @@ if [ "$APP_NAME" = "smoke-ts" ]; then
   grep -qi "Loaded themes" "$WORK_DIR/server.log" \
     || fail "loadThemes() is not being called"
   pass "themes load at boot"
+
+  # Two themes, so switching and the partial-implementation fallback have
+  # something real to exercise. `minimal` implements two layouts and inherits
+  # the rest from `default`.
+  grep -qi "Loaded themes.*minimal" "$WORK_DIR/server.log" \
+    || fail "the second theme was not discovered"
+  pass "more than one theme is installed"
+
+  # Each theme's layouts must be separate chunks, or lazy loading buys nothing.
+  ARCHIVE_CHUNKS="$(find dist/client/assets -name 'ArchiveLayout-*.js' 2>/dev/null | wc -l | tr -d ' ')"
+  [ "$ARCHIVE_CHUNKS" = "2" ] \
+    || fail "expected one ArchiveLayout chunk per theme, found $ARCHIVE_CHUNKS"
+  pass "each theme's layouts are code-split separately"
 fi
 
 status() { curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT$1"; }

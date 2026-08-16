@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Post } from '../../../../src/types'
+import type { Post } from '../../../src/types'
 
 interface PostLayoutProps {
   post: Post

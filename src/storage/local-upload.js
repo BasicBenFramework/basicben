@@ -119,10 +119,20 @@ function receive(req, path, maxSize) {
     let tooLarge = false
     let settled = false
 
+    // Resolving before the stream has closed lets the caller's unlink() race
+    // the stream's own pending filesystem work, which can recreate the file
+    // immediately after it is deleted — leaving a partial upload on disk that
+    // the 413 says was rejected.
+    const closed = new Promise((done) => {
+      file.on('close', done)
+      file.on('error', done)
+    })
+
     const finish = (value) => {
       if (settled) return
       settled = true
-      resolve(value)
+
+      closed.then(() => resolve(value))
     }
 
     file.on('error', (error) => {

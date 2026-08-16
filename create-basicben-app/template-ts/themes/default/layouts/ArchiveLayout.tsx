@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Post, Category, Tag } from '../../../../src/types'
+import type { Post, Category, Tag } from '../../../src/types'
 
 interface ArchiveLayoutProps {
   title: string

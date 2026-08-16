@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Category, Tag } from '../../../../src/types'
+import type { Category, Tag } from '../../../src/types'
 
 interface SidebarProps {
   categories?: Category[]
