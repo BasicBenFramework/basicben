@@ -258,8 +258,13 @@ export function addResponseHelpers(req, res, next) {
   /**
    * Send JSON response
    */
-  res.json = (data, statusCode = 200) => {
-    res.statusCode = statusCode
+  // An explicit second argument wins; otherwise whatever res.status() already
+  // set is kept. Defaulting to 200 here made `res.status(404).json(...)` — the
+  // idiom everyone reaches for — silently answer 200.
+  res.json = (data, statusCode) => {
+    if (statusCode !== undefined) {
+      res.statusCode = statusCode
+    }
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify(data))
   }

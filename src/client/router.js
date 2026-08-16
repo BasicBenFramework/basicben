@@ -9,10 +9,13 @@ import { RouterContext, AuthContext } from './context.js'
  * @param {function} [config.layout] - Default layout wrapper
  * @param {function} [config.api] - API function for auth check (default: fetch /api/user)
  * @param {function} [config.Loading] - Loading component
+ * @param {function} [config.NotFound] - Component rendered when no route matches.
+ *   Receives no props and is wrapped in the default layout, so an unmatched path
+ *   keeps the site's navigation instead of rendering a bare string.
  * @returns {function} React component
  */
 export function createClientApp(config) {
-  const { routes, layout: DefaultLayout, api, Loading } = config
+  const { routes, layout: DefaultLayout, api, Loading, NotFound } = config
 
   // Normalize routes to consistent format
   const normalizedRoutes = Object.entries(routes).map(([path, value]) => {
@@ -100,7 +103,12 @@ export function createClientApp(config) {
     // Find matching route
     const matched = matchRoute(path)
     if (!matched) {
-      return createElement('div', null, '404 - Not Found')
+      if (!NotFound) {
+        return createElement('div', null, '404 - Not Found')
+      }
+      // Wrapped in the default layout so the page keeps its navigation
+      const notFound = createElement(NotFound)
+      return DefaultLayout ? createElement(DefaultLayout, null, notFound) : notFound
     }
 
     const { route, params } = matched

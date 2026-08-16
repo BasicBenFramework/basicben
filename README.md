@@ -358,6 +358,25 @@ export default createClientApp({
 })
 ```
 
+Route values are either a component or `{ component, auth, guest, layout }`.
+`auth: true` redirects to `/login` when signed out; `guest: true` redirects to `/`
+when signed in; `layout` overrides the default for that route.
+
+Two optional components round out the app shell:
+
+```js
+export default createClientApp({
+  layout: AppLayout,
+  Loading,    // shown while the initial auth check is in flight
+  NotFound,   // shown when no route matches, wrapped in the default layout
+  routes: { /* ... */ }
+})
+```
+
+Without `NotFound` an unmatched path renders a bare `404 - Not Found` string with
+no navigation, so it is worth supplying one. Pair it with `static: { spa: true }`
+on the server, which is what lets a deep link reach the client router at all.
+
 ---
 
 ## Controllers
