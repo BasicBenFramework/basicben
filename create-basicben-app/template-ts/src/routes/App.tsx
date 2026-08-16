@@ -1,4 +1,5 @@
-import { createClientApp, createThemeRegistry, ThemeProvider } from '@basicbenframework/core/client'
+import { useEffect } from 'react'
+import { createClientApp, createThemeRegistry, ThemeProvider, useActiveTheme } from '@basicbenframework/core/client'
 import { AppLayout } from '../client/layouts/AppLayout'
 import { AuthLayout } from '../client/layouts/AuthLayout'
 import { DocsLayout } from '../client/layouts/DocsLayout'
@@ -52,9 +53,60 @@ const themeComponents = createThemeRegistry(
   import.meta.glob('../../themes/*/components/*.tsx')
 )
 
+/**
+ * Load the active theme's stylesheet, and only that one.
+ *
+ * Imported the usual way, every installed theme's CSS would be in the bundle at
+ * once — and because each theme declares its own `:root`, whichever happened to
+ * load last would win no matter which theme is active. `?url` keeps them out of
+ * the bundle and hands back a path instead, so exactly one theme's CSS is in the
+ * document at a time and switching themes swaps it.
+ */
+const themeStyles = import.meta.glob('../../themes/*/styles/*.css', {
+  query: '?url',
+  import: 'default'
+})
+
+function ThemeStyles() {
+  const { active } = useActiveTheme()
+
+  useEffect(() => {
+    if (!active) return
+
+    let cancelled = false
+    const added: HTMLLinkElement[] = []
+
+    // variables.css before main.css: it declares the custom properties the
+    // rest of the stylesheet reads.
+    const paths = Object.keys(themeStyles)
+      .filter(path => path.includes(`/themes/${active}/`))
+      .sort((a, b) => Number(a.endsWith('main.css')) - Number(b.endsWith('main.css')))
+
+    Promise.all(paths.map(path => (themeStyles[path] as () => Promise<string>)())).then(urls => {
+      if (cancelled) return
+      for (const href of urls) {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.dataset.themeStyle = active
+        link.href = href
+        document.head.appendChild(link)
+        added.push(link)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      added.forEach(link => link.remove())
+    }
+  }, [active])
+
+  return null
+}
+
 /** Wraps the app so any page can reach the active theme's components. */
 const withThemes = ({ children }: { children: React.ReactNode }) => (
   <ThemeProvider layouts={themeLayouts} components={themeComponents} fallback="default">
+    <ThemeStyles />
     {children}
   </ThemeProvider>
 )

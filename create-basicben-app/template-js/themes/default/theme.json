@@ -1,0 +1,48 @@
+{
+  "name": "Default Theme",
+  "version": "1.0.0",
+  "author": "BasicBen",
+  "description": "A clean, minimal blog theme for BasicBen CMS",
+  "screenshot": "assets/screenshot.png",
+  "settings": {
+    "colors": {
+      "primary": "#6366f1",
+      "primaryDark": "#4f46e5",
+      "secondary": "#64748b",
+      "background": "#ffffff",
+      "backgroundDark": "#0f172a",
+      "surface": "#f8fafc",
+      "surfaceDark": "#1e293b",
+      "text": "#1e293b",
+      "textDark": "#f8fafc",
+      "muted": "#64748b",
+      "border": "#e2e8f0",
+      "borderDark": "#334155",
+      "success": "#22c55e",
+      "warning": "#f59e0b",
+      "error": "#ef4444"
+    },
+    "fonts": {
+      "heading": "Inter, system-ui, sans-serif",
+      "body": "Inter, system-ui, sans-serif",
+      "mono": "ui-monospace, Menlo, monospace"
+    },
+    "layout": {
+      "maxWidth": "1200px",
+      "contentWidth": "800px",
+      "sidebarWidth": "280px",
+      "headerHeight": "64px",
+      "spacing": "1.5rem",
+      "borderRadius": "0.5rem"
+    },
+    "features": {
+      "sidebar": true,
+      "darkMode": true,
+      "tableOfContents": true,
+      "socialSharing": true,
+      "authorBio": true,
+      "relatedPosts": true,
+      "comments": true
+    }
+  }
+}
