@@ -32,9 +32,14 @@ function migrationsTable(db) {
 
 /**
  * Create migrator instance
+ *
+ * @param {string} migrationsDir - Directory holding migration files
+ * @param {Object} [connection] - Adapter to use instead of the configured
+ *   connection. Tests pass one in to exercise the Postgres dialect, which is
+ *   where the bookkeeping SQL differs, without a Postgres server.
  */
-export async function createMigrator(migrationsDir = 'migrations') {
-  const db = await getDb()
+export async function createMigrator(migrationsDir = 'migrations', connection = null) {
+  const db = connection || await getDb()
   const dir = resolve(process.cwd(), migrationsDir)
 
   // Ensure migrations table exists
@@ -111,16 +116,32 @@ export async function createMigrator(migrationsDir = 'migrations') {
       // Get all tables
       const tables = await getAllTables(db)
 
-      // Postgres refuses to drop a table another table's foreign key points at,
-      // and the catalogue lists tables in no dependency order, so a blind sweep
-      // needs CASCADE. It drops the dependent constraint, not the dependent
-      // table, which is what a full sweep wants. SQLite has no such clause.
-      const cascade = grammarFor(db).isPostgres() ? ' CASCADE' : ''
+      // Nothing here drops in dependency order — the catalogue lists tables
+      // arbitrarily — so foreign keys have to be got out of the way. Postgres
+      // refuses to drop a table another table references unless told to
+      // CASCADE, which drops the dependent constraint, not the dependent table.
+      // SQLite has no such clause: it enforces constraints while emptying the
+      // table, so a parent with rows referencing it cannot be dropped at all,
+      // and enforcement goes off for the duration instead.
+      const isPostgres = grammarFor(db).isPostgres()
+      const cascade = isPostgres ? ' CASCADE' : ''
 
-      // Drop all tables (except sqlite internal tables)
-      for (const table of tables) {
-        if (!table.startsWith('sqlite_')) {
-          await db.exec(`DROP TABLE IF EXISTS "${table}"${cascade}`)
+      if (!isPostgres) {
+        await db.exec('PRAGMA foreign_keys = OFF')
+      }
+
+      try {
+        // Drop all tables (except sqlite internal tables)
+        for (const table of tables) {
+          if (!table.startsWith('sqlite_')) {
+            await db.exec(`DROP TABLE IF EXISTS "${table}"${cascade}`)
+          }
+        }
+      } finally {
+        // The SQLite adapter opens every connection with constraints on; a
+        // failed drop must not leave this one running without them.
+        if (!isPostgres) {
+          await db.exec('PRAGMA foreign_keys = ON')
         }
       }
 
