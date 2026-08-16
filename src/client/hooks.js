@@ -3,7 +3,13 @@ import { RouterContext, AuthContext } from './context.js'
 
 /**
  * Access auth state and methods
- * @returns {{ user: object|null, setUser: function, logout: function, loading: boolean }}
+ *
+ * The user record is whatever the auth endpoint returns, so its shape is the
+ * application's to declare: `useAuth<User>()` types it, and calling with no
+ * type argument leaves it unconstrained rather than wrong.
+ *
+ * @template [T=any] the application's user record
+ * @returns {{ user: T|null, setUser: (user: T|null) => void, logout: () => void, loading: boolean }}
  */
 export function useAuth() {
   const context = useContext(AuthContext)
@@ -15,7 +21,7 @@ export function useAuth() {
 
 /**
  * Get navigation function
- * @returns {function} navigate(path, options)
+ * @returns {(to: string, options?: { replace?: boolean }) => void} navigate(path, options)
  */
 export function useNavigate() {
   const context = useContext(RouterContext)
@@ -27,7 +33,7 @@ export function useNavigate() {
 
 /**
  * Get current route params
- * @returns {object} params object (e.g. { id: '123' })
+ * @returns {Record<string, string>} params object (e.g. { id: '123' })
  */
 export function useParams() {
   const context = useContext(RouterContext)

@@ -92,8 +92,11 @@ export function hotp(secret, counter, options = {}) {
  * @param {string} code
  * @param {Object} [options]
  * @param {number} [options.window] - steps of tolerance either side
- * @param {number} [options.lastStep] - the most recent accepted step
+ * @param {number|null} [options.lastStep] - the most recent accepted step;
+ *   null or undefined both mean "none recorded yet"
  * @param {number} [options.t]
+ * @param {number} [options.digits]
+ * @param {number} [options.step]
  * @returns {{ valid: boolean, step: number|null, reason?: string }}
  */
 export function verifyTotp(secret, code, options = {}) {
@@ -140,6 +143,9 @@ export function verifyTotp(secret, code, options = {}) {
  * @param {string} options.secret - base32
  * @param {string} options.label - usually the account's email
  * @param {string} [options.issuer] - the site name
+ * @param {number} [options.digits]
+ * @param {number} [options.step] - period, in seconds
+ * @param {string} [options.algorithm]
  * @returns {string}
  */
 export function otpauthUri({ secret, label, issuer, digits, step, algorithm } = {}) {

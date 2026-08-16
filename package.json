@@ -15,27 +15,88 @@
   "bin": {
     "basicben": "./bin/cli.js"
   },
+  "types": "./types/index.d.ts",
   "exports": {
-    ".": "./src/index.js",
-    "./server": "./src/server/index.js",
-    "./rate-limit": "./src/server/rate-limit.js",
-    "./client": "./src/client/index.js",
-    "./validation": "./src/validation/index.js",
-    "./auth": "./src/auth/jwt.js",
-    "./auth/permissions": "./src/auth/permissions.js",
-    "./auth/tokens": "./src/auth/tokens.js",
-    "./auth/totp": "./src/auth/totp.js",
-    "./auth/two-factor": "./src/auth/two-factor.js",
-    "./auth/webauthn": "./src/auth/webauthn/index.js",
-    "./content": "./src/content/index.js",
-    "./storage": "./src/storage/index.js",
-    "./storage/uploads": "./src/storage/uploads.js",
-    "./db": "./src/db/index.js",
-    "./mail": "./src/mail/index.js",
-    "./hooks": "./src/hooks/index.js",
-    "./plugins": "./src/plugins/index.js",
-    "./themes": "./src/themes/index.js",
-    "./updates": "./src/updates/index.js"
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./server": {
+      "types": "./types/server/index.d.ts",
+      "default": "./src/server/index.js"
+    },
+    "./rate-limit": {
+      "types": "./types/server/rate-limit.d.ts",
+      "default": "./src/server/rate-limit.js"
+    },
+    "./client": {
+      "types": "./types/client/index.d.ts",
+      "default": "./src/client/index.js"
+    },
+    "./validation": {
+      "types": "./types/validation/index.d.ts",
+      "default": "./src/validation/index.js"
+    },
+    "./auth": {
+      "types": "./types/auth/jwt.d.ts",
+      "default": "./src/auth/jwt.js"
+    },
+    "./auth/permissions": {
+      "types": "./types/auth/permissions.d.ts",
+      "default": "./src/auth/permissions.js"
+    },
+    "./auth/tokens": {
+      "types": "./types/auth/tokens.d.ts",
+      "default": "./src/auth/tokens.js"
+    },
+    "./auth/totp": {
+      "types": "./types/auth/totp.d.ts",
+      "default": "./src/auth/totp.js"
+    },
+    "./auth/two-factor": {
+      "types": "./types/auth/two-factor.d.ts",
+      "default": "./src/auth/two-factor.js"
+    },
+    "./auth/webauthn": {
+      "types": "./types/auth/webauthn/index.d.ts",
+      "default": "./src/auth/webauthn/index.js"
+    },
+    "./content": {
+      "types": "./types/content/index.d.ts",
+      "default": "./src/content/index.js"
+    },
+    "./storage": {
+      "types": "./types/storage/index.d.ts",
+      "default": "./src/storage/index.js"
+    },
+    "./storage/uploads": {
+      "types": "./types/storage/uploads.d.ts",
+      "default": "./src/storage/uploads.js"
+    },
+    "./db": {
+      "types": "./types/db/index.d.ts",
+      "default": "./src/db/index.js"
+    },
+    "./mail": {
+      "types": "./types/mail/index.d.ts",
+      "default": "./src/mail/index.js"
+    },
+    "./hooks": {
+      "types": "./types/hooks/index.d.ts",
+      "default": "./src/hooks/index.js"
+    },
+    "./plugins": {
+      "types": "./types/plugins/index.d.ts",
+      "default": "./src/plugins/index.js"
+    },
+    "./themes": {
+      "types": "./types/themes/index.d.ts",
+      "default": "./src/themes/index.js"
+    },
+    "./updates": {
+      "types": "./types/updates/index.d.ts",
+      "default": "./src/updates/index.js"
+    }
   },
   "engines": {
     "node": ">=24.0.0"
@@ -50,6 +111,7 @@
     "test:scaffolding": "node --test \"src/scaffolding/**/*.test.js\"",
     "test:app": "./scripts/test-app.sh",
     "test:app:ts": "./scripts/test-app.sh --typescript",
+    "build:types": "tsc -p tsconfig.types.json",
     "release": "./scripts/publish.sh"
   },
   "keywords": [
@@ -62,12 +124,18 @@
   "license": "MIT",
   "dependencies": {},
   "peerDependencies": {
+    "@vitejs/plugin-react": ">=5",
     "react": ">=18",
     "react-dom": ">=18",
-    "vite": ">=7",
-    "@vitejs/plugin-react": ">=5"
+    "vite": ">=7"
   },
   "optionalDependencies": {
     "pg": ">=8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "react": "^19.2.8",
+    "typescript": "^5.9.3"
   }
 }

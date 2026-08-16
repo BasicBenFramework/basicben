@@ -22,6 +22,12 @@ jobs:
       - name: Run tests
         run: npm test
 
+      # The smoke test regenerates the committed declarations to check they
+      # still match the JSDoc, which needs the framework's own tsc and React
+      # types. Publishing stale types is silent otherwise.
+      - name: Install dev dependencies
+        run: npm ci
+
       - name: Smoke test (JavaScript template)
         run: ./scripts/smoke-test.sh
 

@@ -46,15 +46,38 @@ export function parseDuration(value) {
 }
 
 /**
+ * What a limiter reports about one key.
+ *
+ * @typedef {Object} RateLimitResult
+ * @property {boolean} allowed
+ * @property {number} limit
+ * @property {number} remaining
+ * @property {number} resetAt - epoch ms
+ * @property {number} retryAfter - seconds; 0 while allowed
+ */
+
+/**
+ * @typedef {Object} Limiter
+ * @property {(key: string) => Promise<RateLimitResult>} consume - record a hit
+ * @property {(key: string) => Promise<RateLimitResult>} peek - read without recording
+ * @property {(key: string) => Promise<void>} reset
+ * @property {Object} store
+ */
+
+/**
+ * @typedef {Object} LimiterOptions
+ * @property {number} limit - hits allowed per window
+ * @property {number|string} [window] - the window (default '1m')
+ * @property {Object} [store]
+ * @property {number|string} [blockFor] - after the limit, refuse for this
+ *   long regardless of the window. Turns a throttle into a lockout.
+ */
+
+/**
  * Create a limiter.
  *
- * @param {Object} options
- * @param {number} options.limit - hits allowed per window
- * @param {number|string} options.window - the window
- * @param {Object} [options.store]
- * @param {number|string} [options.blockFor] - after the limit, refuse for this
- *   long regardless of the window. Turns a throttle into a lockout.
- * @returns {{ check: Function, consume: Function, reset: Function, peek: Function }}
+ * @param {LimiterOptions} options
+ * @returns {Limiter}
  */
 export function createLimiter({ limit, window, store, blockFor } = {}) {
   if (!Number.isFinite(limit) || limit < 1) {
@@ -127,12 +150,18 @@ function describe(state, limit, now) {
 /**
  * Rate-limiting middleware.
  *
- * @param {Object} options - everything createLimiter takes, plus:
- * @param {(req) => string} [options.key] - defaults to the client address
- * @param {boolean} [options.trustProxy] - honour X-Forwarded-For
- * @param {(req, res, info) => void} [options.onLimited]
- * @param {boolean} [options.headers] - emit RateLimit-* headers (default true)
- * @returns {Function} middleware
+ * Takes everything createLimiter takes, plus the options below. Pass `limiter`
+ * instead of `limit`/`window` to share one limiter across several routes.
+ *
+ * @param {(LimiterOptions | { limiter: Limiter }) & {
+ *   key?: (req: any) => string|null|undefined,
+ *   trustProxy?: boolean,
+ *   onLimited?: (req: any, res: any, info: RateLimitResult) => void,
+ *   headers?: boolean,
+ *   message?: string
+ * }} options - `key` returning nothing lets the request through: one shared
+ *   bucket for unidentifiable callers is worse than no limit at all.
+ * @returns {Function & { limiter: Limiter, key: (req: any) => string|null|undefined }} middleware
  */
 export function rateLimit(options = {}) {
   const limiter = options.limiter || createLimiter(options)

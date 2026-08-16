@@ -270,6 +270,9 @@ Router.prototype.resource = function(path, controller, options = {}) {
 
 /**
  * Create a new router instance
+ *
+ * @param {Object} [options]
+ * @returns {Router}
  */
 export function createRouter(options) {
   return new Router(options)

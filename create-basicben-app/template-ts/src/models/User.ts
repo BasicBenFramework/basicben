@@ -7,6 +7,10 @@ interface CreateUserData {
   email: string
   password: string
   role?: string
+  // Set at registration: the first account is trusted, so a fresh install is
+  // not locked out waiting for a mail that has nowhere to go.
+  email_verified?: number
+  email_verified_at?: string | null
 }
 
 interface UpdateUserData {

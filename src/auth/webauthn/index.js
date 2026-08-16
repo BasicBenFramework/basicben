@@ -46,9 +46,12 @@ const SUPPORTED_ALGORITHMS = [-7, -257] // ES256, RS256
  * @param {Object} options
  * @param {string} options.rpId
  * @param {string} options.rpName
- * @param {{ id: string|number, name: string, displayName?: string }} options.user
+ * @param {{ id: string|number, name: string, displayName?: string, handle?: string|number }} options.user
+ *   `handle` is what gets stored on the authenticator, and it may be visible;
+ *   pass an opaque one so the row id is not enumerable. Defaults to `id`.
  * @param {Array} [options.excludeCredentials]
  * @param {string} [options.userVerification]
+ * @param {number} [options.timeout]
  * @returns {{ options: Object, challenge: string }}
  */
 export function generateRegistrationOptions({
@@ -118,7 +121,16 @@ export function generateAuthenticationOptions({
  * @param {string|string[]} params.expectedOrigin
  * @param {string} params.expectedRpId
  * @param {boolean} [params.requireUserVerification]
- * @returns {{ credentialId: string, publicKey: string, algorithm: number, signCount: number, ... }}
+ * @returns {{
+ *   credentialId: string,
+ *   publicKey: string,
+ *   algorithm: number,
+ *   signCount: number,
+ *   aaguid: string|null,
+ *   userVerified: boolean,
+ *   backedUp: boolean,
+ *   attestationFormat: string|null
+ * }}
  */
 export function verifyRegistration({
   response,

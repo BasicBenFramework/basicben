@@ -81,6 +81,58 @@ npm install --silent --no-audit --no-fund > /dev/null 2>&1
 npm install --silent --no-audit --no-fund "$WORK_DIR/$CORE_TGZ" > /dev/null 2>&1
 pass "installed dependencies"
 
+# --- Typecheck ---------------------------------------------------------------
+#
+# The TypeScript template's whole point is type safety, and unit tests say
+# nothing about it. Shipping @basicbenframework/core without declarations made
+# every framework import an implicit any, which typechecks silently: 64 TS7016
+# errors that no other check in this repo could see.
+
+if [ "$APP_NAME" = "smoke-ts" ]; then
+  # The package must actually carry its declarations, whatever the export map
+  # claims. A tarball built without them still installs and still builds.
+  DTS_COUNT="$(tar -tzf "$WORK_DIR/$CORE_TGZ" | grep -c 'package/types/.*\.d\.ts$' || true)"
+  if [ "$DTS_COUNT" -lt 50 ]; then
+    fail "core tarball ships only $DTS_COUNT declaration files — types/ is missing or stale"
+  fi
+  pass "core tarball ships declarations ($DTS_COUNT files)"
+
+  if ! npx tsc --noEmit > "$WORK_DIR/tsc.log" 2>&1; then
+    echo "--- tsc --noEmit ---"
+    head -40 "$WORK_DIR/tsc.log"
+    fail "the scaffolded TypeScript app does not typecheck"
+  fi
+  pass "scaffolded app typechecks with no errors"
+
+  # The committed declarations are generated from the JSDoc, so an edit to a
+  # signature that skips `npm run build:types` ships types that describe the
+  # previous version. Only checkable where the framework's own tsc is
+  # installed, which is the machine where that edit is being made.
+  if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
+    "$ROOT_DIR/node_modules/.bin/tsc" -p "$ROOT_DIR/tsconfig.types.json" \
+      --outDir "$WORK_DIR/types-fresh" > /dev/null 2>&1
+    if ! diff -rq "$ROOT_DIR/types" "$WORK_DIR/types-fresh" > "$WORK_DIR/types.diff" 2>&1; then
+      echo "--- stale declarations ---"
+      head -20 "$WORK_DIR/types.diff"
+      fail "types/ is out of date — run 'npm run build:types' and commit the result"
+    fi
+    pass "committed declarations match the JSDoc"
+
+    # Apps compile with skipLibCheck, so a declaration can be malformed and
+    # still let every app typecheck. JSDoc that emits an optional parameter
+    # before a required one produced exactly that: an invalid .d.ts nobody saw.
+    if ! (cd "$ROOT_DIR" && ./node_modules/.bin/tsc --noEmit --skipLibCheck false \
+           --strict false --moduleResolution bundler --module esnext \
+           --target es2022 --lib es2022,dom,dom.iterable \
+           $(find types -name '*.d.ts')) > "$WORK_DIR/dts.log" 2>&1; then
+      echo "--- declarations do not check on their own ---"
+      head -20 "$WORK_DIR/dts.log"
+      fail "generated declarations are not self-consistent"
+    fi
+    pass "declarations check on their own, without skipLibCheck"
+  fi
+fi
+
 npx basicben build > /dev/null 2>&1 || fail "build failed"
 [ -f dist/client/index.html ] || fail "dist/client/index.html missing after build"
 [ -f dist/server/index.js ] || fail "dist/server/index.js missing after build"

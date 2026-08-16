@@ -4,6 +4,7 @@
 
 import pkg from '../package.json' with { type: 'json' }
 
+/** @type {string} */
 export const VERSION = pkg.version
 
 // Database

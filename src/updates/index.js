@@ -82,7 +82,8 @@ export class UpdateManager {
   /**
    * Check for all available updates
    * @param {boolean} force - Force fresh check (ignore cache)
-   * @returns {Promise<object>} Update info for core, plugins, and themes
+   * @returns {Promise<{ core: CoreUpdate|null, plugins: object[], themes: object[] }>}
+   *   Update info for core, plugins, and themes
    */
   async checkAll(force = false) {
     // Use cache if recent and not forced
@@ -106,8 +107,39 @@ export class UpdateManager {
   }
 
   /**
+   * What a core update check reports.
+   *
+   * `available` is the only field always present: a failed check reports
+   * `available: false` with the reason rather than throwing, so a registry
+   * being down never takes the admin area with it.
+   *
+   * @typedef {Object} CoreUpdate
+   * @property {boolean} available
+   * @property {string} [current]
+   * @property {string} [latest]
+   * @property {string} [channel]
+   * @property {string} [releaseDate]
+   * @property {string} [changelog]
+   * @property {object[]} [migrations]
+   * @property {string} [minNode]
+   * @property {string} [error]
+   */
+
+  /**
+   * The outcome of an install or update. Failures throw, so `success` is
+   * always true here — it is carried through to the JSON an admin route sends.
+   *
+   * @typedef {Object} UpdateResult
+   * @property {boolean} success
+   * @property {string} [version]
+   * @property {string} [previousVersion]
+   * @property {string} [slug]
+   * @property {string} [message]
+   */
+
+  /**
    * Check for core framework updates
-   * @returns {Promise<object|null>} Update info or null if up to date
+   * @returns {Promise<CoreUpdate|null>} Update info or null if up to date
    */
   async checkCoreUpdate() {
     try {
@@ -173,7 +205,7 @@ export class UpdateManager {
    * Update the core framework
    * @param {string} version - Target version (default: latest)
    * @param {object} options - Update options
-   * @returns {Promise<object>} Update result
+   * @returns {Promise<UpdateResult>} Update result
    */
   async updateCore(version = 'latest', options = {}) {
     // Check if updates are allowed
@@ -266,7 +298,7 @@ export class UpdateManager {
    * Install a plugin from registry
    * @param {string} slug - Plugin slug
    * @param {object} options - Install options
-   * @returns {Promise<object>} Install result
+   * @returns {Promise<UpdateResult>} Install result
    */
   async installPlugin(slug, options = {}) {
     const { version = 'latest', registry: registryUrl, onProgress } = options
@@ -327,7 +359,7 @@ export class UpdateManager {
    * Update an installed plugin
    * @param {string} slug - Plugin slug
    * @param {object} options - Update options
-   * @returns {Promise<object>} Update result
+   * @returns {Promise<UpdateResult>} Update result
    */
   async updatePlugin(slug, options = {}) {
     const { version = 'latest', onProgress } = options
@@ -390,7 +422,7 @@ export class UpdateManager {
    * Install a theme from registry
    * @param {string} slug - Theme slug
    * @param {object} options - Install options
-   * @returns {Promise<object>} Install result
+   * @returns {Promise<UpdateResult>} Install result
    */
   async installTheme(slug, options = {}) {
     const { version = 'latest', onProgress } = options
@@ -435,7 +467,7 @@ export class UpdateManager {
    * Update an installed theme
    * @param {string} slug - Theme slug
    * @param {object} options - Update options
-   * @returns {Promise<object>} Update result
+   * @returns {Promise<UpdateResult>} Update result
    */
   async updateTheme(slug, options = {}) {
     const { version = 'latest', onProgress } = options

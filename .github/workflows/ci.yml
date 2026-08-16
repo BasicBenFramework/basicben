@@ -34,6 +34,12 @@ jobs:
         with:
           node-version: '25'
 
+      # Only the smoke test needs these: it regenerates the committed
+      # declarations to check they still match the JSDoc, which needs the
+      # framework's own tsc and React types.
+      - name: Install dev dependencies
+        run: npm ci
+
       - name: Scaffold, build and boot a real app
         run: |
           if [ "${{ matrix.template }}" = "typescript" ]; then

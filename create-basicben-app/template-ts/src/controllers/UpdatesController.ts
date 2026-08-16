@@ -199,17 +199,13 @@ export const UpdatesController = {
   async changelog(req: Request, res: Response) {
     try {
       const { version } = req.params
-      const result = await updates.registry.getCoreVersion(version)
+      const changelog = await updates.registry.getCoreChangelog(version)
 
-      if (!result) {
+      if (!changelog) {
         return res.json({ error: 'Version not found' }, 404)
       }
 
-      res.json({
-        version: result.version,
-        changelog: result.changelog,
-        releaseDate: result.releaseDate
-      })
+      res.json({ version, changelog })
     } catch (error: any) {
       res.json({
         error: error.message || 'Failed to get changelog'

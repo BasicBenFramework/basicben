@@ -114,8 +114,9 @@ export class QueryBuilder {
    * Add a WHERE clause.
    *
    * @param {string} column - Column name
-   * @param {string} [operator='='] - Comparison operator
-   * @param {*} value - Value to compare
+   * @param {*} [operator='='] - Comparison operator, or the value itself in the
+   *   two-argument shorthand `where(column, value)`
+   * @param {*} [value] - Value to compare
    * @returns {QueryBuilder}
    */
   where(column, operator, value) {

@@ -149,6 +149,7 @@ export interface Response {
   json: (data: unknown, status?: number) => void
   status: (code: number) => Response
   send: (body?: string) => void
+  redirect: (url: string, status?: number) => void
   setHeader: (name: string, value: string) => void
   end: (body?: string) => void
 }

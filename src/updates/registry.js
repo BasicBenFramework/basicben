@@ -178,7 +178,8 @@ export class RegistryClient {
   /**
    * Get core version changelog
    * @param {string} version - Version to get changelog for
-   * @returns {Promise<string>} Changelog markdown
+   * @returns {Promise<string|null>} Changelog markdown, or null if no registry
+   *   has one for that version
    */
   async getCoreChangelog(version) {
     const result = await this.tryRegistries(`/core/changelog/${version}`)

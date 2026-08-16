@@ -115,12 +115,21 @@ export const PasskeyController = {
   async registerVerify(req: Request, res: Response) {
     const { challengeHandle, response, label } = req.body as {
       challengeHandle?: string
-      response?: Record<string, unknown>
+      response?: {
+        id: string
+        response: { clientDataJSON: string; attestationObject: string }
+      }
       label?: string
     }
 
+    if (!response) {
+      return res.json({ error: 'No credential was supplied.' }, 400)
+    }
+
     const redeemed = await redeemChallenge(challengeHandle as string)
-    if (!redeemed || redeemed.userId !== req.userId) {
+    // A redeemed token with no challenge in its metadata is as unusable as no
+    // token at all — verifying against undefined would accept anything.
+    if (!redeemed || redeemed.userId !== req.userId || !redeemed.challenge) {
       return res.json({ error: 'That enrolment attempt has expired. Please start again.' }, 400)
     }
 

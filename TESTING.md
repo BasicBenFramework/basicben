@@ -17,7 +17,40 @@ npm run test:scaffolding
 # Run integration tests (creates test app)
 npm run test:app        # JavaScript template
 npm run test:app:ts     # TypeScript template
+
+# End-to-end: pack, scaffold, build, boot and typecheck a real app
+./scripts/smoke-test.sh
+./scripts/smoke-test.sh --ts
 ```
+
+---
+
+## Type Declarations
+
+The package ships TypeScript declarations in `types/`, generated from the JSDoc
+on the source rather than hand-written, so there is one place to be wrong:
+
+```bash
+npm run build:types
+```
+
+`types/` is committed, because publishing runs no build step. **Run this and
+commit the result whenever you change an exported signature or its JSDoc** — the
+declarations are what a TypeScript app sees, and stale ones describe the
+previous version while typechecking perfectly happily.
+
+The TypeScript smoke test guards both halves of this:
+
+- a scaffolded app must reach zero `tsc --noEmit` errors
+- the tarball must actually carry `types/`
+- regenerating must reproduce what is committed
+
+That last check needs the framework's own `tsc`, so run `npm ci` first if you
+have not installed dev dependencies.
+
+Without declarations every framework import is an implicit `any`, which is
+invisible to every other check here — the app builds, boots and passes its
+tests while the template's main promise quietly does not hold.
 
 ---
 

@@ -17,6 +17,9 @@ plans/
 *.md
 !README.md
 
+# Type generation config (the generated types/ directory itself ships)
+tsconfig.types.json
+
 # Misc
 .DS_Store
 *.log

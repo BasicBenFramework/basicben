@@ -124,6 +124,7 @@ async function main() {
       vitest: '^4.0.0',
       ...(useTypeScript && {
         'typescript': '^5.8',
+        '@types/node': '^24',
         '@types/react': '^19',
         '@types/react-dom': '^19'
       })
