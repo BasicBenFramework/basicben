@@ -28,14 +28,14 @@ export default function AdminSettings() {
 
   const loadSettings = async () => {
     try {
-      const res = await api.get('/api/settings')
+      const res = await api.get<{ settings: Partial<SiteSettings> }>('/api/settings')
       if (res?.settings) {
         setSettings({
-          site_name: res.data.settings.site_name || '',
-          site_description: res.data.settings.site_description || '',
-          posts_per_page: res.data.settings.posts_per_page || '10',
-          allow_comments: res.data.settings.allow_comments || 'true',
-          moderate_comments: res.data.settings.moderate_comments || 'true'
+          site_name: res.settings.site_name || '',
+          site_description: res.settings.site_description || '',
+          posts_per_page: res.settings.posts_per_page || '10',
+          allow_comments: res.settings.allow_comments || 'true',
+          moderate_comments: res.settings.moderate_comments || 'true'
         })
       }
     } catch (error) {

@@ -63,7 +63,7 @@ export default function AdminPlugins() {
 
   const loadPlugins = async () => {
     try {
-      const res = await api.get('/api/plugins')
+      const res = await api.get<{ plugins: Plugin[] }>('/api/plugins')
       setPlugins(res?.plugins || [])
     } catch (error) {
       console.error('Failed to load plugins:', error)
@@ -76,7 +76,7 @@ export default function AdminPlugins() {
     setBrowsing(true)
     try {
       const params = search ? `?search=${encodeURIComponent(search)}` : ''
-      const res = await api.get(`/api/registry/plugins${params}`)
+      const res = await api.get<{ plugins: RegistryPlugin[] }>(`/api/registry/plugins${params}`)
       const installedSlugs = plugins.map(p => p.slug || p.name)
 
       setRegistryPlugins((res?.plugins || []).map((p: RegistryPlugin) => ({

@@ -161,11 +161,11 @@ export const MediaController = {
  * The database stores the storage key, not a URL, so that moving buckets or
  * putting a CDN in front of one does not require rewriting every row.
  */
-async function withUrls(items: Array<Record<string, unknown>>) {
+async function withUrls<T extends { path: string }>(items: T[]) {
   const storage = await getStorage()
 
   return items.map((item) => ({
     ...item,
-    url: storage.publicUrl(item.path as string)
+    url: storage.publicUrl(item.path)
   }))
 }

@@ -21,7 +21,7 @@ export default function AdminPages() {
 
   const loadPages = async () => {
     try {
-      const res = await api.get('/api/pages')
+      const res = await api.get<{ pages: Page[] }>('/api/pages')
       setPages(res?.pages || [])
     } catch (error) {
       console.error('Failed to load pages:', error)

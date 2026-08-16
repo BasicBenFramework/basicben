@@ -51,8 +51,8 @@ export default function AdminUpdates() {
     setError(null)
 
     try {
-      const res = await api.get('/api/updates/check' + (force ? '?force=true' : ''))
-      setUpdates(res.data)
+      const res = await api.get<UpdateCheck>('/api/updates/check' + (force ? '?force=true' : ''))
+      setUpdates(res)
     } catch (err: any) {
       setError(err.message || 'Failed to check for updates')
     } finally {

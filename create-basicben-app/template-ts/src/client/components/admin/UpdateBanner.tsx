@@ -22,19 +22,24 @@ export default function UpdateBanner() {
 
   const checkUpdates = async () => {
     try {
-      const res = await api.get('/api/updates/check')
-      const data = res.data
+      const data = await api.get<{
+        // A check that failed reports { available: false, error } rather than
+        // throwing, so the version fields are only there when one is offered.
+        core: { available?: boolean; current?: string; latest?: string } | null
+        plugins: unknown[]
+        themes: unknown[]
+      }>('/api/updates/check')
 
-      const coreUpdate = data.core?.available ? {
-        current: data.core.current,
-        latest: data.core.latest
-      } : undefined
+      const core = data.core
+      const coreUpdate = core?.available && core.current && core.latest
+        ? { current: core.current, latest: core.latest }
+        : undefined
 
       setUpdate({
-        hasUpdates: data.core?.available || data.plugins?.length > 0 || data.themes?.length > 0,
+        hasUpdates: Boolean(coreUpdate) || data.plugins.length > 0 || data.themes.length > 0,
         coreUpdate,
-        pluginCount: data.plugins?.length || 0,
-        themeCount: data.themes?.length || 0
+        pluginCount: data.plugins.length,
+        themeCount: data.themes.length
       })
     } catch (error) {
       // Silently fail - banner is non-critical

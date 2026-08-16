@@ -64,7 +64,7 @@ export default function AdminThemes() {
 
   const loadThemes = async () => {
     try {
-      const res = await api.get('/api/themes')
+      const res = await api.get<{ themes: Theme[] }>('/api/themes')
       setThemes(res?.themes || [])
     } catch (error) {
       console.error('Failed to load themes:', error)
@@ -77,7 +77,7 @@ export default function AdminThemes() {
     setBrowsing(true)
     try {
       const params = search ? `?search=${encodeURIComponent(search)}` : ''
-      const res = await api.get(`/api/registry/themes${params}`)
+      const res = await api.get<{ themes: RegistryTheme[] }>(`/api/registry/themes${params}`)
       const installedSlugs = themes.map(t => t.slug)
 
       setRegistryThemes((res?.themes || []).map((t: RegistryTheme) => ({

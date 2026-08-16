@@ -120,7 +120,17 @@ export function validateUpload({ filename, contentType, size } = {}, options = {
  * @param {string[]} [options.allowedTypes]
  * @param {string} [options.secret]
  * @param {Object} [options.storage]
- * @returns {Promise<{ ok: boolean, error?: string, uploadUrl?: string, key?: string, ticket?: string, expiresAt?: string }>}
+ * @returns {Promise<{
+ *   ok: boolean,
+ *   error?: string,
+ *   uploadUrl?: string,
+ *   key?: string,
+ *   contentType?: string,
+ *   ticket?: string,
+ *   expiresAt?: string,
+ *   headers?: Record<string, string>
+ * }>} `headers` must be sent verbatim on the PUT — the signature covers the
+ *   content type, so storage refuses anything else.
  */
 export async function signUpload(upload, options = {}) {
   const check = validateUpload(upload, options)

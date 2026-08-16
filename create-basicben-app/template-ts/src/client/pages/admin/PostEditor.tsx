@@ -4,6 +4,8 @@ import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
 
+import type { Post } from '../../../types'
+
 interface Category {
   id: number
   name: string
@@ -44,15 +46,15 @@ export default function AdminPostEditor() {
   const loadData = async () => {
     try {
       const [catRes, tagRes] = await Promise.all([
-        api.get('/api/categories'),
-        api.get('/api/tags')
+        api.get<{ categories: Category[] }>('/api/categories'),
+        api.get<{ tags: Tag[] }>('/api/tags')
       ])
 
       setCategories(catRes?.categories || [])
       setAllTags(tagRes?.tags || [])
 
       if (postId) {
-        const postRes = await api.get(`/api/posts/${postId}`)
+        const postRes = await api.get<{ post: Post }>(`/api/posts/${postId}`)
         const post = postRes?.post
         if (post) {
           setFormData({

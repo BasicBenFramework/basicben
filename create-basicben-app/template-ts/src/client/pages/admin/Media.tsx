@@ -2,6 +2,16 @@ import React, { useState, useEffect, useRef } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 
+/** What `POST /api/media/sign` hands back: a URL to PUT to, and the headers it was signed with. */
+interface SignedUpload {
+  uploadUrl?: string
+  key?: string
+  ticket?: string
+  headers?: Record<string, string>
+  expiresAt?: string
+  error?: string
+}
+
 interface MediaItem {
   id: number
   filename: string
@@ -35,7 +45,7 @@ export default function AdminMedia() {
 
   const loadMedia = async () => {
     try {
-      const res = await api.get('/api/media')
+      const res = await api.get<{ media: MediaItem[] }>('/api/media')
       setMedia(res?.media || [])
     } catch (error) {
       console.error('Failed to load media:', error)
@@ -52,7 +62,7 @@ export default function AdminMedia() {
    * FormData here and no size limit imposed by the server's body parser.
    */
   const uploadOne = async (file: File) => {
-    const signed = await api.post('/api/media/sign', {
+    const signed = await api.post<SignedUpload>('/api/media/sign', {
       filename: file.name,
       contentType: file.type || 'application/octet-stream',
       size: file.size
@@ -74,7 +84,7 @@ export default function AdminMedia() {
       throw new Error(`Storage refused the upload (${put.status}).`)
     }
 
-    const confirmed = await api.post('/api/media/confirm', {
+    const confirmed = await api.post<{ media?: MediaItem; error?: string }>('/api/media/confirm', {
       key: signed.key,
       ticket: signed.ticket,
       filename: file.name

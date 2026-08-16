@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import type { Post, Page } from '../../../types'
 
 interface Stats {
   posts: number
@@ -22,10 +23,10 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     try {
       const [postsRes, pagesRes, commentsRes, mediaRes] = await Promise.all([
-        api.get('/api/posts'),
-        api.get('/api/pages'),
-        api.get('/api/comments/pending'),
-        api.get('/api/media/stats')
+        api.get<{ posts: Post[] }>('/api/posts'),
+        api.get<{ pages: Page[] }>('/api/pages'),
+        api.get<{ count: number }>('/api/comments/pending'),
+        api.get<{ stats: { total: number } }>('/api/media/stats')
       ])
 
       setStats({

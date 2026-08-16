@@ -23,7 +23,7 @@ export default function AdminCategories() {
 
   const loadCategories = async () => {
     try {
-      const res = await api.get('/api/categories')
+      const res = await api.get<{ categories: Category[] }>('/api/categories')
       setCategories(res?.categories || [])
     } catch (error) {
       console.error('Failed to load categories:', error)

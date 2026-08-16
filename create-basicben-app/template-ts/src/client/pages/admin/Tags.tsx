@@ -21,7 +21,7 @@ export default function AdminTags() {
 
   const loadTags = async () => {
     try {
-      const res = await api.get('/api/tags')
+      const res = await api.get<{ tags: Tag[] }>('/api/tags')
       setTags(res?.tags || [])
     } catch (error) {
       console.error('Failed to load tags:', error)

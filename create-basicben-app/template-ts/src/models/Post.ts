@@ -122,15 +122,18 @@ export const Post = {
  * The key is resolved here rather than stored as a URL so that moving buckets,
  * or putting a CDN in front of one, does not mean rewriting every row.
  */
-async function withFeaturedImages(rows: Array<Record<string, unknown>>): Promise<PostType[]> {
-  if (!rows.some((row) => row.featured_image_path)) return rows as PostType[]
+/** A post row as the join returns it: the post, plus the media key beside it. */
+type PostRow = PostType & { featured_image_path?: string | null }
+
+async function withFeaturedImages(rows: PostRow[]): Promise<PostType[]> {
+  if (!rows.some((row) => row.featured_image_path)) return rows
 
   const storage = await getStorage()
 
   return rows.map((row) => ({
     ...row,
     featured_image_url: row.featured_image_path
-      ? storage.publicUrl(row.featured_image_path as string)
+      ? storage.publicUrl(row.featured_image_path)
       : null
-  })) as PostType[]
+  }))
 }
