@@ -29,8 +29,10 @@ const staticDir = process.env.NODE_ENV === 'production' ? 'dist/client' : 'publi
 const app = await createServer({
   // Disable auto-loading since we're importing routes explicitly
   autoloadRoutes: false,
-  // Serve static files from appropriate directory
-  static: { dir: staticDir },
+  // Serve static files from appropriate directory.
+  // spa serves index.html for unmatched client routes, so deep links and
+  // refreshes work in production instead of returning a JSON 404
+  static: { dir: staticDir, spa: true },
   // Enable plugins
   plugins: true,
   pluginsDir: 'plugins'

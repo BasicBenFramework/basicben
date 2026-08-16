@@ -1,5 +1,6 @@
 import { ThemeController } from '../../controllers/ThemeController'
 import { auth } from '../../middleware/auth'
+import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -15,10 +16,10 @@ export default (router: Router) => {
   router.get('/api/themes/css/:slug', ThemeController.css)
 
   // Admin routes (authenticated)
-  router.get('/api/themes', auth, ThemeController.index)
-  router.get('/api/themes/:slug', auth, ThemeController.show)
-  router.post('/api/themes/activate', auth, ThemeController.activate)
-  router.get('/api/themes/:slug/settings', auth, ThemeController.getSettings)
-  router.put('/api/themes/:slug/settings', auth, ThemeController.updateSettings)
-  router.delete('/api/themes/:slug/settings', auth, ThemeController.resetSettings)
+  router.get('/api/themes', auth, requireCapability('theme.manage'), ThemeController.index)
+  router.get('/api/themes/:slug', auth, requireCapability('theme.manage'), ThemeController.show)
+  router.post('/api/themes/activate', auth, requireCapability('theme.manage'), ThemeController.activate)
+  router.get('/api/themes/:slug/settings', auth, requireCapability('theme.manage'), ThemeController.getSettings)
+  router.put('/api/themes/:slug/settings', auth, requireCapability('theme.manage'), ThemeController.updateSettings)
+  router.delete('/api/themes/:slug/settings', auth, requireCapability('theme.manage'), ThemeController.resetSettings)
 }

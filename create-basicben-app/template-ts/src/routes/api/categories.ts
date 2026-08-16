@@ -1,5 +1,6 @@
 import { CategoryController } from '../../controllers/CategoryController'
 import { auth } from '../../middleware/auth'
+import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -16,7 +17,7 @@ export default (router: Router) => {
   router.get('/api/categories/:id', CategoryController.show)
 
   // Admin routes (authenticated)
-  router.post('/api/categories', auth, CategoryController.store)
-  router.put('/api/categories/:id', auth, CategoryController.update)
-  router.delete('/api/categories/:id', auth, CategoryController.destroy)
+  router.post('/api/categories', auth, requireCapability('category.manage'), CategoryController.store)
+  router.put('/api/categories/:id', auth, requireCapability('category.manage'), CategoryController.update)
+  router.delete('/api/categories/:id', auth, requireCapability('category.manage'), CategoryController.destroy)
 }

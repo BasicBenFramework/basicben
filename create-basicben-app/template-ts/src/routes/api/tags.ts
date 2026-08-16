@@ -1,5 +1,6 @@
 import { TagController } from '../../controllers/TagController'
 import { auth } from '../../middleware/auth'
+import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -15,7 +16,7 @@ export default (router: Router) => {
   router.get('/api/tags/:id', TagController.show)
 
   // Admin routes (authenticated)
-  router.post('/api/tags', auth, TagController.store)
-  router.put('/api/tags/:id', auth, TagController.update)
-  router.delete('/api/tags/:id', auth, TagController.destroy)
+  router.post('/api/tags', auth, requireCapability('tag.manage'), TagController.store)
+  router.put('/api/tags/:id', auth, requireCapability('tag.manage'), TagController.update)
+  router.delete('/api/tags/:id', auth, requireCapability('tag.manage'), TagController.destroy)
 }

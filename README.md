@@ -597,6 +597,66 @@ export default (router) => {
 
 ---
 
+## Roles & Permissions
+
+Users have a role, and routes are gated on capabilities rather than on merely
+being logged in. The first account to register becomes the `admin`; everyone
+after defaults to `subscriber`.
+
+| Role | Can |
+|------|-----|
+| `admin` | Everything, including settings, themes, plugins, and updates |
+| `editor` | Create, edit, publish, and delete any content; moderate comments |
+| `author` | Create and publish their own posts; upload media |
+| `contributor` | Write their own drafts; cannot publish or upload |
+| `subscriber` | Comment only |
+
+Gate a route with `requireCapability`:
+
+```js
+import { requireCapability } from '@basicbenframework/core/auth/permissions'
+
+export default (router) => {
+  router.put('/api/settings', auth, requireCapability('settings.manage'), SettingsController.update)
+}
+```
+
+Capabilities ending in `.own` apply only to records the user owns. Pass a
+`loadResource` function and the check compares the record's `user_id` (or
+`author_id`) against the current user:
+
+```js
+router.put(
+  '/api/posts/:id',
+  auth,
+  requireCapability('post.edit', {
+    loadResource: (req) => Post.find(Number(req.params.id))
+  }),
+  PostController.update
+)
+```
+
+An `author` holds `post.edit.own`, so that route lets them edit their own posts
+and returns 403 for anyone else's. An `editor` holds `post.edit` outright and
+can edit all of them.
+
+To check a capability directly:
+
+```js
+import { can } from '@basicbenframework/core/auth/permissions'
+
+if (!can(req.user, 'post.publish')) {
+  return res.json({ error: 'Forbidden' }, 403)
+}
+```
+
+`req.user` is `{ id, role }`, populated by the auth middleware from the JWT.
+Because the role travels in the token, a role change takes effect when the token
+is reissued — reload the user and pass the fresh record to `can()` where that
+matters.
+
+---
+
 ## Testing
 
 BasicBen uses Vitest for application tests:
@@ -666,7 +726,11 @@ export default {
 
   // Static files
   static: {
-    dir: 'public'
+    dir: 'public',
+    // Serve index.html for unmatched client routes so deep links and refreshes
+    // work in production. API paths and requests for files with an extension
+    // fall through, so they still 404 correctly.
+    spa: true
   },
 
   // Database

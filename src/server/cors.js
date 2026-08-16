@@ -15,6 +15,20 @@ const defaults = {
 export function cors(options = {}) {
   const config = { ...defaults, ...options }
 
+  // Browsers reject `Access-Control-Allow-Origin: *` together with
+  // `Access-Control-Allow-Credentials: true`, so this combination silently
+  // breaks every credentialed cross-origin request. Drop credentials rather
+  // than reflecting the request origin — reflecting would turn a config
+  // mistake into "any site may make credentialed calls to this API".
+  if (config.origin === '*' && config.credentials) {
+    console.warn(
+      "[basicben] cors: origin '*' cannot be combined with credentials: true — " +
+      'browsers reject that pairing. Ignoring credentials. Set an explicit ' +
+      'origin (a string, array, or function) to allow credentialed requests.'
+    )
+    config.credentials = false
+  }
+
   return (req, res, next) => {
     const origin = req.headers.origin
 

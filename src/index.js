@@ -31,6 +31,19 @@ export {
   incrementVersion
 } from './updates/version.js'
 
+// Roles & permissions
+export {
+  ROLES,
+  DEFAULT_ROLE,
+  CAPABILITIES,
+  can,
+  capabilitiesFor,
+  isValidRole,
+  requireCapability,
+  requireRole,
+  requireAdminArea
+} from './auth/permissions.js'
+
 // Environment
 export {
   getEnvironment,

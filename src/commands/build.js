@@ -153,31 +153,21 @@ async function prepareServer(cwd) {
     copyFileSync(pkgSrc, resolve(distServer, 'package.json'))
   }
 
-  // Create production server entry
-  const hasCustomServer = existsSync(resolve(cwd, 'src/server/index.js'))
-
-  const serverEntry = hasCustomServer
-    ? `
-import { createServer } from './server/index.js'
-
-const app = await createServer({
-  static: { dir: '../client' }
-})
-
-const port = process.env.PORT || 3000
-
-app.listen(port, () => {
-  console.log(\`Server running at http://localhost:\${port}\`)
-})
-`.trim()
-    : `
-import { createServer } from 'basicben/server'
+  // Create production server entry.
+  //
+  // This runs only when the project has no server entry of its own — a project
+  // that has one is compiled through the Vite SSR path instead. `basicben start`
+  // runs this file with cwd set to the project root, and serveStatic resolves
+  // its dir against cwd, so the client path is 'dist/client' rather than
+  // relative to this file's location.
+  const serverEntry = `
+import { createServer } from '@basicbenframework/core/server'
 
 const app = await createServer({
-  static: { dir: '../client' }
+  static: { dir: 'dist/client', spa: true }
 })
 
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 3001
 
 app.listen(port, () => {
   console.log(\`Server running at http://localhost:\${port}\`)

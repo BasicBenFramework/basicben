@@ -1,5 +1,6 @@
 import { PageController } from '../../controllers/PageController'
 import { auth } from '../../middleware/auth'
+import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -14,11 +15,11 @@ export default (router: Router) => {
   router.get('/api/pages/slug/:slug', PageController.showPublishedBySlug)
 
   // Admin routes (authenticated)
-  router.get('/api/pages', auth, PageController.index)
-  router.get('/api/pages/tree', auth, PageController.tree)
-  router.get('/api/pages/:id', auth, PageController.show)
-  router.post('/api/pages', auth, PageController.store)
-  router.put('/api/pages/:id', auth, PageController.update)
-  router.delete('/api/pages/:id', auth, PageController.destroy)
-  router.put('/api/pages/reorder', auth, PageController.reorder)
+  router.get('/api/pages', auth, requireCapability('page.edit'), PageController.index)
+  router.get('/api/pages/tree', auth, requireCapability('page.edit'), PageController.tree)
+  router.get('/api/pages/:id', auth, requireCapability('page.edit'), PageController.show)
+  router.post('/api/pages', auth, requireCapability('page.create'), PageController.store)
+  router.put('/api/pages/:id', auth, requireCapability('page.edit'), PageController.update)
+  router.delete('/api/pages/:id', auth, requireCapability('page.delete'), PageController.destroy)
+  router.put('/api/pages/reorder', auth, requireCapability('page.edit'), PageController.reorder)
 }

@@ -24,7 +24,7 @@ export async function createSqliteAdapter(url, options = {}) {
     db.exec('PRAGMA journal_mode = WAL')
   }
 
-  return {
+  const adapter = {
     /**
      * Driver name for query builder
      */
@@ -67,12 +67,17 @@ export async function createSqliteAdapter(url, options = {}) {
     },
 
     /**
-     * Run function in transaction
+     * Run function in transaction.
+     *
+     * The callback receives the adapter so the same code works against Postgres,
+     * which passes a transaction-scoped adapter. The result is awaited: an async
+     * callback would otherwise commit before its work finished, and a rejection
+     * would escape the rollback.
      */
-    transaction(fn) {
+    async transaction(fn) {
       db.exec('BEGIN TRANSACTION')
       try {
-        const result = fn()
+        const result = await fn(adapter)
         db.exec('COMMIT')
         return result
       } catch (error) {
@@ -95,6 +100,8 @@ export async function createSqliteAdapter(url, options = {}) {
       return db
     }
   }
+
+  return adapter
 }
 
 /**

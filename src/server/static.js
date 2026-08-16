@@ -40,7 +40,9 @@ const defaults = {
   prefix: '/',
   maxAge: 86400, // 24 hours in seconds
   index: 'index.html',
-  dotfiles: 'ignore' // 'ignore', 'allow', 'deny'
+  dotfiles: 'ignore', // 'ignore', 'allow', 'deny'
+  spa: false, // serve index.html for unmatched client routes
+  spaExclude: [/^\/api\//]
 }
 
 export function serveStatic(options = {}) {
@@ -131,6 +133,69 @@ export function serveStatic(options = {}) {
     stream.pipe(res)
     stream.on('error', (err) => {
       console.error('Static file error:', err)
+      if (!res.headersSent) {
+        res.statusCode = 500
+        res.end('Internal Server Error')
+      }
+    })
+  }
+}
+
+/**
+ * SPA history fallback.
+ *
+ * Wraps a not-found handler so unmatched client routes serve index.html and the
+ * browser-side router can take over. Intended for `onNoMatch`, which runs after
+ * route matching — putting this in the middleware chain would shadow the API,
+ * since static middleware runs before routes are matched.
+ */
+export function spaFallback(options = {}, next) {
+  const config = { ...defaults, ...options }
+  const root = resolve(process.cwd(), config.dir)
+  const indexPath = join(root, config.index)
+  const exclude = config.spaExclude || defaults.spaExclude
+
+  return (req, res) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return next(req, res)
+    }
+
+    const urlPath = req.path || req.url.split('?')[0]
+
+    if (exclude.some((pattern) => pattern.test(urlPath))) {
+      return next(req, res)
+    }
+
+    // A request for a missing asset should 404, not receive the app shell —
+    // returning HTML for a .js request produces a confusing MIME type error.
+    const ext = extname(urlPath).toLowerCase()
+    if (ext && ext !== '.html') {
+      return next(req, res)
+    }
+
+    let stat
+    try {
+      stat = statSync(indexPath)
+    } catch {
+      return next(req, res)
+    }
+
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'text/html')
+    res.setHeader('Content-Length', stat.size)
+    // The shell references hashed assets that change on every build, so it must
+    // never be cached — a stale shell points at files that no longer exist.
+    res.setHeader('Cache-Control', 'no-cache')
+
+    if (req.method === 'HEAD') {
+      res.end()
+      return
+    }
+
+    const stream = createReadStream(indexPath)
+    stream.pipe(res)
+    stream.on('error', (err) => {
+      console.error('SPA fallback error:', err)
       if (!res.headersSent) {
         res.statusCode = 500
         res.end('Internal Server Error')

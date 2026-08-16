@@ -1,10 +1,15 @@
 import { verifyJwt } from '@basicbenframework/core/auth'
+import { DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import type { Request, Response } from '../types'
 
 interface JwtPayload {
   userId: number
+  role?: string
 }
 
+// Named export only, deliberately. The framework applies any DEFAULT export from
+// src/middleware/*.js to every route, which would 401 the whole site including
+// the login endpoint.
 export const auth = async (req: Request, res: Response, next: () => void) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) {
@@ -17,5 +22,8 @@ export const auth = async (req: Request, res: Response, next: () => void) => {
   }
 
   req.userId = payload.userId
+  // Capability checks read req.user. The role comes from the token, so a role
+  // change takes effect when the token is reissued.
+  req.user = { id: payload.userId, role: payload.role ?? DEFAULT_ROLE }
   next()
 }

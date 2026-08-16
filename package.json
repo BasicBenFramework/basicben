@@ -1,6 +1,6 @@
 {
   "name": "@basicbenframework/core",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "A full-stack framework for React. Minimal dependencies, maximum clarity.",
   "author": "ctmakes",
   "repository": {
@@ -21,6 +21,7 @@
     "./client": "./src/client/index.js",
     "./validation": "./src/validation/index.js",
     "./auth": "./src/auth/jwt.js",
+    "./auth/permissions": "./src/auth/permissions.js",
     "./db": "./src/db/index.js",
     "./hooks": "./src/hooks/index.js",
     "./plugins": "./src/plugins/index.js",

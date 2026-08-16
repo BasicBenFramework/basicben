@@ -9,6 +9,18 @@ export class Grammar {
   }
 
   /**
+   * Whether this dialect needs a RETURNING clause to report a new row's id.
+   *
+   * The Postgres adapter reads lastInsertRowid from the returned row, so an
+   * INSERT without RETURNING yields a null id.
+   *
+   * @returns {boolean}
+   */
+  supportsReturning() {
+    return this.driver === 'postgres' || this.driver === 'pg' || this.driver === 'neon'
+  }
+
+  /**
    * Validate an identifier (column/table name).
    * Only allows alphanumeric characters and underscores.
    * Must start with a letter or underscore.

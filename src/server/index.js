@@ -9,7 +9,7 @@ import { createApp } from './http.js'
 import { Router, createRouter } from './router.js'
 import { bodyParser, json } from './body-parser.js'
 import { cors } from './cors.js'
-import { serveStatic } from './static.js'
+import { serveStatic, spaFallback } from './static.js'
 import { loadRoutes, loadMiddleware, loadConfig } from './loader.js'
 import { hooks, HOOKS } from '../hooks/index.js'
 import { plugins } from '../plugins/index.js'
@@ -25,9 +25,19 @@ export async function createServer(options = {}) {
   // Fire server.starting hook
   await hooks.fire(HOOKS.SERVER_STARTING, { config: mergedConfig })
 
+  const staticConfig = mergedConfig.static === true ? {} : (mergedConfig.static || {})
+  const notFoundHandler = mergedConfig.onNoMatch || defaultNotFoundHandler
+
+  // The SPA fallback has to sit in onNoMatch rather than the middleware chain:
+  // static middleware runs before routes are matched, so a fallback there would
+  // answer API requests with the app shell.
+  const onNoMatch = mergedConfig.static && staticConfig.spa
+    ? spaFallback(staticConfig, notFoundHandler)
+    : notFoundHandler
+
   const app = createApp({
     onError: mergedConfig.onError || defaultErrorHandler,
-    onNoMatch: mergedConfig.onNoMatch || defaultNotFoundHandler
+    onNoMatch
   })
 
   // Core middleware

@@ -6,7 +6,32 @@ on:
       - 'v*'
 
 jobs:
+  # Unit tests pass on a package published without its templates and on a server
+  # entry that cannot start. Both have shipped. The smoke test builds and boots a
+  # real scaffolded app, and publishing is gated on it.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+
+      - name: Run tests
+        run: npm test
+
+      - name: Smoke test (JavaScript template)
+        run: ./scripts/smoke-test.sh
+
+      - name: Smoke test (TypeScript template)
+        run: ./scripts/smoke-test.sh --ts
+        env:
+          SMOKE_PORT: 3986
+
   publish:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,9 +44,6 @@ jobs:
         with:
           node-version: '25'
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Run tests
-        run: npm test
 
       - name: Publish @basicbenframework/core
         run: npm publish --access public --provenance

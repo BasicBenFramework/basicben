@@ -1,10 +1,12 @@
 import { validate, rules } from '@basicbenframework/core/validation'
 import { signJwt, verifyJwt, hashPassword, verifyPassword } from '@basicbenframework/core/auth'
+import { ROLES, DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import { User } from '../models/User'
 import type { Request, Response } from '../types'
 
 interface JwtPayload {
   userId: number
+  role?: string
 }
 
 export const AuthController = {
@@ -27,18 +29,26 @@ export const AuthController = {
       return res.json({ error: 'Email already registered' }, 400)
     }
 
-    // Create user
+    // The first account to register is the operator setting the site up, so it
+    // becomes the admin. Everyone after gets the least privileged role.
+    const isFirstUser = (await User.count()) === 0
+    const role = isFirstUser ? ROLES.ADMIN : DEFAULT_ROLE
+
     const user = await User.create({
       name,
       email,
-      password: await hashPassword(password)
+      password: await hashPassword(password),
+      role
     })
 
-    // Generate token
-    const token = signJwt({ userId: user.id }, process.env.APP_KEY as string, { expiresIn: '7d' })
+    const token = signJwt(
+      { userId: user.id, role },
+      process.env.APP_KEY as string,
+      { expiresIn: '7d' }
+    )
 
     res.json({
-      user: { id: user.id, name: user.name, email: user.email },
+      user: { id: user.id, name: user.name, email: user.email, role },
       token
     })
   },
@@ -55,10 +65,14 @@ export const AuthController = {
       return res.json({ error: 'Invalid credentials' }, 401)
     }
 
-    const token = signJwt({ userId: user.id }, process.env.APP_KEY as string, { expiresIn: '7d' })
+    const token = signJwt(
+      { userId: user.id, role: user.role ?? DEFAULT_ROLE },
+      process.env.APP_KEY as string,
+      { expiresIn: '7d' }
+    )
 
     res.json({
-      user: { id: user.id, name: user.name, email: user.email },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role ?? DEFAULT_ROLE },
       token
     })
   },
@@ -80,7 +94,7 @@ export const AuthController = {
     }
 
     res.json({
-      user: { id: user.id, name: user.name, email: user.email }
+      user: { id: user.id, name: user.name, email: user.email, role: user.role ?? DEFAULT_ROLE }
     })
   }
 }

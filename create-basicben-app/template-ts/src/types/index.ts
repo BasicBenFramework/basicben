@@ -4,7 +4,14 @@ export interface User {
   name: string
   email: string
   password: string
+  role: string
   created_at: string
+}
+
+/** The authenticated principal, taken from the JWT. Capability checks read this. */
+export interface AuthUser {
+  id: number
+  role: string
 }
 
 export interface Post {
@@ -118,6 +125,9 @@ export interface Request {
   query: Record<string, string>
   headers: Record<string, string>
   userId?: number
+  user?: AuthUser
+  /** Set by requireCapability when a loadResource option is supplied */
+  resource?: Record<string, unknown>
 }
 
 export interface Response {

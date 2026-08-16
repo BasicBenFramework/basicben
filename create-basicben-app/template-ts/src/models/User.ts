@@ -1,17 +1,24 @@
-import { getDb } from '@basicbenframework/core/db'
+import { getDb, query } from '@basicbenframework/core/db'
+import { DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import type { User as UserType } from '../types'
 
 interface CreateUserData {
   name: string
   email: string
   password: string
+  role?: string
 }
 
 interface UpdateUserData {
   name?: string
   email?: string
   password?: string
+  role?: string
 }
+
+// Columns update() is allowed to write. Without this, passing req.body straight
+// through would let a caller set any column, including role.
+const UPDATABLE = ['name', 'email', 'password', 'role']
 
 export const User = {
   async all(): Promise<UserType[]> {
@@ -29,21 +36,39 @@ export const User = {
     return db.get('SELECT * FROM users WHERE email = ?', [email])
   },
 
-  async create(data: CreateUserData): Promise<UserType> {
+  async count(): Promise<number> {
     const db = await getDb()
-    const result = await db.run(
-      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-      [data.name, data.email, data.password]
-    )
-    return { id: result.lastInsertRowid as number, ...data, created_at: new Date().toISOString() }
+    const row = await db.get('SELECT COUNT(*) as count FROM users')
+    return Number(row?.count ?? 0)
+  },
+
+  async create(data: CreateUserData): Promise<UserType> {
+    const role = data.role ?? DEFAULT_ROLE
+    // Goes through the query builder so Postgres gets a RETURNING clause and
+    // the new id comes back — a raw INSERT yields a null id there.
+    const users = await query('users')
+    const result = await users.insert({ ...data, role })
+
+    return {
+      id: result.lastInsertRowid as number,
+      ...data,
+      role,
+      created_at: new Date().toISOString()
+    }
   },
 
   async update(id: number, data: UpdateUserData): Promise<UserType> {
     const db = await getDb()
-    const fields = Object.keys(data).map(k => `${k} = ?`).join(', ')
+    const entries = Object.entries(data).filter(([k]) => UPDATABLE.includes(k))
+
+    if (entries.length === 0) {
+      return this.find(id) as Promise<UserType>
+    }
+
+    const fields = entries.map(([k]) => `${k} = ?`).join(', ')
     await db.run(
       `UPDATE users SET ${fields} WHERE id = ?`,
-      [...Object.values(data), id]
+      [...entries.map(([, v]) => v), id]
     )
     return this.find(id) as Promise<UserType>
   },

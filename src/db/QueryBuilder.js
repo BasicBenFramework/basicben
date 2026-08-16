@@ -233,14 +233,19 @@ export class QueryBuilder {
       return { sql: '', startIndex }
     }
 
-    const clauses = this._wheres.map((w, i) => {
+    // Count only bound clauses: raw ones (IS NULL and friends) contribute no
+    // parameter, and getParams() filters them out. Indexing by position in
+    // _wheres would skip numbers and leave placeholders unbound on Postgres.
+    let bound = 0
+    const clauses = this._wheres.map((w) => {
       const col = this.grammar.escapeId(w.column)
 
       if (w.raw) {
         return `${col} ${w.operator} ${w.value}`
       }
 
-      const placeholder = this.grammar.placeholder(startIndex + i)
+      const placeholder = this.grammar.placeholder(startIndex + bound)
+      bound++
       return `${col} ${w.operator} ${placeholder}`
     })
 
@@ -345,7 +350,11 @@ export class QueryBuilder {
     const columns = keys.map(k => this.grammar.escapeId(k)).join(', ')
     const placeholders = keys.map((_, i) => this.grammar.placeholder(i)).join(', ')
 
-    const sql = `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`
+    let sql = `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`
+
+    if (this.grammar.supportsReturning()) {
+      sql += ' RETURNING id'
+    }
 
     return this.db.run(sql, values)
   }
@@ -376,13 +385,16 @@ export class QueryBuilder {
 
     let sql = `UPDATE ${table} SET ${setClause}`
 
-    // WHERE clause with offset indices
+    // WHERE clause, numbered after the SET parameters. Same rule as
+    // _buildWhereClause: only bound clauses consume a placeholder.
     if (this._wheres.length > 0) {
-      const clauses = this._wheres.map((w, i) => {
+      let bound = 0
+      const clauses = this._wheres.map((w) => {
         if (w.raw) {
           return `${this.grammar.escapeId(w.column)} ${w.operator} ${w.value}`
         }
-        const placeholder = this.grammar.placeholder(keys.length + i)
+        const placeholder = this.grammar.placeholder(keys.length + bound)
+        bound++
         return `${this.grammar.escapeId(w.column)} ${w.operator} ${placeholder}`
       })
       sql += ` WHERE ${clauses.join(' AND ')}`

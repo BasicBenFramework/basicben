@@ -11,7 +11,9 @@ import { createServer } from '@basicbenframework/core/server'
 const staticDir = process.env.NODE_ENV === 'production' ? 'dist/client' : 'public'
 
 const app = await createServer({
-  static: { dir: staticDir }
+  // spa serves index.html for unmatched client routes, so deep links and
+  // refreshes work in production instead of returning a JSON 404
+  static: { dir: staticDir, spa: true }
 })
 
 const port = process.env.PORT || 3001
