@@ -28,48 +28,14 @@
  */
 
 import React, { createContext, useContext, useEffect, useMemo, useState, Suspense } from 'react'
+import { createThemeRegistry, resolveThemeSource } from './theme-registry.js'
+
+// Re-exported so callers have one import for the whole theme surface. It lives
+// in its own module because it needs no React, and the framework's tests run
+// with nothing installed.
+export { createThemeRegistry, parseThemePath, resolveThemeSource } from './theme-registry.js'
 
 const ThemeRegistryContext = createContext(null)
-
-/**
- * Index the modules produced by `import.meta.glob`.
- *
- * @param {Object} modules - path → () => Promise<Module>, from import.meta.glob
- * @param {Object} [options]
- * @param {string} [options.kind] - 'layouts' or 'components'
- * @returns {Object} registry keyed by theme slug then component name
- *
- * @example
- * const layouts = createThemeRegistry(
- *   import.meta.glob('../../themes/[*]\/layouts/[*].tsx')
- * )
- */
-export function createThemeRegistry(modules = {}) {
-  const registry = {}
-
-  for (const [path, loader] of Object.entries(modules)) {
-    const parsed = parseThemePath(path)
-    if (!parsed) continue
-
-    registry[parsed.theme] ??= {}
-    registry[parsed.theme][parsed.name] = loader
-  }
-
-  return registry
-}
-
-/**
- * Pull the theme slug and component name out of a glob path.
- *
- * Matches `.../themes/<slug>/<layouts|components>/<Name>.<ext>`, which is the
- * layout every theme has to follow for discovery to work at all.
- */
-function parseThemePath(path) {
-  const match = /themes\/([^/]+)\/(?:layouts|components)\/([^/]+)\.(?:jsx?|tsx?)$/.exec(path)
-  if (!match) return null
-
-  return { theme: match[1], name: match[2] }
-}
 
 /**
  * @typedef {Object} ThemeProviderProps
@@ -141,8 +107,10 @@ export function useActiveTheme() {
 const lazyCache = new Map()
 
 function resolve(registry, active, fallback, name) {
-  const loader = registry?.[active]?.[name] || registry?.[fallback]?.[name]
-  if (!loader) return null
+  const source = resolveThemeSource(registry, active, fallback, name)
+  if (!source) return null
+
+  const loader = registry[source][name]
 
   const key = `${registry === undefined ? '?' : ''}${active}:${fallback}:${name}`
 

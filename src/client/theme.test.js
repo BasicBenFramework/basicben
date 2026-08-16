@@ -7,6 +7,10 @@
  * was nothing real to test that against, so these use the actual files on disk
  * rather than a hand-built fixture: `default` implements everything, `minimal`
  * implements two layouts and nothing else.
+ *
+ * Imports the React-free half of the module, because the framework's suite runs
+ * before dependencies are installed — React is a peer dependency the app
+ * provides, not something the framework's own tests may assume.
  */
 
 import { test, describe } from 'node:test'
@@ -14,7 +18,7 @@ import assert from 'node:assert'
 import { readdirSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { createThemeRegistry } from './theme.js'
+import { createThemeRegistry, resolveThemeSource } from './theme-registry.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const THEMES = join(here, '../../create-basicben-app/template-ts/themes')
@@ -38,12 +42,9 @@ function registryFromDisk() {
   return createThemeRegistry(modules)
 }
 
-/** The resolver's rule: active theme, then fallback theme, then nothing. */
-function resolveFrom(registry, active, fallback, name) {
-  if (registry[active]?.[name]) return active
-  if (registry[fallback]?.[name]) return fallback
-  return null
-}
+// The real resolver, not a restatement of its rule — a test that reimplements
+// the logic it is checking passes when both are wrong in the same way.
+const resolveFrom = resolveThemeSource
 
 describe('createThemeRegistry', () => {
   test('indexes by theme slug and component name', () => {

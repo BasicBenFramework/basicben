@@ -1,18 +1,4 @@
 /**
- * Index the modules produced by `import.meta.glob`.
- *
- * @param {Object} modules - path → () => Promise<Module>, from import.meta.glob
- * @param {Object} [options]
- * @param {string} [options.kind] - 'layouts' or 'components'
- * @returns {Object} registry keyed by theme slug then component name
- *
- * @example
- * const layouts = createThemeRegistry(
- *   import.meta.glob('../../themes/[*]\/layouts/[*].tsx')
- * )
- */
-export function createThemeRegistry(modules?: any): any;
-/**
  * @typedef {Object} ThemeProviderProps
  * @property {Object} [layouts] - registry from createThemeRegistry
  * @property {Object} [components] - registry from createThemeRegistry
@@ -106,3 +92,4 @@ export type ThemeLayoutOwnProps = {
     children?: (() => import("react").ReactNode) | import("react").ReactNode;
 };
 import React from 'react';
+export { createThemeRegistry, parseThemePath, resolveThemeSource } from "./theme-registry.js";
