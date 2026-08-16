@@ -23,6 +23,30 @@ async function loadDriver() {
 }
 
 /**
+ * Settings for the connection pool.
+ *
+ * Separate from the adapter so they can be asserted without a Postgres server.
+ *
+ * @param {string} url - Postgres connection string
+ * @param {Object} options - Additional options
+ * @returns {Object} Options for pg's Pool
+ */
+export function poolOptions(url, options = {}) {
+  return {
+    connectionString: url,
+    max: options.poolSize || 10,
+    idleTimeoutMillis: options.idleTimeout || 30000,
+    connectionTimeoutMillis: options.connectionTimeout || 2000,
+
+    // An idle client keeps the event loop alive until it times out, which left
+    // every CLI command sitting for the full idle timeout — 30 seconds by
+    // default — after its work was done and committed. A long-running server
+    // holds itself open with its own listener, so it is unaffected.
+    allowExitOnIdle: options.allowExitOnIdle !== false
+  }
+}
+
+/**
  * Create Postgres adapter
  *
  * @param {string} url - Postgres connection string
@@ -31,12 +55,7 @@ async function loadDriver() {
 export async function createPostgresAdapter(url, options = {}) {
   const { Pool } = await loadDriver()
 
-  const pool = new Pool({
-    connectionString: url,
-    max: options.poolSize || 10,
-    idleTimeoutMillis: options.idleTimeout || 30000,
-    connectionTimeoutMillis: options.connectionTimeout || 2000
-  })
+  const pool = new Pool(poolOptions(url, options))
 
   // Test connection
   try {
