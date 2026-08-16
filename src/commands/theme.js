@@ -368,11 +368,64 @@ async function activateTheme(args, flags) {
 
   try {
     const { themes } = await import('../themes/index.js')
-    await themes.activate(slug)
+    const { loadThemes } = await import('../themes/loader.js')
+
+    // Themes have to be read off disk first. This process is not the server,
+    // so the manager starts empty — without this, activate() reported "not
+    // registered" and returned false while the command below still printed a
+    // tick.
+    await loadThemes('themes')
+
+    if (!themes.themes.has(slug)) {
+      const installed = [...themes.themes.keys()]
+      console.error(`${red('✗')} Theme ${bold(slug)} is not installed.\n`)
+      console.error(
+        installed.length
+          ? `${dim('Installed:')} ${installed.join(', ')}\n`
+          : `${dim('No themes found in themes/.')}\n`
+      )
+      process.exit(1)
+    }
+
+    if (!(await themes.activate(slug))) {
+      console.error(`${red('✗')} Theme ${bold(slug)} could not be activated.\n`)
+      process.exit(1)
+    }
+
+    // activate() only moves the manager's own pointer, which dies with this
+    // process. The server reads `active_theme` from settings at boot, so the
+    // choice has to be written there to outlive the command.
+    await persistActiveTheme(slug)
+
     console.log(`${green('✓')} Theme ${bold(slug)} activated.\n`)
+    console.log(`${dim('Restart the server for it to take effect.')}\n`)
   } catch (error) {
     console.error(`${red('✗')} ${error.message}\n`)
     process.exit(1)
+  }
+}
+
+/**
+ * Store the active theme where the server looks for it at boot.
+ *
+ * @param {string} slug
+ */
+async function persistActiveTheme(slug) {
+  const { getDb } = await import('../db/index.js')
+  const db = await getDb()
+
+  const existing = await db.get('SELECT key FROM settings WHERE key = ?', ['active_theme'])
+
+  if (existing) {
+    await db.run(
+      "UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?",
+      [slug, 'active_theme']
+    )
+  } else {
+    await db.run(
+      "INSERT INTO settings (key, value, group_name) VALUES (?, ?, 'appearance')",
+      ['active_theme', slug]
+    )
   }
 }
 
