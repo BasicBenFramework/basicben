@@ -214,6 +214,97 @@ case "$code" in
   *) fail "reusing a link returned $code" ;;
 esac
 
+# --- Two-factor authentication ------------------------------------------------
+#
+# Only the TypeScript template ships the 2FA endpoints. The point of doing this
+# end to end is that a correct password must stop being enough.
+
+if [ "$APP_NAME" = "smoke-ts" ]; then
+  tfa() {
+    curl -s -X "$1" "http://localhost:$PORT$2" \
+      -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $OWNER_TOKEN" \
+      -d "${3:-\{\}}"
+  }
+
+  SETUP="$(tfa POST /api/auth/2fa/totp/setup '{"password":"password123"}')"
+  SECRET="$(echo "$SETUP" | sed -n 's/.*"secret":"\([^"]*\)".*/\1/p')"
+  [ -n "$SECRET" ] || { echo "$SETUP"; fail "could not start TOTP enrolment"; }
+  pass "TOTP setup returns a secret"
+
+  case "$SETUP" in
+    *'otpauth://totp/'*) pass "and an otpauth URI for the authenticator" ;;
+    *) fail "no otpauth URI in the setup response" ;;
+  esac
+
+  # Enrolment must not be active until a working code proves the app was set up.
+  LOGIN="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"owner@example.com","password":"password123"}')"
+  case "$LOGIN" in
+    *'"token"'*) pass "an unconfirmed secret does not lock the account" ;;
+    *) echo "$LOGIN"; fail "login should still work before confirmation" ;;
+  esac
+
+  # Compute a live code the way an authenticator app would. The shell is
+  # already inside the scaffolded app, so the package subpath resolves.
+  totp_code() {
+    node --input-type=module -e \
+      "import { totp } from '@basicbenframework/core/auth/totp'; console.log(totp(process.argv[1]))" \
+      "$1"
+  }
+
+  CODE="$(totp_code "$SECRET")"
+  [ -n "$CODE" ] || fail "could not compute a TOTP code"
+
+  CONFIRM="$(tfa POST /api/auth/2fa/totp/confirm "{\"code\":\"$CODE\"}")"
+  case "$CONFIRM" in
+    *'"enabled":true'*) pass "a valid code enables the factor" ;;
+    *) echo "$CONFIRM"; fail "confirmation failed" ;;
+  esac
+
+  RECOVERY="$(echo "$CONFIRM" | sed -n 's/.*"recoveryCodes":\["\([^"]*\)".*/\1/p')"
+  [ -n "$RECOVERY" ] || fail "no recovery codes were issued"
+  pass "recovery codes are issued once"
+
+  # The whole point: the password alone must no longer be a session.
+  LOGIN2="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"owner@example.com","password":"password123"}')"
+  case "$LOGIN2" in
+    *'"twoFactorRequired":true'*) pass "the password alone stops being enough" ;;
+    *) echo "$LOGIN2"; fail "login should now require a second factor" ;;
+  esac
+  case "$LOGIN2" in
+    *'"token"'*) fail "login must not return a session token alongside a challenge" ;;
+    *) pass "and no session token is leaked with the challenge" ;;
+  esac
+
+  CHALLENGE="$(echo "$LOGIN2" | sed -n 's/.*"challenge":"\([^"]*\)".*/\1/p')"
+
+  BAD="$(curl -s -X POST "http://localhost:$PORT/api/auth/2fa/verify" \
+    -H 'Content-Type: application/json' \
+    -d "{\"challenge\":\"$CHALLENGE\",\"code\":\"000000\"}")"
+  case "$BAD" in
+    *'"error"'*) pass "a wrong code is refused" ;;
+    *) fail "a wrong code should not succeed" ;;
+  esac
+
+  # A recovery code is a full second factor.
+  LOGIN3="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"owner@example.com","password":"password123"}')"
+  CHALLENGE3="$(echo "$LOGIN3" | sed -n 's/.*"challenge":"\([^"]*\)".*/\1/p')"
+
+  RECOVERED="$(curl -s -X POST "http://localhost:$PORT/api/auth/2fa/verify" \
+    -H 'Content-Type: application/json' \
+    -d "{\"challenge\":\"$CHALLENGE3\",\"code\":\"$RECOVERY\"}")"
+  case "$RECOVERED" in
+    *'"recoveryCodeUsed":true'*) pass "a recovery code completes a sign-in" ;;
+    *) echo "$RECOVERED"; fail "the recovery code should have worked" ;;
+  esac
+fi
+
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"
 echo ""

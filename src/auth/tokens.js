@@ -13,7 +13,11 @@ import { getDb } from '../db/index.js'
 
 export const TOKEN_KINDS = {
   EMAIL_VERIFICATION: 'email_verification',
-  PASSWORD_RESET: 'password_reset'
+  PASSWORD_RESET: 'password_reset',
+  // Issued after a correct password when a second factor is enrolled. It is
+  // deliberately a table row rather than a JWT: verifyJwt can never return one,
+  // so it cannot be mistaken for a session and bypass the second factor.
+  TWO_FACTOR_CHALLENGE: '2fa_challenge'
 }
 
 const TABLE = 'auth_tokens'

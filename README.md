@@ -788,6 +788,85 @@ address.
 
 ---
 
+## Two-Factor Authentication
+
+An authenticator app (TOTP) as a second factor, with recovery codes for when the
+phone is gone. Zero dependencies — `node:crypto` has everything RFC 6238 needs.
+
+The endpoints ship in the TypeScript template. The primitives are exported, so
+any app can wire its own.
+
+### How a login changes
+
+With a factor enrolled, a correct password is no longer a session:
+
+```
+POST /api/auth/login
+  ├─ no factor enrolled  → { user, token }                    (unchanged)
+  └─ factor enrolled     → { twoFactorRequired: true, challenge, methods }
+
+POST /api/auth/2fa/verify   { challenge, code }
+  → { user, token }
+```
+
+The challenge is **not** a token. It is a single-use row in `auth_tokens` with a
+five-minute life, never a JWT — so `verifyJwt` cannot return one and it cannot
+be mistaken for a session, which would bypass the second factor entirely.
+
+### Enrolling
+
+```
+POST   /api/auth/2fa/totp/setup     # password required; returns secret + otpauth URI
+POST   /api/auth/2fa/totp/confirm   # a working code enables it, returns recovery codes
+DELETE /api/auth/2fa/totp           # password required
+GET    /api/auth/2fa                # what is enrolled
+POST   /api/auth/2fa/recovery/rotate
+```
+
+Setup generates a secret but **enables nothing**. Enrolment completes only when
+a working code proves the authenticator was actually configured — enabling on
+generation is how people lock themselves out.
+
+Adding or removing a factor requires the current password even though the caller
+is signed in. Without that, a stolen session becomes permanent account takeover:
+the attacker enrols their own factor and locks the owner out.
+
+The setup response returns the `otpauth://` URI rather than a QR image. Encoding
+one is several hundred lines for something the client renders in a few, and it
+keeps the secret out of anything the server might cache.
+
+### What protects the code
+
+A six-digit code is a million possibilities, which is not many at network speed,
+so **the limit on guesses is the security argument**. Five failures lock the
+factor for fifteen minutes. Verification also records the accepted time step: a
+code stays valid for its whole 30-second window, so without that an intercepted
+code could be replayed inside it.
+
+Secrets are stored encrypted with AES-256-GCM under a key derived from
+`APP_KEY`. That means **rotating `APP_KEY` invalidates every enrolled secret** —
+treat it as a migration requiring re-enrolment, not a config change.
+
+Recovery codes are hashed with scrypt rather than SHA-256, unlike the URL tokens:
+they are short and human-transcribed, so a fast hash would let a leaked table be
+brute-forced offline. Each is single use, and using one is a full second factor.
+
+### Using the primitives directly
+
+```js
+import { generateSecret, totp, verifyTotp, otpauthUri } from '@basicbenframework/core/auth/totp'
+
+const secret = generateSecret()
+const uri = otpauthUri({ secret, label: user.email, issuer: 'My App' })
+
+const result = verifyTotp(secret, submittedCode, { lastStep: user.totp_last_step })
+if (result.valid) {
+  // persist result.step — this is the replay guard
+}
+```
+
+---
+
 ## Roles & Permissions
 
 Users have a role, and routes are gated on capabilities rather than on merely

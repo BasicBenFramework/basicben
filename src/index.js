@@ -53,6 +53,31 @@ export {
   TOKEN_KINDS
 } from './auth/tokens.js'
 
+// Two-factor authentication
+export {
+  generateSecret,
+  totp,
+  hotp,
+  verifyTotp,
+  otpauthUri,
+  encryptSecret,
+  decryptSecret,
+  TOTP_DEFAULTS
+} from './auth/totp.js'
+
+export {
+  generateRecoveryCodes,
+  hashRecoveryCodes,
+  findRecoveryCode,
+  lockoutState,
+  registerFailure,
+  MAX_ATTEMPTS,
+  LOCKOUT_MS,
+  RECOVERY_CODE_COUNT
+} from './auth/two-factor.js'
+
+export { encodeBase32, decodeBase32 } from './auth/base32.js'
+
 // Roles & permissions
 export {
   ROLES,

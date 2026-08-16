@@ -3,6 +3,8 @@ import { signJwt, verifyJwt, hashPassword, verifyPassword } from '@basicbenframe
 import { ROLES, DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import { User } from '../models/User'
 import { sendVerificationEmail } from './EmailVerificationController'
+import { issueChallenge } from './TwoFactorController'
+import { TwoFactor } from '../models/TwoFactor'
 import type { Request, Response } from '../types'
 
 interface JwtPayload {
@@ -93,6 +95,21 @@ export const AuthController = {
     const user = await User.findByEmail(email)
     if (!user || !(await verifyPassword(password, user.password))) {
       return res.json({ error: 'Invalid credentials' }, 401)
+    }
+
+    // With a second factor enrolled the password alone is not a session. The
+    // caller gets a challenge to exchange at /api/auth/2fa/verify instead.
+    const twoFactor = await TwoFactor.find(user.id)
+
+    if (TwoFactor.isEnabled(twoFactor)) {
+      const { challenge, expiresAt } = await issueChallenge(user.id)
+
+      return res.json({
+        twoFactorRequired: true,
+        methods: ['totp', 'recovery'],
+        challenge,
+        expiresAt
+      })
     }
 
     const token = signJwt(
