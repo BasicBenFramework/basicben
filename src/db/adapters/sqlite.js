@@ -109,10 +109,23 @@ export async function createSqliteAdapter(url, options = {}) {
  */
 function normalizeParams(params) {
   if (Array.isArray(params)) {
-    return params
+    return params.map(bindable)
   }
   if (params === undefined || params === null) {
     return []
   }
-  return [params]
+  return [bindable(params)]
+}
+
+/**
+ * Coerce a JS value into something node:sqlite will accept.
+ *
+ * node:sqlite rejects booleans outright ("Provided value cannot be bound"),
+ * which would make `where('published', true)` throw even though SQLite stores
+ * booleans as integers. undefined becomes NULL for the same reason.
+ */
+function bindable(value) {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  if (value === undefined) return null
+  return value
 }

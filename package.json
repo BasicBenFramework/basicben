@@ -1,6 +1,6 @@
 {
   "name": "@basicbenframework/core",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "A full-stack framework for React. Minimal dependencies, maximum clarity.",
   "author": "ctmakes",
   "repository": {
@@ -32,13 +32,13 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "test": "node --test src/**/*.test.js",
-    "test:db": "node --test src/db/**/*.test.js",
-    "test:validation": "node --test src/validation/**/*.test.js",
-    "test:auth": "node --test src/auth/**/*.test.js",
-    "test:server": "node --test src/server/**/*.test.js",
-    "test:cli": "node --test src/cli/**/*.test.js",
-    "test:scaffolding": "node --test src/scaffolding/**/*.test.js",
+    "test": "node --test \"src/**/*.test.js\"",
+    "test:db": "node --test \"src/db/**/*.test.js\"",
+    "test:validation": "node --test \"src/validation/**/*.test.js\"",
+    "test:auth": "node --test \"src/auth/**/*.test.js\"",
+    "test:server": "node --test \"src/server/**/*.test.js\"",
+    "test:cli": "node --test \"src/cli/**/*.test.js\"",
+    "test:scaffolding": "node --test \"src/scaffolding/**/*.test.js\"",
     "test:app": "./scripts/test-app.sh",
     "test:app:ts": "./scripts/test-app.sh --typescript",
     "release": "./scripts/publish.sh"

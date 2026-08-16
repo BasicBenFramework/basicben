@@ -8,13 +8,12 @@ import { unlinkSync, existsSync } from 'node:fs'
 
 const TEST_DB = './test-validation-db.db'
 
-// Check if better-sqlite3 is available
+// node:sqlite is built in on the supported Node versions, so this only guards
+// against an environment that genuinely cannot open a database.
 let skipTests = false
 let db, validate, rules
 
 try {
-  await import('better-sqlite3')
-
   // Set up test database
   const { createSqliteAdapter } = await import('../db/adapters/sqlite.js')
   const testDb = await createSqliteAdapter(TEST_DB)
@@ -215,5 +214,5 @@ after(async () => {
 
 // Skip message
 if (skipTests) {
-  test('Database validation tests skipped (better-sqlite3 not installed)', { skip: true }, () => {})
+  test('Database validation tests skipped (no usable SQLite)', { skip: true }, () => {})
 }

@@ -93,8 +93,8 @@ describe('SQLite Adapter', () => {
     assert.strictEqual(users.length, 1)
   })
 
-  test('transaction() commits on success', () => {
-    db.transaction(() => {
+  test('transaction() commits on success', async () => {
+    await db.transaction(() => {
       db.run('INSERT INTO users (name, email) VALUES (?, ?)', ['Charlie', 'charlie@test.com'])
       db.run('INSERT INTO users (name, email) VALUES (?, ?)', ['Diana', 'diana@test.com'])
     })
@@ -103,19 +103,85 @@ describe('SQLite Adapter', () => {
     assert.strictEqual(users.length, 3)
   })
 
-  test('transaction() rolls back on error', () => {
+  test('transaction() rolls back on error', async () => {
     const countBefore = db.all('SELECT * FROM users').length
 
-    try {
-      db.transaction(() => {
+    await assert.rejects(
+      () => db.transaction(() => {
         db.run('INSERT INTO users (name, email) VALUES (?, ?)', ['Eve', 'eve@test.com'])
         throw new Error('Simulated error')
-      })
-    } catch {
-      // Expected
-    }
+      }),
+      /Simulated error/
+    )
 
     const countAfter = db.all('SELECT * FROM users').length
     assert.strictEqual(countAfter, countBefore)
+  })
+
+  test('transaction() passes the adapter and awaits an async callback', async () => {
+    const countBefore = db.all('SELECT * FROM users').length
+
+    // Postgres passes a transaction-scoped adapter; sqlite matches that so the
+    // same code ports. An un-awaited callback would commit before this insert.
+    await db.transaction(async (tx) => {
+      assert.strictEqual(typeof tx.run, 'function')
+      await Promise.resolve()
+      tx.run('INSERT INTO users (name, email) VALUES (?, ?)', ['Frank', 'frank@test.com'])
+    })
+
+    assert.strictEqual(db.all('SELECT * FROM users').length, countBefore + 1)
+  })
+
+  test('transaction() rolls back when an async callback rejects', async () => {
+    const countBefore = db.all('SELECT * FROM users').length
+
+    await assert.rejects(
+      () => db.transaction(async (tx) => {
+        tx.run('INSERT INTO users (name, email) VALUES (?, ?)', ['Grace', 'grace@test.com'])
+        await Promise.resolve()
+        throw new Error('Async failure')
+      }),
+      /Async failure/
+    )
+
+    assert.strictEqual(db.all('SELECT * FROM users').length, countBefore)
+  })
+})
+
+describe('parameter binding', () => {
+  test('binds booleans as integers', async () => {
+    const db = await createSqliteAdapter(':memory:')
+    db.exec('CREATE TABLE flags (id INTEGER PRIMARY KEY, on_off INTEGER)')
+
+    // node:sqlite rejects raw booleans, so the adapter coerces them
+    db.run('INSERT INTO flags (on_off) VALUES (?)', [true])
+    db.run('INSERT INTO flags (on_off) VALUES (?)', [false])
+
+    assert.strictEqual(db.get('SELECT on_off FROM flags WHERE id = 1').on_off, 1)
+    assert.strictEqual(db.get('SELECT on_off FROM flags WHERE id = 2').on_off, 0)
+
+    db.close()
+  })
+
+  test('matches rows when querying with a boolean', async () => {
+    const db = await createSqliteAdapter(':memory:')
+    db.exec('CREATE TABLE flags (id INTEGER PRIMARY KEY, on_off INTEGER)')
+    db.run('INSERT INTO flags (on_off) VALUES (?)', [true])
+
+    assert.strictEqual(db.all('SELECT * FROM flags WHERE on_off = ?', [true]).length, 1)
+    assert.strictEqual(db.all('SELECT * FROM flags WHERE on_off = ?', [false]).length, 0)
+
+    db.close()
+  })
+
+  test('binds undefined as NULL', async () => {
+    const db = await createSqliteAdapter(':memory:')
+    db.exec('CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT)')
+
+    db.run('INSERT INTO notes (body) VALUES (?)', [undefined])
+
+    assert.strictEqual(db.get('SELECT body FROM notes WHERE id = 1').body, null)
+
+    db.close()
   })
 })
