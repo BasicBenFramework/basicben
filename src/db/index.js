@@ -30,31 +30,82 @@ export async function getDb() {
   const config = await loadConfig()
   const dbConfig = config.db || {}
 
-  const driver = dbConfig.driver || 'sqlite'
-  const url = dbConfig.url || process.env.DATABASE_URL || './database.sqlite'
+  const driver = dbConfig.driver || detectDriver(dbConfig)
 
   switch (driver) {
     case 'sqlite': {
       const { createSqliteAdapter } = await import('./adapters/sqlite.js')
-      dbInstance = await createSqliteAdapter(url, dbConfig)
+      dbInstance = await createSqliteAdapter(resolveUrl(dbConfig, 'sqlite'), dbConfig)
       break
     }
 
     case 'postgres':
     case 'pg': {
       const { createPostgresAdapter } = await import('./adapters/postgres.js')
-      dbInstance = await createPostgresAdapter(url, dbConfig)
+      dbInstance = await createPostgresAdapter(resolveUrl(dbConfig, 'postgres'), dbConfig)
+      break
+    }
+
+    case 'turso':
+    case 'libsql': {
+      const { createTursoAdapter } = await import('./adapters/turso.js')
+      dbInstance = await createTursoAdapter(resolveUrl(dbConfig, 'turso'), dbConfig)
       break
     }
 
     default:
       throw new Error(
         `Unknown database driver: ${driver}\n` +
-        'Supported drivers: sqlite, postgres'
+        'Supported drivers: sqlite, postgres, turso'
       )
   }
 
   return dbInstance
+}
+
+/**
+ * Work out the driver from the environment when the config does not name one.
+ *
+ * A connection string already says which database it points at, so requiring
+ * `driver` alongside it is a step that only exists to be forgotten. An explicit
+ * `driver` in basicben.config.js always wins.
+ *
+ * @param {Object} dbConfig
+ * @returns {string}
+ */
+export function detectDriver(dbConfig = {}) {
+  const url = dbConfig.url || process.env.DATABASE_URL || ''
+
+  if (process.env.TURSO_URL || /^(libsql|wss):\/\//i.test(url)) return 'turso'
+  if (/^postgres(ql)?:\/\//i.test(url)) return 'postgres'
+
+  return 'sqlite'
+}
+
+/**
+ * Resolve the connection URL for a driver.
+ *
+ * Turso reads TURSO_URL as well, since that is the variable its own tooling
+ * prints and the one the templates document.
+ *
+ * @param {Object} dbConfig
+ * @param {string} driver
+ * @returns {string}
+ */
+export function resolveUrl(dbConfig = {}, driver = 'sqlite') {
+  if (dbConfig.url) return dbConfig.url
+
+  if (driver === 'turso') {
+    const url = process.env.TURSO_URL || process.env.DATABASE_URL
+    if (!url) {
+      throw new Error(
+        'Turso requires a database URL. Set TURSO_URL (or DATABASE_URL), or db.url in basicben.config.js.'
+      )
+    }
+    return url
+  }
+
+  return process.env.DATABASE_URL || './database.sqlite'
 }
 
 /**

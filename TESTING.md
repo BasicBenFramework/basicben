@@ -31,8 +31,8 @@ npm run test:db
 
 Tests for:
 - SQLite adapter
-- PostgreSQL adapter
-- Turso, PlanetScale, Neon adapters (skipped if not configured)
+- PostgreSQL adapter (pool options only; no server in CI)
+- Turso adapter, against a local server that speaks Hrana 3
 - QueryBuilder (fluent API)
 - Grammar (SQL escaping/validation)
 - Seeder
@@ -240,20 +240,22 @@ Adapter tests are skipped unless the database is configured:
 
 | Adapter | Environment Variables |
 |---------|----------------------|
-| SQLite | None (uses local file) |
-| PostgreSQL | `DATABASE_URL` |
-| Turso | `TURSO_URL`, `TURSO_AUTH_TOKEN` |
-| PlanetScale | `PLANETSCALE_URL` or `PLANETSCALE_HOST` |
-| Neon | `NEON_URL` |
+| SQLite | None — uses a temp file |
+| Turso | None — the suite starts its own Hrana server |
+| PostgreSQL | `DATABASE_URL`, for the tests that need a live server |
 
-To run adapter tests:
+The Turso suite does not need a Turso account. It runs a local HTTP server
+speaking Hrana 3 backed by `node:sqlite`, so the wire format — integers and
+rowids as strings, blobs as base64, batons threading a transaction — is
+exercised for real rather than mocked.
+
+To additionally run against a genuine Turso database, set both variables and the
+live suite stops skipping:
 
 ```bash
-# Set environment variables
 export TURSO_URL=libsql://your-db.turso.io
 export TURSO_AUTH_TOKEN=your-token
 
-# Run tests
 npm run test:db
 ```
 

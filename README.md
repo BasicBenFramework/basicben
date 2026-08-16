@@ -423,6 +423,66 @@ export const UserController = {
 
 ---
 
+## Databases
+
+Three drivers: `sqlite` (the default), `postgres`, and `turso`.
+
+| Driver | Use it for |
+|---|---|
+| `sqlite` | Local development, and single-node deployments with a persistent disk |
+| `turso` | Hosted libSQL — SQLite semantics with no local disk, so it survives ephemeral hosts |
+| `postgres` | PostgreSQL, and Neon, which is wire-compatible |
+
+You usually do not have to name the driver. A connection string already says
+which database it points at, so it is inferred from the URL:
+
+```env
+DATABASE_URL=./database.sqlite                       # sqlite
+DATABASE_URL=postgres://user:pass@localhost/mydb     # postgres
+TURSO_URL=libsql://your-db.turso.io                  # turso
+TURSO_AUTH_TOKEN=your-token
+```
+
+An explicit `db.driver` in `basicben.config.js` always wins.
+
+### Turso
+
+Turso speaks libSQL, which is SQLite — so the SQL, the migrations and the query
+builder are the same as the local file driver. There is nothing to port.
+
+```env
+TURSO_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=your-token
+```
+
+The adapter talks Hrana 3 over HTTP with `fetch` and needs no client library, so
+it adds no dependency. `libsql://`, `https://`, `wss://` and `ws://` URLs are all
+accepted; the last two are useful when pointing at a local `sqld`.
+
+Transactions work as they do everywhere else, and the callback receives a
+transaction-scoped connection:
+
+```js
+await db.transaction(async (tx) => {
+  await tx.run('INSERT INTO posts (title) VALUES (?)', ['Hello'])
+  await tx.run('UPDATE counters SET posts = posts + 1')
+})
+```
+
+Two things worth knowing. Because HTTP is stateless, libSQL ties a transaction
+together with a token passed on each request, which means statements inside one
+are serialized — a transaction is not the place for concurrent work. And an
+integer larger than `Number.MAX_SAFE_INTEGER` comes back as a `BigInt` rather
+than a rounded number, since silently losing precision on a rowid would be worse
+than returning a type you have to notice.
+
+### PlanetScale
+
+Not supported. It is MySQL, and there is no MySQL driver or grammar. Earlier
+versions of the example configuration listed it; that was wrong.
+
+---
+
 ## Models
 
 Generate one with:
@@ -752,9 +812,10 @@ export default {
     spa: true
   },
 
-  // Database
+  // Database — 'sqlite', 'postgres' or 'turso'.
+  // Omit driver and it is inferred from the URL scheme.
   db: {
-    driver: 'sqlite',  // or 'postgres'
+    driver: 'sqlite',
     url: process.env.DATABASE_URL || './data.db'
   },
 
