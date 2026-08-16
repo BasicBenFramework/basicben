@@ -16,7 +16,7 @@ export default defineConfig({
   build: {
     outDir: 'dist/client',
     rollupOptions: {
-      input: resolve(__dirname, 'index.html')
+      input: resolve(import.meta.dirname, 'index.html')
     }
   },
   // Server config used by build:server script
