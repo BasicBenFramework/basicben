@@ -102,34 +102,41 @@ export function createClientApp(config) {
 
     // Find matching route
     const matched = matchRoute(path)
+
+    let wrapped
+    let params = {}
+
     if (!matched) {
       if (!NotFound) {
         return createElement('div', null, '404 - Not Found')
       }
-      // Wrapped in the default layout so the page keeps its navigation
-      const notFound = createElement(NotFound)
-      return DefaultLayout ? createElement(DefaultLayout, null, notFound) : notFound
-    }
+      // Falls through to the providers below rather than returning here, so the
+      // page and its layout can use useAuth/useNavigate/usePath like any other.
+      wrapped = createElement(NotFound)
+      if (DefaultLayout) {
+        wrapped = createElement(DefaultLayout, null, wrapped)
+      }
+    } else {
+      const { route, params: routeParams } = matched
+      params = routeParams
 
-    const { route, params } = matched
+      // Route guards
+      if (route.auth && !user) {
+        navigate('/login', { replace: true })
+        return null
+      }
+      if (route.guest && user) {
+        navigate('/', { replace: true })
+        return null
+      }
 
-    // Route guards
-    if (route.auth && !user) {
-      navigate('/login', { replace: true })
-      return null
-    }
-    if (route.guest && user) {
-      navigate('/', { replace: true })
-      return null
-    }
+      wrapped = createElement(route.component)
 
-    // Build page element
-    let wrapped = createElement(route.component)
-
-    // Apply layout: route-specific layout replaces default, or use default
-    const Layout = route.layout || DefaultLayout
-    if (Layout) {
-      wrapped = createElement(Layout, null, wrapped)
+      // Route-specific layout replaces the default
+      const Layout = route.layout || DefaultLayout
+      if (Layout) {
+        wrapped = createElement(Layout, null, wrapped)
+      }
     }
 
     // Provide context

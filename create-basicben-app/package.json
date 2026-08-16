@@ -1,6 +1,6 @@
 {
   "name": "@basicbenframework/create",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "Create a new BasicBen application",
   "type": "module",
   "bin": {
