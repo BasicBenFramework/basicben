@@ -305,6 +305,27 @@ if [ "$APP_NAME" = "smoke-ts" ]; then
   esac
 fi
 
+# --- Passkeys -----------------------------------------------------------------
+#
+# A virtual authenticator drives the real HTTP endpoints, which is what proves
+# the wiring — challenge storage, credential lookup, the login handoff — rather
+# than just the ceremony logic the unit tests cover.
+
+if [ "$APP_NAME" = "smoke-ts" ]; then
+  # A fresh account, so the TOTP factor enrolled above does not interfere.
+  PK_JSON="$(register Passkeyer passkey@example.com)"
+  PK_TOKEN="$(token_of "$PK_JSON")"
+  [ -n "$PK_TOKEN" ] || { echo "$PK_JSON"; fail "could not register the passkey user"; }
+
+  if node "$ROOT_DIR/scripts/passkey-smoke.mjs" \
+       "http://localhost:$PORT" "$PK_TOKEN" passkey@example.com password123 2>&1 \
+       | sed 's/^ok /'"$(printf '\033[0;32m')"'✓'"$(printf '\033[0m')"' /'; then
+    pass "passkey enrolment and sign-in work end to end"
+  else
+    fail "the passkey flow failed"
+  fi
+fi
+
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"
 echo ""

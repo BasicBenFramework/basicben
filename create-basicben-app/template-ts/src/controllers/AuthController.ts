@@ -5,6 +5,7 @@ import { User } from '../models/User'
 import { sendVerificationEmail } from './EmailVerificationController'
 import { issueChallenge } from './TwoFactorController'
 import { TwoFactor } from '../models/TwoFactor'
+import { Credential } from '../models/Credential'
 import type { Request, Response } from '../types'
 
 interface JwtPayload {
@@ -100,16 +101,16 @@ export const AuthController = {
     // With a second factor enrolled the password alone is not a session. The
     // caller gets a challenge to exchange at /api/auth/2fa/verify instead.
     const twoFactor = await TwoFactor.find(user.id)
+    const passkeyCount = await Credential.countForUser(user.id)
 
-    if (TwoFactor.isEnabled(twoFactor)) {
+    if (TwoFactor.isEnabled(twoFactor) || passkeyCount > 0) {
       const { challenge, expiresAt } = await issueChallenge(user.id)
 
-      return res.json({
-        twoFactorRequired: true,
-        methods: ['totp', 'recovery'],
-        challenge,
-        expiresAt
-      })
+      const methods: string[] = []
+      if (passkeyCount > 0) methods.push('passkey')
+      if (TwoFactor.isEnabled(twoFactor)) methods.push('totp', 'recovery')
+
+      return res.json({ twoFactorRequired: true, methods, challenge, expiresAt })
     }
 
     const token = signJwt(

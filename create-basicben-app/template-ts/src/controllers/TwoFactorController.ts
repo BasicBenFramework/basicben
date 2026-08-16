@@ -16,6 +16,7 @@ import {
   registerFailure
 } from '@basicbenframework/core/auth/two-factor'
 import { User } from '../models/User'
+import { verifyPasskeyAssertion } from './PasskeyController'
 import { TwoFactor } from '../models/TwoFactor'
 import type { Request, Response } from '../types'
 
@@ -192,7 +193,29 @@ export const TwoFactorController = {
    * The second step of a login: exchange a challenge plus a code for a session.
    */
   async verify(req: Request, res: Response) {
-    const { challenge, code } = req.body as { challenge?: string; code?: string }
+    const { challenge, code, challengeHandle, response } = req.body as {
+      challenge?: string
+      code?: string
+      challengeHandle?: string
+      response?: Record<string, unknown>
+    }
+
+    // A passkey is one method behind this endpoint rather than a separate login
+    // flow, so a third factor would slot in the same way.
+    if (challengeHandle && response) {
+      const result = await verifyPasskeyAssertion({ challengeHandle, response })
+
+      if (!result.ok) {
+        return res.json({ error: result.error }, 401)
+      }
+
+      const passkeyUser = await User.find(result.userId)
+      if (!passkeyUser) {
+        return res.json({ error: 'That sign-in attempt has expired. Please start again.' }, 401)
+      }
+
+      return res.json(sessionFor(passkeyUser))
+    }
 
     const redeemed = await redeemToken(challenge as string, TOKEN_KINDS.TWO_FACTOR_CHALLENGE)
     if (!redeemed) {

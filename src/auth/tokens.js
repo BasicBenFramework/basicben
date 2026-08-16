@@ -17,7 +17,10 @@ export const TOKEN_KINDS = {
   // Issued after a correct password when a second factor is enrolled. It is
   // deliberately a table row rather than a JWT: verifyJwt can never return one,
   // so it cannot be mistaken for a session and bypass the second factor.
-  TWO_FACTOR_CHALLENGE: '2fa_challenge'
+  TWO_FACTOR_CHALLENGE: '2fa_challenge',
+  // WebAuthn challenges cannot be stateless: an attacker who chooses the
+  // challenge can replay, so the server has to have issued it.
+  WEBAUTHN_CHALLENGE: 'webauthn_challenge'
 }
 
 const TABLE = 'auth_tokens'

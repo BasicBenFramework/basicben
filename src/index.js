@@ -78,6 +78,14 @@ export {
 
 export { encodeBase32, decodeBase32 } from './auth/base32.js'
 
+// Passkeys (WebAuthn). Attestation is not verified — see the module docs.
+export {
+  generateRegistrationOptions,
+  generateAuthenticationOptions,
+  verifyRegistration,
+  verifyAuthentication
+} from './auth/webauthn/index.js'
+
 // Roles & permissions
 export {
   ROLES,

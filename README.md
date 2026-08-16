@@ -851,6 +851,54 @@ Recovery codes are hashed with scrypt rather than SHA-256, unlike the URL tokens
 they are short and human-transcribed, so a fast hash would let a leaked table be
 brute-forced offline. Each is single use, and using one is a full second factor.
 
+### Passkeys
+
+WebAuthn as a second factor, alongside TOTP behind the same verify endpoint.
+
+```
+GET    /api/auth/passkeys           # what is enrolled
+POST   /api/auth/passkeys/options   # password required; options for credentials.create()
+POST   /api/auth/passkeys/verify    # store the new credential
+DELETE /api/auth/passkeys/:id       # password required
+POST   /api/auth/passkey/options    # sign-in: options for credentials.get()
+```
+
+Configure the relying party before anyone enrols:
+
+```env
+APP_URL=https://example.com
+WEBAUTHN_RP_ID=example.com          # defaults to the APP_URL hostname
+WEBAUTHN_ORIGINS=https://example.com
+```
+
+**Passkeys are bound to the RP ID.** A credential enrolled on `example.com`
+does not work on `app.example.com` unless you set the parent domain, and
+changing it later invalidates every enrolled passkey. WebAuthn also requires a
+secure context, so it works on HTTPS or `localhost` and nowhere else.
+
+#### What is verified, and what is not
+
+**Attestation is not verified.** Registration extracts the public key but does
+not check the authenticator's certificate chain — that means parsing X.509,
+tracking a metadata service, and deciding which manufacturers to trust.
+Consumer sites do not do it, and doing it badly is worse than not doing it. The
+options request asks for `attestation: "none"` accordingly. If you need to
+prove a credential came from particular hardware, this is not enough.
+
+**ES256 and RS256 only.** Between them they cover Apple, Google, Windows Hello
+and every modern security key.
+
+Everything else is checked, and each of these is an authentication bypass if
+skipped rather than merely a bug: the ceremony type, so a registration cannot
+be replayed as a sign-in; the challenge, compared in constant time against one
+the server issued and stored; the origin, against an allowlist; the RP ID hash;
+user presence, and user verification when required; that the credential
+presented is the one being verified; and the signature itself.
+
+The signature counter is checked when both sides report a non-zero value. Many
+passkeys — Apple's and Google's included — always report zero, so zero means
+"not supported" rather than "cloned".
+
 ### Using the primitives directly
 
 ```js

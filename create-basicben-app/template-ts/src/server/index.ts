@@ -11,6 +11,7 @@ import { createServer, createRouter } from '@basicbenframework/core/server'
 import authRoutes from '../routes/api/auth'
 import verificationRoutes from '../routes/api/verification'
 import twoFactorRoutes from '../routes/api/two-factor'
+import passkeyRoutes from '../routes/api/passkeys'
 import postsRoutes from '../routes/api/posts'
 import profileRoutes from '../routes/api/profile'
 import categoriesRoutes from '../routes/api/categories'
@@ -45,6 +46,7 @@ const router = createRouter()
 authRoutes(router)
 verificationRoutes(router)
 twoFactorRoutes(router)
+passkeyRoutes(router)
 postsRoutes(router)
 profileRoutes(router)
 categoriesRoutes(router)
