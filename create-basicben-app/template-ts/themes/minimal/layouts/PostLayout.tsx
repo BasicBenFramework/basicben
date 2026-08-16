@@ -1,4 +1,5 @@
 import React from 'react'
+import { Header, Footer } from '../components/Chrome'
 import type { Post } from '../../../src/types'
 
 /**
@@ -18,17 +19,7 @@ interface PostLayoutProps {
 export default function PostLayout({ post, siteName = 'My Blog', children }: PostLayoutProps) {
   return (
     <div className="theme-layout theme-minimal">
-      <header className="theme-header">
-        <div className="theme-header-inner">
-          <a href="/" className="theme-logo">{siteName}</a>
-          <nav>
-            <ul className="theme-nav">
-              <li><a href="/">Home</a></li>
-              <li><a href="/blog">Writing</a></li>
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <Header siteName={siteName} />
 
       <main className="theme-main">
         <article className="theme-post">
@@ -63,11 +54,7 @@ export default function PostLayout({ post, siteName = 'My Blog', children }: Pos
         </article>
       </main>
 
-      <footer className="theme-footer">
-        <div className="theme-container">
-          <p>&copy; {new Date().getFullYear()} {siteName}</p>
-        </div>
-      </footer>
+      <Footer siteName={siteName} />
     </div>
   )
 }

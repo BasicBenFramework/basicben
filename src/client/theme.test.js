@@ -23,19 +23,24 @@ import { createThemeRegistry, resolveThemeSource } from './theme-registry.js'
 const here = dirname(fileURLToPath(import.meta.url))
 const THEMES = join(here, '../../create-basicben-app/template-ts/themes')
 
-/** Build the registry from the real theme directories, as the app does. */
-function registryFromDisk() {
+/**
+ * Build a registry from the real theme directories.
+ *
+ * Layouts and components are separate registries, as they are in the app —
+ * `App.tsx` globs `layouts/*` and `components/*` independently. Merging them
+ * here would mean a theme's internal helper components counted as overridable
+ * layouts, which is not what the app resolves against.
+ */
+function registryFromDisk(kind = 'layouts') {
   const modules = {}
 
   for (const theme of readdirSync(THEMES)) {
-    for (const kind of ['layouts', 'components']) {
-      const dir = join(THEMES, theme, kind)
-      if (!existsSync(dir)) continue
+    const dir = join(THEMES, theme, kind)
+    if (!existsSync(dir)) continue
 
-      for (const file of readdirSync(dir)) {
-        modules[`../../themes/${theme}/${kind}/${file}`] =
-          () => Promise.resolve({ default: `${theme}/${file}` })
-      }
+    for (const file of readdirSync(dir)) {
+      modules[`../../themes/${theme}/${kind}/${file}`] =
+        () => Promise.resolve({ default: `${theme}/${file}` })
     }
   }
 
@@ -87,7 +92,8 @@ describe('createThemeRegistry', () => {
 })
 
 describe('the shipped themes', () => {
-  const registry = registryFromDisk()
+  const registry = registryFromDisk('layouts')
+  const components = registryFromDisk('components')
 
   test('both themes are discovered', () => {
     assert.deepEqual(Object.keys(registry).sort(), ['default', 'minimal'])
@@ -104,10 +110,22 @@ describe('the shipped themes', () => {
     // tested by anything real.
     assert.deepEqual(Object.keys(registry.minimal).sort(), ['ArchiveLayout', 'PostLayout'])
   })
+
+  test('every layout composes its chrome rather than restating it', () => {
+    // The four default layouts each carried their own copy of the header, nav
+    // and footer, and the components that existed to supply them were imported
+    // by nothing. Changing the nav was a four-file edit.
+    for (const theme of Object.keys(registry)) {
+      assert.ok(
+        Object.keys(components[theme] || {}).length > 0,
+        `theme "${theme}" has layouts but no components to compose from`
+      )
+    }
+  })
 })
 
 describe('resolution', () => {
-  const registry = registryFromDisk()
+  const registry = registryFromDisk('layouts')
 
   test('the active theme wins where it provides a layout', () => {
     assert.equal(resolveFrom(registry, 'minimal', 'default', 'PostLayout'), 'minimal')
@@ -119,7 +137,16 @@ describe('resolution', () => {
     // every layout to be usable.
     assert.equal(resolveFrom(registry, 'minimal', 'default', 'PageLayout'), 'default')
     assert.equal(resolveFrom(registry, 'minimal', 'default', 'DefaultLayout'), 'default')
-    assert.equal(resolveFrom(registry, 'minimal', 'default', 'PostCard'), 'default')
+  })
+
+  test('components fall back the same way layouts do', () => {
+    // Components are a separate registry, so the rule has to hold there too —
+    // minimal ships no PostCard and should get the default theme's.
+    const components = registryFromDisk('components')
+
+    assert.equal(resolveFrom(components, 'minimal', 'default', 'PostCard'), 'default')
+    assert.equal(resolveFrom(components, 'minimal', 'default', 'Sidebar'), 'default')
+    assert.equal(resolveFrom(components, 'minimal', 'default', 'Chrome'), 'minimal')
   })
 
   test('a layout no theme provides resolves to nothing', () => {

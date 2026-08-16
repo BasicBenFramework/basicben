@@ -1,4 +1,5 @@
 import React from 'react'
+import { Header, Footer } from '../components/Chrome'
 import type { Post } from '../../../src/types'
 
 /**
@@ -26,17 +27,7 @@ export default function ArchiveLayout({
 }: ArchiveLayoutProps) {
   return (
     <div className="theme-layout theme-minimal">
-      <header className="theme-header">
-        <div className="theme-header-inner">
-          <a href="/" className="theme-logo">{siteName}</a>
-          <nav>
-            <ul className="theme-nav">
-              <li><a href="/">Home</a></li>
-              <li><a href="/blog">Writing</a></li>
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <Header siteName={siteName} />
 
       <main className="theme-main">
         <h1 className="theme-page-title">{title}</h1>
@@ -61,11 +52,7 @@ export default function ArchiveLayout({
         )}
       </main>
 
-      <footer className="theme-footer">
-        <div className="theme-container">
-          <p>&copy; {new Date().getFullYear()} {siteName}</p>
-        </div>
-      </footer>
+      <Footer siteName={siteName} />
     </div>
   )
 }

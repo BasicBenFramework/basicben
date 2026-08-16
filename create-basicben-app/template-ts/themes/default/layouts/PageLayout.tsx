@@ -1,34 +1,29 @@
 import React from 'react'
+import Header from '../components/Header'
+import Footer from '../components/Footer'
 import type { Page } from '../../../src/types'
+
+/**
+ * A static page. Same chrome as everything else, no post metadata.
+ */
 
 interface PageLayoutProps {
   page: Page
   siteName?: string
+  navigation?: Array<{ label: string; href: string }>
+  children?: React.ReactNode
 }
 
 export default function PageLayout({
   page,
-  siteName = 'My Blog'
+  siteName = 'My Blog',
+  navigation,
+  children
 }: PageLayoutProps) {
   return (
     <div className="theme-layout">
-      {/* Header */}
-      <header className="theme-header">
-        <div className="theme-header-inner">
-          <a href="/" className="theme-logo">
-            {siteName}
-          </a>
-          <nav>
-            <ul className="theme-nav">
-              <li><a href="/">Home</a></li>
-              <li><a href="/blog">Blog</a></li>
-              <li><a href="/about">About</a></li>
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <Header siteName={siteName} navigation={navigation} />
 
-      {/* Main Content */}
       <main className="theme-main">
         <div className="theme-container theme-content">
           <article className="theme-page">
@@ -52,16 +47,13 @@ export default function PageLayout({
                 dangerouslySetInnerHTML={{ __html: page.content_html }}
               />
             )}
+
+            {children}
           </article>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="theme-footer">
-        <div className="theme-container">
-          <p>&copy; {new Date().getFullYear()} {siteName}. All rights reserved.</p>
-        </div>
-      </footer>
+      <Footer siteName={siteName} navigation={navigation} />
     </div>
   )
 }
