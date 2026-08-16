@@ -143,18 +143,19 @@ register() {
 token_of() { echo "$1" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p'; }
 role_of()  { echo "$1" | sed -n 's/.*"role":"\([^"]*\)".*/\1/p'; }
 
+OWNER_JSON="$(register Owner owner@example.com)"
+OWNER_TOKEN="$(token_of "$OWNER_JSON")"
+[ -n "$OWNER_TOKEN" ] || { echo "$OWNER_JSON"; fail "could not register the first user"; }
+[ "$(role_of "$OWNER_JSON")" = "admin" ] || fail "first user should be admin, got '$(role_of "$OWNER_JSON")'"
+pass "first registered user becomes admin"
+
+VISITOR_JSON="$(register Visitor visitor@example.com)"
+VISITOR_TOKEN="$(token_of "$VISITOR_JSON")"
+[ "$(role_of "$VISITOR_JSON")" = "subscriber" ] || fail "second user should be subscriber, got '$(role_of "$VISITOR_JSON")'"
+pass "later users default to subscriber"
+
+# The admin API only exists in the TypeScript template.
 if [ "$APP_NAME" = "smoke-ts" ]; then
-  OWNER_JSON="$(register Owner owner@example.com)"
-  OWNER_TOKEN="$(token_of "$OWNER_JSON")"
-  [ -n "$OWNER_TOKEN" ] || { echo "$OWNER_JSON"; fail "could not register the first user"; }
-  [ "$(role_of "$OWNER_JSON")" = "admin" ] || fail "first user should be admin, got '$(role_of "$OWNER_JSON")'"
-  pass "first registered user becomes admin"
-
-  VISITOR_JSON="$(register Visitor visitor@example.com)"
-  VISITOR_TOKEN="$(token_of "$VISITOR_JSON")"
-  [ "$(role_of "$VISITOR_JSON")" = "subscriber" ] || fail "second user should be subscriber, got '$(role_of "$VISITOR_JSON")'"
-  pass "later users default to subscriber"
-
   auth_status() {
     curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" "http://localhost:$PORT$2"
   }
@@ -169,6 +170,49 @@ if [ "$APP_NAME" = "smoke-ts" ]; then
   [ "$code" = "200" ] || fail "admin got $code on /api/settings, expected 200"
   pass "admin still reaches the admin API"
 fi
+
+# --- Email verification -------------------------------------------------------
+#
+# The console transport prints the message, including the link, to the server
+# log — which is what makes an end-to-end check possible with no mail account.
+
+case "$OWNER_JSON" in
+  *'"email_verified":true'*) pass "the first account is trusted, so a fresh install is not locked out" ;;
+  *) echo "$OWNER_JSON"; fail "the first account should be verified without an email" ;;
+esac
+
+VISITOR2_JSON="$(register Newcomer newcomer@example.com)"
+VISITOR2_TOKEN="$(token_of "$VISITOR2_JSON")"
+
+case "$VISITOR2_JSON" in
+  *'"email_verified":false'*) pass "a new account starts unverified" ;;
+  *) echo "$VISITOR2_JSON"; fail "a new account should start unverified" ;;
+esac
+
+# Give the console transport a moment to flush to the log.
+sleep 1
+VERIFY_URL="$(grep -o 'http://localhost:3000/verify/[A-Za-z0-9_-]*' "$WORK_DIR/server.log" | tail -1)"
+[ -n "$VERIFY_URL" ] || { tail -20 "$WORK_DIR/server.log"; fail "no verification link was sent"; }
+pass "registration sends a verification link"
+
+VERIFY_TOKEN="${VERIFY_URL##*/}"
+code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/api/auth/verify/$VERIFY_TOKEN")"
+case "$code" in
+  30*) pass "the link redirects back into the app" ;;
+  *) fail "verify returned $code, expected a redirect" ;;
+esac
+
+STATUS="$(curl -s -H "Authorization: Bearer $VISITOR2_TOKEN" "http://localhost:$PORT/api/auth/verify")"
+case "$STATUS" in
+  *'"verified":true'*) pass "the address is verified afterwards" ;;
+  *) echo "$STATUS"; fail "the address should be verified" ;;
+esac
+
+code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/api/auth/verify/$VERIFY_TOKEN")"
+case "$code" in
+  30*) pass "a spent link cannot be reused" ;;
+  *) fail "reusing a link returned $code" ;;
+esac
 
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"

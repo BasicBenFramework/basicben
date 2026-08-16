@@ -1,6 +1,6 @@
 {
   "name": "@basicbenframework/core",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "description": "A full-stack framework for React. Minimal dependencies, maximum clarity.",
   "author": "ctmakes",
   "repository": {
@@ -22,7 +22,9 @@
     "./validation": "./src/validation/index.js",
     "./auth": "./src/auth/jwt.js",
     "./auth/permissions": "./src/auth/permissions.js",
+    "./auth/tokens": "./src/auth/tokens.js",
     "./db": "./src/db/index.js",
+    "./mail": "./src/mail/index.js",
     "./hooks": "./src/hooks/index.js",
     "./plugins": "./src/plugins/index.js",
     "./themes": "./src/themes/index.js",

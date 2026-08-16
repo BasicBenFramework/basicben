@@ -9,6 +9,7 @@ import { createServer, createRouter } from '@basicbenframework/core/server'
 
 // Import routes explicitly for Vite bundling
 import authRoutes from '../routes/api/auth'
+import verificationRoutes from '../routes/api/verification'
 import postsRoutes from '../routes/api/posts'
 import profileRoutes from '../routes/api/profile'
 import categoriesRoutes from '../routes/api/categories'
@@ -41,6 +42,7 @@ const app = await createServer({
 // Register routes
 const router = createRouter()
 authRoutes(router)
+verificationRoutes(router)
 postsRoutes(router)
 profileRoutes(router)
 categoriesRoutes(router)

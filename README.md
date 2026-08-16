@@ -676,6 +676,118 @@ export default (router) => {
 
 ---
 
+## Mail
+
+A transport is any async function taking a message, so adapting a client this
+framework does not ship is a few lines. Four are built in.
+
+| Transport | Use it for |
+|---|---|
+| `console` | The default. Logs the message instead of sending, so a new project works with no mail account |
+| `smtp` | Any SMTP provider, or Mailpit locally |
+| `resend` | Resend, via its SMTP relay |
+| `http` | Providers with a JSON API — Postmark, Mailgun, SES |
+
+```js
+// basicben.config.js
+mail: {
+  from: process.env.MAIL_FROM || 'BasicBen <onboarding@resend.dev>',
+  transport: process.env.RESEND_API_KEY ? 'resend' : 'console',
+  apiKey: process.env.RESEND_API_KEY
+}
+```
+
+The console transport prints the body, which is what makes a verification link
+usable before any provider is configured — it appears in the terminal running
+the dev server.
+
+### SMTP
+
+```js
+mail: {
+  from: 'App <noreply@example.com>',
+  transport: 'smtp',
+  host: process.env.SMTP_HOST,
+  port: 587,
+  user: process.env.SMTP_USER,
+  pass: process.env.SMTP_PASS
+}
+```
+
+Port 465 is implicit TLS; 587 connects in the clear and upgrades with STARTTLS.
+**Credentials are never sent before the session is encrypted** — if a server
+offers no STARTTLS on a submission port, the client refuses rather than leaking
+the password. Set `requireTls: false` only for a local relay that has no
+password either.
+
+For Resend, `transport: 'resend'` is the same SMTP client pointed at
+`smtp.resend.com` with the API key as the password.
+
+### Testing locally
+
+[Mailpit](https://mailpit.axllent.org) is an SMTP server with a web inbox, which
+means you can exercise the real path without sending anything:
+
+```bash
+docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+```js
+mail: { transport: 'smtp', host: 'localhost', port: 1025 }
+```
+
+Messages appear at `http://localhost:8025`.
+
+### Templates
+
+`renderMail(name, data)` reads `mail/<name>.txt` and `mail/<name>.html` and
+substitutes `{{placeholders}}`. Values are HTML-escaped in the HTML part and
+left alone in the text part, so a URL with a query string survives intact. Use
+`{{{key}}}` for markup you trust.
+
+```js
+import { sendMail, renderMail } from '@basicbenframework/core/mail'
+
+await sendMail({
+  to: user.email,
+  subject: 'Confirm your email address',
+  ...renderMail('verify-email', { name: user.name, verifyUrl })
+})
+```
+
+---
+
+## Email Verification
+
+New accounts must confirm their address. **The first account to register is
+verified automatically** — it is the operator setting the site up, and on a
+fresh install mail is very likely unconfigured, so requiring a link that was
+never delivered would lock them out of their own admin.
+
+An unverified user can sign in but holds no capabilities beyond their own
+profile and requesting another email. That is deliberately not "no access at
+all": letting the request through means the interface can explain the problem
+instead of showing a bare error.
+
+```
+POST /api/auth/register        # creates the account and sends the link
+GET  /api/auth/verify/:token   # the emailed link; redeems and redirects
+GET  /api/auth/verify          # whether the signed-in user still needs to
+POST /api/auth/verify/resend   # another email, once per five minutes
+```
+
+A send failure does not fail the registration — the account exists either way,
+and a 500 would leave the caller believing it does not. The response carries
+`verificationSent` so the client can offer a resend.
+
+Tokens are 32 random bytes, stored only as a SHA-256 hash, valid for 24 hours
+and redeemable once. Redemption is a single conditional `UPDATE`, so two
+concurrent requests cannot both succeed. Changing an email address revokes any
+outstanding link and clears the flag, so it always describes the current
+address.
+
+---
+
 ## Roles & Permissions
 
 Users have a role, and routes are gated on capabilities rather than on merely

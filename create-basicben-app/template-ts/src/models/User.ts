@@ -14,11 +14,13 @@ interface UpdateUserData {
   email?: string
   password?: string
   role?: string
+  email_verified?: number
+  email_verified_at?: string | null
 }
 
 // Columns update() is allowed to write. Without this, passing req.body straight
 // through would let a caller set any column, including role.
-const UPDATABLE = ['name', 'email', 'password', 'role']
+const UPDATABLE = ['name', 'email', 'password', 'role', 'email_verified', 'email_verified_at']
 
 export const User = {
   async all(): Promise<UserType[]> {

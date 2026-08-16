@@ -31,6 +31,28 @@ export {
   incrementVersion
 } from './updates/version.js'
 
+// Mail
+export {
+  sendMail,
+  consoleTransport,
+  httpTransport,
+  smtpTransport,
+  resendTransport,
+  renderMail,
+  resolveTransport,
+  resetMailer
+} from './mail/index.js'
+
+// Short-lived credentials
+export {
+  issueToken,
+  redeemToken,
+  revokeTokens,
+  hasRecentToken,
+  pruneExpiredTokens,
+  TOKEN_KINDS
+} from './auth/tokens.js'
+
 // Roles & permissions
 export {
   ROLES,
@@ -41,7 +63,9 @@ export {
   isValidRole,
   requireCapability,
   requireRole,
-  requireAdminArea
+  requireAdminArea,
+  isVerified,
+  UNVERIFIED_CAPABILITIES
 } from './auth/permissions.js'
 
 // Environment

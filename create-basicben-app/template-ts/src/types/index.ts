@@ -5,6 +5,8 @@ export interface User {
   email: string
   password: string
   role: string
+  email_verified?: number
+  email_verified_at?: string | null
   created_at: string
 }
 
@@ -12,6 +14,7 @@ export interface User {
 export interface AuthUser {
   id: number
   role: string
+  email_verified?: boolean
 }
 
 export interface Post {

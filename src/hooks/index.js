@@ -262,5 +262,15 @@ export const HOOKS = {
   // Media hooks
   MEDIA_UPLOADING: 'media.uploading',
   MEDIA_UPLOADED: 'media.uploaded',
-  MEDIA_DELETED: 'media.deleted'
+  MEDIA_DELETED: 'media.deleted',
+
+  // Mail hooks. MAIL_SENDING is a filter: return the message to alter it, or
+  // set cancelled to suppress the send.
+  MAIL_SENDING: 'mail.sending',
+  MAIL_SENT: 'mail.sent',
+  MAIL_FAILED: 'mail.failed',
+
+  // Verification hooks
+  EMAIL_VERIFICATION_SENT: 'email.verification.sent',
+  EMAIL_VERIFIED: 'email.verified'
 }

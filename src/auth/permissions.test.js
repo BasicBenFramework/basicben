@@ -12,7 +12,8 @@ import {
   isValidRole,
   requireCapability,
   requireRole,
-  requireAdminArea
+  requireAdminArea,
+  isVerified
 } from './permissions.js'
 
 const admin = { id: 1, role: ROLES.ADMIN }
@@ -203,5 +204,44 @@ describe('requireAdminArea', () => {
     requireAdminArea()({}, res, () => {})
 
     assert.strictEqual(res.status, 401)
+  })
+})
+
+describe('email verification gating', () => {
+  const unverifiedAdmin = { id: 1, role: ROLES.ADMIN, email_verified: false }
+  const verifiedAdmin = { id: 1, role: ROLES.ADMIN, email_verified: true }
+  const legacyAdmin = { id: 1, role: ROLES.ADMIN }
+
+  test('an unverified admin holds nothing', () => {
+    assert.strictEqual(can(unverifiedAdmin, 'settings.manage'), false)
+    assert.strictEqual(can(unverifiedAdmin, 'post.create'), false)
+    assert.strictEqual(can(unverifiedAdmin, 'anything.invented'), false)
+  })
+
+  test('but can still see its profile and ask for another email', () => {
+    assert.ok(can(unverifiedAdmin, 'profile.view'))
+    assert.ok(can(unverifiedAdmin, 'profile.edit'))
+    assert.ok(can(unverifiedAdmin, 'verification.resend'))
+  })
+
+  test('verifying restores the role', () => {
+    assert.ok(can(verifiedAdmin, 'settings.manage'))
+  })
+
+  test('a missing flag counts as verified, so existing tokens keep working', () => {
+    assert.ok(can(legacyAdmin, 'settings.manage'))
+    assert.ok(isVerified(legacyAdmin))
+  })
+
+  test('0 and 1 are honoured, since SQLite has no boolean', () => {
+    assert.strictEqual(isVerified({ email_verified: 0 }), false)
+    assert.strictEqual(isVerified({ email_verified: 1 }), true)
+    assert.strictEqual(can({ id: 1, role: ROLES.ADMIN, email_verified: 0 }, 'post.create'), false)
+    assert.ok(can({ id: 1, role: ROLES.ADMIN, email_verified: 1 }, 'post.create'))
+  })
+
+  test('an unverified author cannot edit even its own post', () => {
+    const author = { id: 3, role: ROLES.AUTHOR, email_verified: false }
+    assert.strictEqual(can(author, 'post.edit', { user_id: 3 }), false)
   })
 })

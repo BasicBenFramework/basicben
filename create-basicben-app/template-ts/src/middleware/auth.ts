@@ -5,6 +5,7 @@ import type { Request, Response } from '../types'
 interface JwtPayload {
   userId: number
   role?: string
+  email_verified?: boolean
 }
 
 // Named export only, deliberately. The framework applies any DEFAULT export from
@@ -24,6 +25,12 @@ export const auth = async (req: Request, res: Response, next: () => void) => {
   req.userId = payload.userId
   // Capability checks read req.user. The role comes from the token, so a role
   // change takes effect when the token is reissued.
-  req.user = { id: payload.userId, role: payload.role ?? DEFAULT_ROLE }
+  req.user = {
+    id: payload.userId,
+    role: payload.role ?? DEFAULT_ROLE,
+    // Absent means verified: a token issued before this feature existed carries
+    // no such claim, and treating that as unverified would lock everyone out.
+    email_verified: payload.email_verified ?? true
+  }
   next()
 }

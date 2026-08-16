@@ -82,6 +82,35 @@ export function capabilitiesFor(role) {
 }
 
 /**
+ * What an account may still do before it has confirmed its address.
+ *
+ * Enough to see who they are and ask for another verification mail, and nothing
+ * else. Deliberately not "no access at all" — letting the request through means
+ * the interface can explain the problem rather than showing a bare error.
+ */
+export const UNVERIFIED_CAPABILITIES = [
+  'profile.view',
+  'profile.edit',
+  'verification.resend'
+]
+
+/**
+ * Has this user confirmed their email address?
+ *
+ * Absent means yes. The flag arrives from the JWT, and a token issued before
+ * verification existed carries no such claim — treating that as unverified
+ * would lock out every already-signed-in user on deploy.
+ *
+ * @param {Object} user
+ * @returns {boolean}
+ */
+export function isVerified(user) {
+  const flag = user?.email_verified
+  if (flag === undefined || flag === null) return true
+  return flag !== false && flag !== 0
+}
+
+/**
  * Can this user perform this capability?
  *
  * Pass the record being acted on as `resource` to allow `.own` capabilities;
@@ -94,6 +123,12 @@ export function capabilitiesFor(role) {
  */
 export function can(user, capability, resource = null) {
   if (!user || !user.role) return false
+
+  // An unverified address holds almost nothing, regardless of role — otherwise
+  // anyone could sign up as the first user and be an unverified admin.
+  if (!isVerified(user) && !UNVERIFIED_CAPABILITIES.includes(capability)) {
+    return false
+  }
 
   const held = capabilitiesFor(user.role)
   if (held.includes('*')) return true

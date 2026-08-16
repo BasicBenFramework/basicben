@@ -18,6 +18,12 @@ export const auth = async (req, res, next) => {
   req.userId = payload.userId
   // Capability checks read req.user. The role comes from the token, so a role
   // change takes effect when the token is reissued.
-  req.user = { id: payload.userId, role: payload.role ?? DEFAULT_ROLE }
+  req.user = {
+    id: payload.userId,
+    role: payload.role ?? DEFAULT_ROLE,
+    // Absent means verified: a token issued before this feature existed carries
+    // no such claim, and treating that as unverified would lock everyone out.
+    email_verified: payload.email_verified ?? true
+  }
   next()
 }
