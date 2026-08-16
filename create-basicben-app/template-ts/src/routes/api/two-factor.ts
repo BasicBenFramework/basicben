@@ -1,5 +1,6 @@
 import { TwoFactorController } from '../../controllers/TwoFactorController'
 import { auth } from '../../middleware/auth'
+import { twoFactorLimit } from '../../middleware/rate-limits'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -10,7 +11,7 @@ interface Router {
 export default (router: Router) => {
   // Public: this is the second step of a login, so the caller has no session
   // yet — that is the entire point of the challenge.
-  router.post('/api/auth/2fa/verify', TwoFactorController.verify)
+  router.post('/api/auth/2fa/verify', twoFactorLimit, TwoFactorController.verify)
 
   // Managing your own factors. Not gated on a capability: these are account
   // security settings, which every signed-in user needs regardless of role.

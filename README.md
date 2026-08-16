@@ -788,6 +788,89 @@ address.
 
 ---
 
+## Rate Limiting
+
+```js
+import { rateLimit } from '@basicbenframework/core/rate-limit'
+
+router.post('/api/auth/login', rateLimit({ limit: 10, window: '15m' }), AuthController.login)
+```
+
+Refused requests get a 429 with `Retry-After`, and every response carries
+`RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset`.
+
+### Sliding window
+
+The window slides rather than resetting on a boundary. A fixed window lets a
+caller spend the whole allowance at the end of one window and again at the
+start of the next, so "5 per minute" would permit 10 in two seconds.
+
+### Throttle or lock out
+
+Add `blockFor` and exceeding the limit refuses for that long regardless of the
+window — a throttle becomes a lockout:
+
+```js
+rateLimit({ limit: 5, window: '15m', blockFor: '15m' })
+```
+
+When the lockout lapses the count starts fresh, so the next single attempt does
+not immediately re-lock.
+
+### Where state lives
+
+`MemoryStore` is the default: fast, per-process, and **the wrong choice for a
+security control** — a restart clears it and a second instance cannot see it.
+Use `DatabaseStore` when the limit is protecting something:
+
+```js
+import { rateLimit, DatabaseStore } from '@basicbenframework/core/rate-limit'
+import { getDb } from '@basicbenframework/core/db'
+
+const store = new DatabaseStore({ getDb })   // needs the rate_limits table
+```
+
+### Identifying the caller
+
+By default the socket address. **`X-Forwarded-For` is ignored unless you set
+`trustProxy`**, and that default is deliberate: the header is client-supplied,
+so honouring it on a directly-exposed server lets anyone rotate their apparent
+address and bypass every limit. Behind a proxy that overwrites it, set
+`trustProxy: true`.
+
+Pass `key` to group differently — by account rather than by address, for
+instance:
+
+```js
+rateLimit({ limit: 5, window: '15m', key: (req) => `email:${req.body?.email}` })
+```
+
+The scaffolded app applies **both** to login, because they stop different
+attacks: by address catches one attacker working through many accounts, by
+account catches many addresses working on one, which is what credential
+stuffing looks like. A successful sign-in clears the counter, so someone who
+mistyped their password twice is not left part-way to a lockout.
+
+### Consuming directly
+
+Where the subject is only known after some work — the user behind a session,
+say — use the limiter rather than the middleware:
+
+```js
+import { createLimiter } from '@basicbenframework/core/rate-limit'
+
+const limiter = createLimiter({ limit: 3, window: '15m', store })
+
+const allowance = await limiter.consume(`verify-email:${user.id}`)
+if (!allowance.allowed) {
+  return res.json({ error: 'Try again shortly.', retryAfter: allowance.retryAfter }, 429)
+}
+```
+
+`peek()` reports the state without counting, and `reset(key)` clears it.
+
+---
+
 ## Two-Factor Authentication
 
 An authenticator app (TOTP) as a second factor, with recovery codes for when the

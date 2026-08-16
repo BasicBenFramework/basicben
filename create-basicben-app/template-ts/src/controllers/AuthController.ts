@@ -6,6 +6,7 @@ import { sendVerificationEmail } from './EmailVerificationController'
 import { issueChallenge } from './TwoFactorController'
 import { TwoFactor } from '../models/TwoFactor'
 import { Credential } from '../models/Credential'
+import { loginByAddress, loginByAccount } from '../middleware/rate-limits'
 import type { Request, Response } from '../types'
 
 interface JwtPayload {
@@ -100,6 +101,11 @@ export const AuthController = {
 
     // With a second factor enrolled the password alone is not a session. The
     // caller gets a challenge to exchange at /api/auth/2fa/verify instead.
+    // The password was correct, so this attempt should not count against the
+    // guess allowance.
+    await (loginByAddress as any).limiter.reset((loginByAddress as any).key(req))
+    await (loginByAccount as any).limiter.reset((loginByAccount as any).key(req))
+
     const twoFactor = await TwoFactor.find(user.id)
     const passkeyCount = await Credential.countForUser(user.id)
 

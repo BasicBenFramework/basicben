@@ -1,13 +1,9 @@
 import { sendMail, renderMail } from '@basicbenframework/core/mail'
-import { issueToken, redeemToken, revokeTokens, hasRecentToken, TOKEN_KINDS } from '@basicbenframework/core/auth/tokens'
+import { issueToken, redeemToken, revokeTokens, TOKEN_KINDS } from '@basicbenframework/core/auth/tokens'
+import { emailSendLimiter } from '../middleware/rate-limits'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { User } from '../models/User'
 import type { Request, Response } from '../types'
-
-// One verification email per user per five minutes. The framework has no rate
-// limiter, and this endpoint sends mail on demand to any authenticated caller,
-// so the token table doubles as the cooldown.
-const RESEND_COOLDOWN = 5 * 60 * 1000
 
 const appUrl = () => process.env.APP_URL || 'http://localhost:3000'
 
@@ -93,9 +89,16 @@ export const EmailVerificationController = {
       return res.json({ message: 'Your email is already verified.' })
     }
 
-    if (await hasRecentToken(user.id, TOKEN_KINDS.EMAIL_VERIFICATION, RESEND_COOLDOWN)) {
+    // This endpoint sends mail on demand to any authenticated caller, so it
+    // needs a limit. It uses the shared limiter rather than the ad hoc cooldown
+    // it once had.
+    const allowance = await emailSendLimiter.consume(`verify-email:${user.id}`)
+    if (!allowance.allowed) {
       return res.json(
-        { error: 'A verification email was sent recently. Please check your inbox, or try again in a few minutes.' },
+        {
+          error: 'A verification email was sent recently. Please check your inbox, or try again in a few minutes.',
+          retryAfter: allowance.retryAfter
+        },
         429
       )
     }

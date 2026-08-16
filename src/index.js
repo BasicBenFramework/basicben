@@ -31,6 +31,16 @@ export {
   incrementVersion
 } from './updates/version.js'
 
+// Rate limiting
+export {
+  createLimiter,
+  rateLimit,
+  parseDuration,
+  clientAddress,
+  MemoryStore,
+  DatabaseStore
+} from './server/rate-limit.js'
+
 // Mail
 export {
   sendMail,

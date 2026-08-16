@@ -326,6 +326,48 @@ if [ "$APP_NAME" = "smoke-ts" ]; then
   fi
 fi
 
+# --- Rate limiting -------------------------------------------------------------
+#
+# Until this existed, password guessing on the login endpoint was unthrottled.
+# A fresh address is used so the successful sign-ins above do not interfere —
+# a correct password clears the counter, which is the intended behaviour.
+
+if [ "$APP_NAME" = "smoke-ts" ]; then
+  guess() {
+    curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$PORT/api/auth/login" \
+      -H 'Content-Type: application/json' \
+      -d '{"email":"owner@example.com","password":"definitely-wrong"}'
+  }
+
+  LIMITED=""
+  for _ in $(seq 1 8); do
+    code="$(guess)"
+    if [ "$code" = "429" ]; then LIMITED="yes"; break; fi
+  done
+
+  [ -n "$LIMITED" ] || fail "password guessing was never throttled"
+  pass "repeated wrong passwords are throttled"
+
+  # The refusal has to tell the caller when to come back.
+  BODY="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"owner@example.com","password":"definitely-wrong"}')"
+  case "$BODY" in
+    *'"retryAfter"'*) pass "and the refusal says when to retry" ;;
+    *) echo "$BODY"; fail "a 429 should carry retryAfter" ;;
+  esac
+
+  # Another account must still be able to sign in — the limit is per account,
+  # not a global switch that one attacker can flip for everyone.
+  OTHER="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d '{"email":"visitor@example.com","password":"password123"}')"
+  case "$OTHER" in
+    *'"token"'*) pass "one locked account does not lock out another" ;;
+    *) echo "$OTHER"; fail "an unrelated account should still sign in" ;;
+  esac
+fi
+
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"
 echo ""
