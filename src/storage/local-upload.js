@@ -126,6 +126,12 @@ function receive(req, path, maxSize) {
     }
 
     file.on('error', (error) => {
+      // Once the body is over the limit the file is being thrown away, so an
+      // error from destroying it mid-write is the expected outcome rather than
+      // a fault. Rejecting here raced the 'end' handler and turned an oversized
+      // upload into a 500 instead of a 413, intermittently.
+      if (tooLarge) return finish({ tooLarge: true, written })
+
       if (!settled) { settled = true; reject(error) }
     })
 
