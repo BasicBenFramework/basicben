@@ -61,19 +61,23 @@ export function Testing() {
         <Card>
           <h2 className="text-lg font-semibold mb-2">What the Framework Does Not Provide</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            There is no testing module. The package exports <code>server</code>,
-            <code>client</code>, <code>validation</code>, <code>auth</code>, <code>db</code>,
-            <code>hooks</code>, <code>plugins</code>, <code>themes</code> and
-            <code>updates</code> — nothing else. No test client, no request builder, no database
+            There is no testing module. Alongside the package root there are twenty-one entry
+            points — <code>server</code>, <code>client</code>, <code>db</code>,{' '}
+            <code>auth</code>, <code>validation</code>, <code>content</code>,{' '}
+            <code>storage</code>, <code>mail</code>, <code>hooks</code>, <code>plugins</code>,{' '}
+            <code>themes</code>, <code>rate-limit</code>, <code>updates</code>, and the{' '}
+            <code>auth/*</code>,{' '}
+            <code>storage/*</code>, <code>plugins/*</code> and <code>themes/*</code> families —
+            and not one of them is for tests. No test client, no request builder, no database
             reset helper, no model factories.
           </p>
 
           <p className={`text-sm ${t.muted} mb-4`}>
-            That sounds like a gap and mostly is not. Controllers are functions, so call them.
-            Models are objects, so call them. The query builder works against any SQLite file, so
-            a test can have its own. What you genuinely have to do yourself is HTTP-level
-            testing: to exercise routing and middleware end to end, start a server and use
-            <code>fetch</code> against it.
+            Less of that is missing than it first appears. Controllers are functions, so call
+            them. Models are objects, so call them. The query builder works against any SQLite
+            file, so a test can have one of its own. The part you do have to arrange yourself is
+            HTTP-level testing: exercising routing and middleware end to end means starting a
+            server and using <code>fetch</code> against it.
           </p>
         </Card>
 
@@ -221,11 +225,12 @@ describe('posts', () => {
           </CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            Two things to watch. The connection is one cached instance per process, so if your
-            config sets <code>db.url</code> it wins over <code>DATABASE_URL</code> and the test
-            will happily write to your development database. And SQLite will not bind
-            JavaScript booleans, so test data uses <code>1</code> and <code>0</code> like
-            everything else.
+            Two things to watch. The connection is one cached instance per process, resolved
+            once from <code>db.url</code> in <code>basicben.config.js</code> falling back to{' '}
+            <code>DATABASE_URL</code> — the config wins. A project that sets it there will have
+            its tests write to the development database instead, so set the test path in the
+            config or leave <code>db.url</code> unset. And SQLite will not bind JavaScript
+            booleans, so test data uses <code>1</code> and <code>0</code> like everything else.
           </p>
 
           <p className={`text-sm ${t.muted} mt-4`}>
@@ -238,8 +243,9 @@ describe('posts', () => {
         <Card>
           <h2 className="text-lg font-semibold mb-2">Coverage and the UI</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            Both flags exist, and both need a package that is not installed by default. Without
-            it Vitest stops immediately with <code>MISSING DEPENDENCY</code>.
+            Both flags exist, and each needs a package that is not installed by default. Run
+            either one without it and Vitest stops immediately with
+            <code>MISSING DEPENDENCY</code>.
           </p>
 
           <CodeBlock title="Install first, then run">

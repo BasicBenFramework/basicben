@@ -38,6 +38,9 @@ function DocsSidebar({ children }: DocsSidebarProps) {
     { href: '/docs/database', label: 'Database' },
     { href: '/docs/authentication', label: 'Authentication' },
     { href: '/docs/validation', label: 'Validation' },
+    { href: '/docs/content', label: 'Content & Markdown' },
+    { href: '/docs/storage', label: 'Object Storage' },
+    { href: '/docs/plugins', label: 'Plugins & Themes' },
     { href: '/docs/testing', label: 'Testing' },
   ]
 

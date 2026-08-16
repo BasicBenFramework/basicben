@@ -14,6 +14,9 @@ import { Database } from '../client/pages/Database'
 import { Routing } from '../client/pages/Routing'
 import { Authentication } from '../client/pages/Authentication'
 import { Validation } from '../client/pages/Validation'
+import { Content } from '../client/pages/Content'
+import { Storage } from '../client/pages/Storage'
+import { Plugins } from '../client/pages/Plugins'
 import { Testing } from '../client/pages/Testing'
 
 // Admin pages
@@ -74,6 +77,9 @@ export default createClientApp({
     '/docs/database': { component: Database, layout: DocsLayout },
     '/docs/authentication': { component: Authentication, layout: DocsLayout },
     '/docs/validation': { component: Validation, layout: DocsLayout },
+    '/docs/content': { component: Content, layout: DocsLayout },
+    '/docs/storage': { component: Storage, layout: DocsLayout },
+    '/docs/plugins': { component: Plugins, layout: DocsLayout },
     '/docs/testing': { component: Testing, layout: DocsLayout },
 
     // Admin routes (use their own layout)
