@@ -1,40 +1,41 @@
 import { useTheme } from '../components/ThemeContext'
 import { Card } from '../components/Card'
 import { PageHeader } from '../components/PageHeader'
-import { AppLayout } from '../layouts/AppLayout'
-import { DocsLayout } from '../layouts/DocsLayout'
 
 export function GettingStarted() {
   const { t } = useTheme()
 
   const devCommands = [
-    { cmd: 'npm run dev', desc: 'Start development server' },
-    { cmd: 'npm run build', desc: 'Build for production' },
-    { cmd: 'npm run build -- --static', desc: 'Build client only (static hosts)' },
-    { cmd: 'npm run start', desc: 'Run production server' },
+    { cmd: 'npm run dev', desc: 'Start Vite and the API server with hot reload' },
+    { cmd: 'npm run build', desc: 'Build client and server for production' },
+    { cmd: 'npm run build -- --static', desc: 'Build the client only, for static hosts' },
+    { cmd: 'npm run start', desc: 'Run the production server' },
     { cmd: 'npm run test', desc: 'Run tests with Vitest' },
   ]
 
   const makeCommands = [
-    { cmd: 'npm run make:controller', desc: 'Generate a controller' },
-    { cmd: 'npm run make:model', desc: 'Generate a model' },
-    { cmd: 'npm run make:route', desc: 'Generate a route file' },
-    { cmd: 'npm run make:migration', desc: 'Generate a migration' },
-    { cmd: 'npm run make:middleware', desc: 'Generate middleware' },
-    { cmd: 'npm run make:seed', desc: 'Generate a seeder' },
+    { cmd: 'npm run make:controller Post', desc: 'Generate a controller' },
+    { cmd: 'npm run make:model Post', desc: 'Generate a model' },
+    { cmd: 'npm run make:migration create_posts', desc: 'Generate a migration' },
+    { cmd: 'npx basicben make:route post', desc: 'Generate a route file' },
+    { cmd: 'npx basicben make:middleware auth', desc: 'Generate middleware' },
+    { cmd: 'npx basicben make:seed posts', desc: 'Generate a seeder' },
   ]
 
   const dbCommands = [
     { cmd: 'npm run migrate', desc: 'Run pending migrations' },
-    { cmd: 'npm run migrate:rollback', desc: 'Roll back last batch' },
-    { cmd: 'npm run migrate:fresh', desc: 'Drop all and re-run' },
+    { cmd: 'npm run migrate:rollback', desc: 'Roll back the last batch' },
+    { cmd: 'npm run migrate:fresh', desc: 'Drop everything and re-run' },
     { cmd: 'npm run migrate:status', desc: 'Show migration status' },
-    { cmd: 'npm run db:seed', desc: 'Run database seeders' },
+    { cmd: 'npx basicben seed', desc: 'Run database seeders' },
   ]
 
   return (
     <div>
-      <PageHeader title="Getting Started" />
+      <PageHeader
+        title="Getting Started"
+        subtitle="Create a project, learn the layout, and run the CLI"
+      />
 
       <div className="space-y-6">
         <Card>
@@ -46,9 +47,15 @@ export function GettingStarted() {
             <div className={t.muted}># Navigate to the project</div>
             <div>cd my-app</div>
             <div className="mt-2" />
+            <div className={t.muted}># Install dependencies</div>
+            <div>npm install</div>
+            <div className="mt-2" />
             <div className={t.muted}># Start the development server</div>
             <div>npm run dev</div>
           </div>
+          <p className={`text-sm ${t.muted} mt-4`}>
+            The generator scaffolds a JavaScript project by default. Pass <code>--typescript</code> for the TypeScript template. BasicBen requires Node 24 or later.
+          </p>
         </Card>
 
         <Card>
@@ -58,19 +65,35 @@ export function GettingStarted() {
 ├── src/
 │   ├── client/           # React frontend
 │   │   ├── components/   # Reusable components
+│   │   ├── contexts/     # React context providers
+│   │   ├── layouts/      # Page layouts
 │   │   └── pages/        # Page components
-│   ├── routes/           # API route files
-│   ├── controllers/      # Business logic
+│   ├── routes/
+│   │   ├── App.jsx       # Client routes
+│   │   └── api/          # API route files
+│   ├── controllers/      # Request handlers
 │   ├── models/           # Database models
-│   └── middleware/       # Route middleware
+│   ├── middleware/       # Request middleware
+│   ├── helpers/          # Shared utilities
+│   ├── server/           # Server entry point
+│   └── main.jsx          # Client entry point
 ├── migrations/           # Database migrations
+├── seeds/                # Database seeders
 ├── public/               # Static assets
+├── index.html            # HTML shell
+├── vite.config.js        # Vite config
 └── basicben.config.js    # Framework config`}</pre>
           </div>
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Both halves of the app live under <code>src/routes/</code>. <code>App.jsx</code> defines the routes the browser renders, and everything in <code>api/</code> defines the routes the server answers. Files in <code>api/</code> are loaded automatically at startup, so a new file becomes live routes without being registered anywhere.
+          </p>
         </Card>
 
         <Card>
           <h2 className="text-lg font-semibold mb-4">CLI Commands</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            A new project ships with npm scripts for the commands you run most. Everything else is available through <code>npx basicben</code>, and <code>npx basicben help</code> lists the full set.
+          </p>
 
           <h3 className={`text-sm font-medium mb-2 ${t.muted}`}>Development</h3>
           <div className="grid gap-2 sm:grid-cols-2 mb-4">
@@ -101,6 +124,66 @@ export function GettingStarted() {
               </div>
             ))}
           </div>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            The generators write <code>.js</code> files and refuse to overwrite a file that already exists.
+          </p>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-4">Imports</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            The framework is published as <code>@basicbenframework/core</code>. It is organised into subpaths so the client bundle never pulls in server code.
+          </p>
+
+          <div className={`rounded-lg p-4 font-mono text-sm ${t.card} border ${t.border} overflow-x-auto`}>
+            <pre className={t.text}>{`import { createServer } from '@basicbenframework/core/server'
+import { createClientApp } from '@basicbenframework/core/client'
+import { db, query } from '@basicbenframework/core/db'
+import { validate, rules } from '@basicbenframework/core/validation'
+import { signJwt, verifyJwt } from '@basicbenframework/core/auth'
+import { can, ROLES } from '@basicbenframework/core/auth/permissions'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
+import { plugins } from '@basicbenframework/core/plugins'
+import { themes } from '@basicbenframework/core/themes'
+import { updates } from '@basicbenframework/core/updates'`}</pre>
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-4">Configuration</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            <code>basicben.config.js</code> is read at startup. Every key is optional and falls back to a default, so you only set what you want to change.
+          </p>
+
+          <div className={`rounded-lg p-4 font-mono text-sm ${t.card} border ${t.border} overflow-x-auto`}>
+            <pre className={t.text}>{`export default {
+  port: 3001,
+
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    credentials: true
+  },
+
+  bodyParser: {
+    limit: '1mb'
+  },
+
+  static: {
+    dir: 'public',
+    spa: true      // serve index.html for unmatched client routes
+  },
+
+  db: {
+    driver: 'sqlite',
+    url: process.env.DATABASE_URL || './data.db'
+  }
+}`}</pre>
+          </div>
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Set <code>spa: true</code> before deploying. Without it the production server returns 404 for any client route that is not a real file, which breaks deep links and page refreshes.
+          </p>
         </Card>
 
         <Card>

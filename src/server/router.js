@@ -28,12 +28,19 @@ export class Router {
 
     // Last handler is the main handler, rest are middleware
     const mainHandler = handlers.pop()
-    const routeMiddleware = handlers
 
-    // Check if first middleware arg is a string (route name)
+    // The route name is a string among the remaining arguments. Pull it out
+    // wherever it appears rather than only at index 0: `resource()` emits the
+    // name after any middleware, and leaving a string in the chain means it is
+    // later invoked as a middleware function and throws "fn is not a function".
     let name = null
-    if (typeof routeMiddleware[0] === 'string') {
-      name = routeMiddleware.shift()
+    const routeMiddleware = []
+    for (const arg of handlers) {
+      if (typeof arg === 'string') {
+        if (name === null) name = arg
+        continue
+      }
+      routeMiddleware.push(arg)
     }
 
     const route = {

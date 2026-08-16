@@ -1,13 +1,17 @@
 /**
  * {{Name}} routes
+ *
+ * This file is generated into src/routes/api/, so controller imports go up two
+ * levels. The route loader reports an import failure and moves on, which means a
+ * wrong path here shows up as a 404 rather than an error.
  */
 
-import { {{Name}}Controller } from '../controllers/{{Name}}Controller.js'
+import { {{Name}}Controller } from '../../controllers/{{Name}}Controller.js'
 
 export default (router) => {
-  router.get('/{{pluralLower}}', {{Name}}Controller.index)
-  router.get('/{{pluralLower}}/:id', {{Name}}Controller.show)
-  router.post('/{{pluralLower}}', {{Name}}Controller.create)
-  router.put('/{{pluralLower}}/:id', {{Name}}Controller.update)
-  router.delete('/{{pluralLower}}/:id', {{Name}}Controller.destroy)
+  router.get('/api/{{pluralLower}}', {{Name}}Controller.index)
+  router.get('/api/{{pluralLower}}/:id', {{Name}}Controller.show)
+  router.post('/api/{{pluralLower}}', {{Name}}Controller.create)
+  router.put('/api/{{pluralLower}}/:id', {{Name}}Controller.update)
+  router.delete('/api/{{pluralLower}}/:id', {{Name}}Controller.destroy)
 }

@@ -1,8 +1,6 @@
 import { useTheme } from '../components/ThemeContext'
 import { Card } from '../components/Card'
 import { PageHeader } from '../components/PageHeader'
-import { AppLayout } from '../layouts/AppLayout'
-import { DocsLayout } from '../layouts/DocsLayout'
 
 export function Testing() {
   const { t } = useTheme()
@@ -20,56 +18,84 @@ export function Testing() {
     <div>
       <PageHeader
         title="Testing"
-        subtitle="Write and run tests with Vitest"
+        subtitle="Running tests with Vitest, and what the framework leaves to you"
       />
 
       <div className="space-y-6">
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Overview</h2>
+          <h2 className="text-lg font-semibold mb-2">How Tests Run</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            BasicBen uses Vitest for fast, modern testing. Tests are automatically discovered in files ending with <code>.test.js</code> or <code>.spec.js</code>.
+            <code>npm test</code> runs <code>basicben test</code>, which hands off to Vitest with
+            <code>--run</code> — one pass, then exit. Vitest picks up files matching
+            <code>*.test.js</code> and <code>*.spec.js</code> anywhere in the project, and reads
+            <code>vite.config.js</code>, so there is nothing else to configure to get started.
           </p>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
-              <code className="text-sm font-semibold">npm run test</code>
-              <p className={`text-xs mt-1 ${t.muted}`}>Run tests once</p>
+              <code className="text-sm font-semibold">npm test</code>
+              <p className={`text-xs mt-1 ${t.muted}`}>Run every test once</p>
             </div>
             <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
-              <code className="text-sm font-semibold">npm run test:watch</code>
-              <p className={`text-xs mt-1 ${t.muted}`}>Run tests in watch mode</p>
+              <code className="text-sm font-semibold">npm test -- src/models</code>
+              <p className={`text-xs mt-1 ${t.muted}`}>Only files matching a path fragment</p>
+            </div>
+            <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
+              <code className="text-sm font-semibold">npm test -- --watch</code>
+              <p className={`text-xs mt-1 ${t.muted}`}>Re-run on change</p>
+            </div>
+            <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
+              <code className="text-sm font-semibold">npx vitest</code>
+              <p className={`text-xs mt-1 ${t.muted}`}>Vitest directly, skipping the CLI wrapper</p>
             </div>
           </div>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            <code>test</code> is the only test script in <code>package.json</code>. There is no
+            <code>test:watch</code>, <code>test:coverage</code> or <code>test:ui</code> — the
+            arguments after <code>--</code> are what npm forwards, and everything below is a flag
+            rather than a script of its own.
+          </p>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Writing Tests</h2>
+          <h2 className="text-lg font-semibold mb-2">What the Framework Does Not Provide</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            Create test files alongside your code or in a <code>tests/</code> directory.
+            There is no testing module. The package exports <code>server</code>,
+            <code>client</code>, <code>validation</code>, <code>auth</code>, <code>db</code>,
+            <code>hooks</code>, <code>plugins</code>, <code>themes</code> and
+            <code>updates</code> — nothing else. No test client, no request builder, no database
+            reset helper, no model factories.
+          </p>
+
+          <p className={`text-sm ${t.muted} mb-4`}>
+            That sounds like a gap and mostly is not. Controllers are functions, so call them.
+            Models are objects, so call them. The query builder works against any SQLite file, so
+            a test can have its own. What you genuinely have to do yourself is HTTP-level
+            testing: to exercise routing and middleware end to end, start a server and use
+            <code>fetch</code> against it.
+          </p>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-2">A Plain Test</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            Test files sit next to the code they cover, or under <code>tests/</code> if you
+            prefer them apart. Anything Vitest exports is available: <code>describe</code>,
+            <code>it</code>, <code>expect</code>, <code>beforeEach</code>, <code>vi</code> for
+            mocks.
           </p>
 
           <CodeBlock title="src/utils/helpers.test.js">
 {`import { describe, it, expect } from 'vitest'
-import { formatDate, slugify } from './helpers'
-
-describe('formatDate', () => {
-  it('formats a date correctly', () => {
-    const date = new Date('2024-01-15')
-    expect(formatDate(date)).toBe('January 15, 2024')
-  })
-
-  it('handles invalid dates', () => {
-    expect(formatDate(null)).toBe('')
-  })
-})
+import { slugify } from './helpers.js'
 
 describe('slugify', () => {
   it('converts text to a slug', () => {
     expect(slugify('Hello World')).toBe('hello-world')
-    expect(slugify('This is a TEST')).toBe('this-is-a-test')
   })
 
-  it('removes special characters', () => {
+  it('removes punctuation', () => {
     expect(slugify('Hello! World?')).toBe('hello-world')
   })
 })`}
@@ -77,166 +103,213 @@ describe('slugify', () => {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Testing API Routes</h2>
+          <h2 className="text-lg font-semibold mb-2">Testing a Controller</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            Test your API endpoints using the built-in test client.
+            A controller action is an ordinary <code>async (req, res)</code> function, so a test
+            can call it with objects you build by hand. Only the properties the action actually
+            reads need to exist, which for most actions is <code>body</code>,
+            <code>params</code> and whatever your auth middleware attaches.
           </p>
 
-          <CodeBlock title="tests/api/posts.test.js">
-{`import { describe, it, expect, beforeEach } from 'vitest'
-import { testClient, resetDatabase } from 'basicben/testing'
+          <CodeBlock title="tests/PostController.test.js">
+{`import { describe, it, expect } from 'vitest'
+import { PostController } from '../src/controllers/PostController.js'
 
-describe('POST /api/posts', () => {
-  beforeEach(async () => {
-    await resetDatabase()
-  })
+// res is whatever the controller calls. json(data, status) is the only
+// method these paths use, so a small stub is enough.
+function mockRes() {
+  const sent = {}
+  return {
+    sent,
+    json(data, status = 200) {
+      sent.data = data
+      sent.status = status
+    }
+  }
+}
 
-  it('creates a post when authenticated', async () => {
-    const { body, status } = await testClient
-      .post('/api/posts')
-      .auth(testUser)
-      .send({
-        title: 'Test Post',
-        content: 'This is a test'
-      })
+describe('PostController.store', () => {
+  it('returns 422 when the body fails validation', async () => {
+    const res = mockRes()
 
-    expect(status).toBe(201)
-    expect(body.id).toBeDefined()
-  })
+    await PostController.store({ body: { title: 'x' }, userId: 1 }, res)
 
-  it('returns 401 when not authenticated', async () => {
-    const { status } = await testClient
-      .post('/api/posts')
-      .send({ title: 'Test' })
-
-    expect(status).toBe(401)
-  })
-
-  it('validates required fields', async () => {
-    const { body, status } = await testClient
-      .post('/api/posts')
-      .auth(testUser)
-      .send({})
-
-    expect(status).toBe(400)
-    expect(body.errors.title).toBeDefined()
+    expect(res.sent.status).toBe(422)
+    expect(res.sent.data.errors.title).toBeDefined()
+    expect(res.sent.data.errors.content).toBeDefined()
   })
 })`}
           </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            A validation failure returns before any query runs, so this test needs no database
+            at all. Actions that do reach the database need the setup in the next section.
+          </p>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Test Database</h2>
+          <h2 className="text-lg font-semibold mb-2">Testing Database Code</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            Tests run against an isolated test database that resets between tests.
+            Point the connection at a scratch SQLite file before the first query runs, and
+            delete it afterwards. <code>resetDb()</code> drops the cached connection so the next
+            call opens the file you just named, and creating the schema in
+            <code>beforeAll</code> keeps each run independent of migration state.
           </p>
 
-          <CodeBlock title="Database helpers">
-{`import { resetDatabase, seedDatabase, factory } from 'basicben/testing'
+          <CodeBlock title="tests/posts.test.js">
+{`import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { existsSync, unlinkSync } from 'node:fs'
+import { db, query, resetDb } from '@basicbenframework/core/db'
 
-describe('User tests', () => {
-  beforeEach(async () => {
-    // Reset database to clean state
-    await resetDatabase()
+const TEST_DB = './tests/test.sqlite'
 
-    // Optionally seed with test data
-    await seedDatabase()
-  })
+function removeTestDb() {
+  // WAL mode leaves two sidecar files next to the database.
+  for (const suffix of ['', '-wal', '-shm']) {
+    if (existsSync(TEST_DB + suffix)) unlinkSync(TEST_DB + suffix)
+  }
+}
 
-  it('can create users with factory', async () => {
-    // Create a user using the factory
-    const user = await factory.user.create({
-      name: 'Test User',
-      email: 'test@example.com'
-    })
+beforeAll(async () => {
+  removeTestDb()
 
-    expect(user.id).toBeDefined()
-  })
+  // basicben.config.js leaves db.url unset, so DATABASE_URL decides
+  // the file. resetDb() clears any connection opened before this.
+  process.env.DATABASE_URL = TEST_DB
+  resetDb()
 
-  it('can create multiple records', async () => {
-    // Create 5 posts for a user
-    const posts = await factory.post.createMany(5, {
-      user_id: testUser.id
-    })
-
-    expect(posts).toHaveLength(5)
-  })
-})`}
-          </CodeBlock>
-        </Card>
-
-        <Card>
-          <h2 className="text-lg font-semibold mb-2">Mocking</h2>
-          <p className={`text-sm ${t.muted} mb-4`}>
-            Use Vitest's built-in mocking for external dependencies.
-          </p>
-
-          <CodeBlock title="Mocking modules">
-{`import { describe, it, expect, vi } from 'vitest'
-import { sendEmail } from './email'
-
-// Mock the email module
-vi.mock('./email', () => ({
-  sendEmail: vi.fn()
-}))
-
-describe('Registration', () => {
-  it('sends welcome email after registration', async () => {
-    await testClient
-      .post('/api/auth/register')
-      .send({
-        name: 'New User',
-        email: 'new@example.com',
-        password: 'password123'
-      })
-
-    expect(sendEmail).toHaveBeenCalledWith(
-      'new@example.com',
-      'Welcome!',
-      expect.any(String)
+  await db.exec(\`
+    CREATE TABLE posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      published INTEGER DEFAULT 0
     )
+  \`)
+})
+
+afterAll(async () => {
+  await db.close()
+  removeTestDb()
+})
+
+describe('posts', () => {
+  it('inserts a row and reads it back', async () => {
+    const result = await (await query('posts')).insert({ title: 'Hello', published: 1 })
+    const post = await (await query('posts')).find(result.lastInsertRowid)
+
+    expect(post.title).toBe('Hello')
+  })
+
+  it('drops columns that only() does not list', async () => {
+    await (await query('posts')).only('title').insert({ title: 'Draft', published: 1 })
+    const post = await (await query('posts')).where('title', 'Draft').first()
+
+    expect(post.published).toBe(0)
+  })
+
+  it('rolls back when the transaction callback throws', async () => {
+    await expect(
+      db.transaction(async (tx) => {
+        await tx.run('INSERT INTO posts (title) VALUES (?)', ['Rolled back'])
+        throw new Error('boom')
+      })
+    ).rejects.toThrow('boom')
+
+    expect(await (await query('posts')).where('title', 'Rolled back').count()).toBe(0)
   })
 })`}
           </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Two things to watch. The connection is one cached instance per process, so if your
+            config sets <code>db.url</code> it wins over <code>DATABASE_URL</code> and the test
+            will happily write to your development database. And SQLite will not bind
+            JavaScript booleans, so test data uses <code>1</code> and <code>0</code> like
+            everything else.
+          </p>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Vitest runs separate test files in parallel workers. Files that share one SQLite path
+            will collide, so give each file its own database name, or keep database tests in a
+            single file.
+          </p>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Code Coverage</h2>
+          <h2 className="text-lg font-semibold mb-2">Coverage and the UI</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            Generate code coverage reports to see what's tested.
+            Both flags exist, and both need a package that is not installed by default. Without
+            it Vitest stops immediately with <code>MISSING DEPENDENCY</code>.
           </p>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
-              <code className="text-sm font-semibold">npm run test:coverage</code>
-              <p className={`text-xs mt-1 ${t.muted}`}>Run tests with coverage</p>
-            </div>
-            <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
-              <code className="text-sm font-semibold">npm run test:ui</code>
-              <p className={`text-xs mt-1 ${t.muted}`}>Open Vitest UI</p>
-            </div>
-          </div>
+          <CodeBlock title="Install first, then run">
+{`npm install -D @vitest/coverage-v8
+npm test -- --coverage
 
-          <CodeBlock title="Coverage output">
-{`----------|---------|----------|---------|---------|
-File      | % Stmts | % Branch | % Funcs | % Lines |
-----------|---------|----------|---------|---------|
-All files |   85.71 |    78.26 |   90.00 |   85.71 |
- auth.js  |  100.00 |   100.00 |  100.00 |  100.00 |
- posts.js |   75.00 |    66.67 |   80.00 |   75.00 |
-----------|---------|----------|---------|---------|`}
+npm install -D @vitest/ui
+npm test -- --ui`}
           </CodeBlock>
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Testing Best Practices</h2>
+          <h2 className="text-lg font-semibold mb-2">Node's Test Runner</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            The framework's own suite is written against <code>node:test</code> and
+            <code>node:assert</code>, with no test dependency at all. You can write app tests the
+            same way if you would rather not depend on Vitest — but run them with
+            <code>node --test</code> directly, not through <code>npm test</code>.
+          </p>
+
+          <CodeBlock title="Run node:test files directly">
+{`node --test tests/helpers.test.js
+node --test --watch tests/
+node --test --experimental-test-coverage tests/`}
+          </CodeBlock>
+
+          <CodeBlock title="A node:test file">
+{`import { test, describe } from 'node:test'
+import assert from 'node:assert'
+import { slugify } from '../src/utils/helpers.js'
+
+describe('slugify', () => {
+  test('converts text to a slug', () => {
+    assert.strictEqual(slugify('Hello World'), 'hello-world')
+  })
+})`}
+          </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            The two runners do not mix. Passing a <code>node:test</code> file to
+            <code>npm test</code> fails with <code>No test suite found in file</code>, because
+            the tests register with Node's runner and Vitest collects nothing. Pick one style per
+            file, and if you use both, keep them in directories you can point each runner at.
+          </p>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-2">Practices That Hold Up Here</h2>
           <div className="space-y-3 mt-4">
             {[
-              { title: 'Isolate tests', desc: 'Each test should be independent and not rely on other tests' },
-              { title: 'Reset state', desc: 'Use beforeEach to reset the database and any mocks' },
-              { title: 'Test behavior', desc: 'Test what the code does, not how it does it' },
-              { title: 'Use descriptive names', desc: 'Test names should describe the expected behavior' },
-              { title: 'Keep tests fast', desc: 'Mock external services and use test databases' },
+              {
+                title: 'Give each test its own data',
+                desc: 'There is no reset helper, so tests that assume an empty table break as soon as another test inserts. Create what you assert on, or assert on rows you inserted by name.'
+              },
+              {
+                title: 'Test the model, not the query builder',
+                desc: 'The builder has its own tests. What is worth covering is the SQL you wrote by hand, especially the joins the builder cannot express.'
+              },
+              {
+                title: 'Cover validation failures',
+                desc: 'The 422 path returns before any query, so it is the cheapest test in the suite and the one most likely to regress when a schema changes.'
+              },
+              {
+                title: 'Keep the database out of unit tests',
+                desc: 'Anything that is a pure function of its arguments should be tested as one. Reserve the SQLite fixture for code that genuinely queries.'
+              },
+              {
+                title: 'Name tests after the behaviour',
+                desc: 'The name is what you read when it fails, and "returns 422 when the body fails validation" tells you more at that moment than "store works".'
+              },
             ].map(({ title, desc }) => (
               <div key={title} className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
                 <div className="font-semibold text-sm">{title}</div>

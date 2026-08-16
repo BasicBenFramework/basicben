@@ -3,7 +3,7 @@
  * Creates sample blog posts for development/testing
  */
 
-import { db } from 'basicben'
+import { db } from '@basicbenframework/core/db'
 
 export async function seed() {
   // Get the first user (admin)

@@ -1,5 +1,12 @@
 /**
  * {{Name}} middleware
+ *
+ * Default-exported, so the framework auto-loads it from src/middleware and
+ * applies it to EVERY request. If it should only guard some routes, export it
+ * by name instead and pass it to those routes:
+ *
+ *   import { {{name}} } from '../middleware/{{lower}}.js'
+ *   router.get('/api/posts', {{name}}, PostController.index)
  */
 
 export default async (req, res, next) => {

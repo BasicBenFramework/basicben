@@ -3,8 +3,8 @@
  * Creates sample users for development/testing
  */
 
-import { db } from 'basicben'
-import { hashPassword } from 'basicben/auth'
+import { db } from '@basicbenframework/core/db'
+import { hashPassword } from '@basicbenframework/core/auth'
 
 export async function seed() {
   const password = await hashPassword('password123')

@@ -2,7 +2,7 @@
  * {{Name}} model
  */
 
-import { db } from 'basicben'
+import { db } from '@basicbenframework/core/db'
 
 export const {{Name}} = {
   /**

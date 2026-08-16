@@ -221,3 +221,52 @@ describe('createRouter', () => {
     assert.strictEqual(routes[0].path, '/api/users')
   })
 })
+
+describe('route names among middleware', () => {
+  const mw = (req, res, next) => next()
+  const handler = () => {}
+
+  test('picks up a name given before the middleware', () => {
+    const router = new Router()
+    router.get('/posts', 'posts.index', mw, handler)
+
+    assert.strictEqual(router.routes[0].name, 'posts.index')
+  })
+
+  test('picks up a name given after the middleware', () => {
+    const router = new Router()
+    router.get('/posts/:id', mw, 'posts.show', handler)
+
+    assert.strictEqual(router.routes[0].name, 'posts.show')
+  })
+
+  test('never leaves the name in the middleware chain', () => {
+    const router = new Router()
+    router.get('/posts/:id', mw, 'posts.show', handler)
+
+    // A string left in the chain is later called as middleware and throws
+    // "fn is not a function" at request time.
+    const allCallable = router.routes[0].middleware.every(m => typeof m === 'function')
+    assert.ok(allCallable)
+  })
+
+  test('resource routes carry names and callable middleware', () => {
+    const router = new Router()
+    const controller = { index: handler, show: handler, create: handler, update: handler, destroy: handler }
+    router.resource('/posts', controller, { middleware: [mw] })
+
+    assert.strictEqual(router.routes.length, 5)
+    for (const route of router.routes) {
+      assert.ok(route.name, 'every resource route should be named')
+      assert.ok(route.middleware.every(m => typeof m === 'function'))
+      assert.strictEqual(typeof route.handler, 'function')
+    }
+  })
+
+  test('named resource routes generate URLs', () => {
+    const router = new Router()
+    router.resource('/posts', { show: handler }, { middleware: [mw], name: 'posts' })
+
+    assert.strictEqual(router.route('posts.show', { id: 42 }), '/posts/42')
+  })
+})

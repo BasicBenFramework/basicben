@@ -3,7 +3,7 @@
  * Run with: basicben seed {{lower}}
  */
 
-import { db } from 'basicben'
+import { db } from '@basicbenframework/core/db'
 
 export async function seed() {
   // Example: Insert sample data
