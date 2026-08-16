@@ -22,6 +22,28 @@ import {
   DatabaseStore
 } from './rate-limit.js'
 
+
+/**
+ * A clock the test controls.
+ *
+ * These tests used to sleep — 80ms for a 300ms lockout, 140ms for a 120ms
+ * window. Margins like that hold on an idle laptop and fail on a shared CI
+ * runner, where a setTimeout can overshoot by hundreds of milliseconds. Two of
+ * them did exactly that, and blocked a release.
+ *
+ * Advancing a fake clock tests the same behaviour with no timing at all, and
+ * lets the durations be realistic — minutes, as they are in production, rather
+ * than milliseconds chosen to keep the suite fast.
+ */
+function fakeClock(start = 1_700_000_000_000) {
+  let current = start
+
+  return {
+    now: () => current,
+    advance: (ms) => { current += ms }
+  }
+}
+
 describe('parseDuration', () => {
   test('accepts a number as milliseconds', () => {
     assert.strictEqual(parseDuration(500), 500)
@@ -120,14 +142,15 @@ for (const [name, makeStore] of stores) {
 
     test('the window slides rather than resetting on a boundary', async () => {
       // A fixed window would allow the full limit again the instant the window
-      // ticks over, so "2 per 100ms" would permit 4 in a fraction of a second.
-      const limiter = createLimiter({ limit: 2, window: '120ms', store })
+      // ticks over, so "2 per minute" would permit 4 in a fraction of a second.
+      const clock = fakeClock()
+      const limiter = createLimiter({ limit: 2, window: '1m', store, now: clock.now })
 
       await limiter.consume('a')
       await limiter.consume('a')
       assert.strictEqual((await limiter.consume('a')).allowed, false)
 
-      await new Promise((r) => setTimeout(r, 140))
+      clock.advance(61_000)
 
       assert.strictEqual((await limiter.consume('a')).allowed, true, 'the window should have slid')
     })
@@ -163,26 +186,28 @@ for (const [name, makeStore] of stores) {
     })
 
     test('blockFor keeps refusing after the window would have passed', async () => {
-      const limiter = createLimiter({ limit: 2, window: '50ms', blockFor: '300ms', store })
+      const clock = fakeClock()
+      const limiter = createLimiter({ limit: 2, window: '1m', blockFor: '15m', store, now: clock.now })
 
       await limiter.consume('a')
       await limiter.consume('a')
       assert.strictEqual((await limiter.consume('a')).allowed, false)
 
-      // Long enough for the window to slide, but not the block.
-      await new Promise((r) => setTimeout(r, 80))
+      // Past the window, well short of the block.
+      clock.advance(2 * 60_000)
 
       const stillBlocked = await limiter.consume('a')
       assert.strictEqual(stillBlocked.allowed, false, 'the lockout should outlast the window')
     })
 
     test('the lockout lapses', async () => {
-      const limiter = createLimiter({ limit: 1, window: '50ms', blockFor: '120ms', store })
+      const clock = fakeClock()
+      const limiter = createLimiter({ limit: 1, window: '1m', blockFor: '15m', store, now: clock.now })
 
       await limiter.consume('a')
       assert.strictEqual((await limiter.consume('a')).allowed, false)
 
-      await new Promise((r) => setTimeout(r, 160))
+      clock.advance(16 * 60_000)
 
       assert.strictEqual((await limiter.consume('a')).allowed, true)
     })
@@ -190,13 +215,14 @@ for (const [name, makeStore] of stores) {
     test('a lapsed lockout does not immediately re-lock', async () => {
       // If the hit count survived the block, the next single attempt would lock
       // again at once and the account would be permanently unusable.
-      const limiter = createLimiter({ limit: 2, window: '1m', blockFor: '100ms', store })
+      const clock = fakeClock()
+      const limiter = createLimiter({ limit: 2, window: '1h', blockFor: '15m', store, now: clock.now })
 
       await limiter.consume('a')
       await limiter.consume('a')
       await limiter.consume('a')
 
-      await new Promise((r) => setTimeout(r, 140))
+      clock.advance(16 * 60_000)
 
       assert.strictEqual((await limiter.consume('a')).allowed, true)
       assert.strictEqual((await limiter.consume('a')).allowed, true)
@@ -238,28 +264,30 @@ describe('DatabaseStore persistence', () => {
 
 describe('MemoryStore housekeeping', () => {
   test('sweeps keys whose window has passed', async () => {
+    const clock = fakeClock()
     const store = new MemoryStore({ sweepInterval: 0 })
-    const limiter = createLimiter({ limit: 5, window: '50ms', store })
+    const limiter = createLimiter({ limit: 5, window: '1m', store, now: clock.now })
 
     await limiter.consume('a')
     await limiter.consume('b')
     assert.strictEqual(store.size, 2)
 
-    await new Promise((r) => setTimeout(r, 80))
-    store.sweep()
+    // sweep() takes the time to sweep at, so no waiting is needed.
+    store.sweep(clock.now() + 61_000)
 
     assert.strictEqual(store.size, 0)
   })
 
   test('does not sweep a key that is still blocked', async () => {
+    const clock = fakeClock()
     const store = new MemoryStore({ sweepInterval: 0 })
-    const limiter = createLimiter({ limit: 1, window: '20ms', blockFor: '5m', store })
+    const limiter = createLimiter({ limit: 1, window: '1m', blockFor: '5m', store, now: clock.now })
 
     await limiter.consume('a')
     await limiter.consume('a')
 
-    await new Promise((r) => setTimeout(r, 50))
-    store.sweep()
+    // Past the window, inside the block.
+    store.sweep(clock.now() + 2 * 60_000)
 
     assert.strictEqual(store.size, 1, 'a blocked key must survive the sweep')
   })

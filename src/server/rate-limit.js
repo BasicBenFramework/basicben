@@ -71,6 +71,10 @@ export function parseDuration(value) {
  * @property {Object} [store]
  * @property {number|string} [blockFor] - after the limit, refuse for this
  *   long regardless of the window. Turns a throttle into a lockout.
+ * @property {() => number} [now] - the clock, defaulting to Date.now.
+ *   Injectable so tests can advance time exactly instead of sleeping. A test
+ *   that waits 80ms for a 300ms lockout passes on a quiet laptop and fails on a
+ *   loaded CI runner — that is a property of the test, not of the limiter.
  */
 
 /**
@@ -79,7 +83,7 @@ export function parseDuration(value) {
  * @param {LimiterOptions} options
  * @returns {Limiter}
  */
-export function createLimiter({ limit, window, store, blockFor } = {}) {
+export function createLimiter({ limit, window, store, blockFor, now: clock = Date.now } = {}) {
   if (!Number.isFinite(limit) || limit < 1) {
     throw new Error('createLimiter requires a positive limit')
   }
@@ -96,7 +100,7 @@ export function createLimiter({ limit, window, store, blockFor } = {}) {
      * @returns {Promise<{ allowed: boolean, remaining: number, retryAfter: number, resetAt: number, limit: number }>}
      */
     async consume(key) {
-      const now = Date.now()
+      const now = clock()
       const state = await backing.hit(String(key), { windowMs, now, limit, blockMs })
 
       return describe(state, limit, now)
@@ -111,7 +115,7 @@ export function createLimiter({ limit, window, store, blockFor } = {}) {
      * @param {string} key
      */
     async peek(key) {
-      const now = Date.now()
+      const now = clock()
       const state = await backing.peek(String(key), { windowMs, now, limit })
 
       return describe(state, limit, now)

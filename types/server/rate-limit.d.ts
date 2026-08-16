@@ -29,6 +29,10 @@ export function parseDuration(value: number | string): number;
  * @property {Object} [store]
  * @property {number|string} [blockFor] - after the limit, refuse for this
  *   long regardless of the window. Turns a throttle into a lockout.
+ * @property {() => number} [now] - the clock, defaulting to Date.now.
+ *   Injectable so tests can advance time exactly instead of sleeping. A test
+ *   that waits 80ms for a 300ms lockout passes on a quiet laptop and fails on a
+ *   loaded CI runner — that is a property of the test, not of the limiter.
  */
 /**
  * Create a limiter.
@@ -36,7 +40,7 @@ export function parseDuration(value: number | string): number;
  * @param {LimiterOptions} options
  * @returns {Limiter}
  */
-export function createLimiter({ limit, window, store, blockFor }?: LimiterOptions): Limiter;
+export function createLimiter({ limit, window, store, blockFor, now: clock }?: LimiterOptions): Limiter;
 /**
  * Rate-limiting middleware.
  *
@@ -121,5 +125,12 @@ export type LimiterOptions = {
      * long regardless of the window. Turns a throttle into a lockout.
      */
     blockFor?: number | string;
+    /**
+     * - the clock, defaulting to Date.now.
+     * Injectable so tests can advance time exactly instead of sleeping. A test
+     * that waits 80ms for a 300ms lockout passes on a quiet laptop and fails on a
+     * loaded CI runner — that is a property of the test, not of the limiter.
+     */
+    now?: () => number;
 };
 export { MemoryStore, DatabaseStore } from "./rate-limit-stores.js";
