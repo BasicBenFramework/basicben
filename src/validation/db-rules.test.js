@@ -2,68 +2,56 @@
  * Tests for database validation rules (unique, exists)
  */
 
-import { test, describe, before, after } from 'node:test'
+import { test, describe, after } from 'node:test'
 import assert from 'node:assert'
 import { unlinkSync, existsSync } from 'node:fs'
+import { createSqliteAdapter } from '../db/adapters/sqlite.js'
 
 const TEST_DB = './test-validation-db.db'
 
-// node:sqlite is built in on the supported Node versions, so this only guards
-// against an environment that genuinely cannot open a database.
-let skipTests = false
-let db, validate, rules
+// Set up test database
+const testDb = await createSqliteAdapter(TEST_DB)
 
-try {
-  // Set up test database
-  const { createSqliteAdapter } = await import('../db/adapters/sqlite.js')
-  const testDb = await createSqliteAdapter(TEST_DB)
+// Create test tables
+testDb.exec(`
+  CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT
+  )
+`)
 
-  // Create test tables
-  testDb.exec(`
-    CREATE TABLE users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      name TEXT
-    )
-  `)
+testDb.exec(`
+  CREATE TABLE categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL
+  )
+`)
 
-  testDb.exec(`
-    CREATE TABLE categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      slug TEXT UNIQUE NOT NULL
-    )
-  `)
+// Seed test data
+testDb.run('INSERT INTO users (email, name) VALUES (?, ?)', ['alice@test.com', 'Alice'])
+testDb.run('INSERT INTO users (email, name) VALUES (?, ?)', ['bob@test.com', 'Bob'])
+testDb.run('INSERT INTO categories (name, slug) VALUES (?, ?)', ['Technology', 'tech'])
+testDb.run('INSERT INTO categories (name, slug) VALUES (?, ?)', ['Sports', 'sports'])
 
-  // Seed test data
-  testDb.run('INSERT INTO users (email, name) VALUES (?, ?)', ['alice@test.com', 'Alice'])
-  testDb.run('INSERT INTO users (email, name) VALUES (?, ?)', ['bob@test.com', 'Bob'])
-  testDb.run('INSERT INTO categories (name, slug) VALUES (?, ?)', ['Technology', 'tech'])
-  testDb.run('INSERT INTO categories (name, slug) VALUES (?, ?)', ['Sports', 'sports'])
+testDb.close()
 
-  testDb.close()
+// Mock the db module to use our test database
+const { resetDb } = await import('../db/index.js')
+resetDb()
 
-  // Mock the db module to use our test database
-  const { resetDb } = await import('../db/index.js')
-  resetDb()
+// Set environment to use test db
+process.env.DATABASE_URL = TEST_DB
 
-  // Set environment to use test db
-  process.env.DATABASE_URL = TEST_DB
+// Now import validation (which imports db), which must happen after
+// DATABASE_URL is set so the lazy connection picks up the test database.
+const { validate, rules } = await import('./index.js')
 
-  // Now import validation (which imports db)
-  const validationModule = await import('./index.js')
-  validate = validationModule.validate
-  rules = validationModule.rules
+// Get db reference for cleanup
+const { db } = await import('../db/index.js')
 
-  // Get db reference for cleanup
-  const dbModule = await import('../db/index.js')
-  db = dbModule.db
-} catch (err) {
-  skipTests = true
-  console.log('Skipping db-rules tests:', err.message)
-}
-
-describe('rules.unique', { skip: skipTests }, () => {
+describe('rules.unique', () => {
   test('passes when value is unique', async () => {
     const result = await validate(
       { email: 'newuser@test.com' },
@@ -122,7 +110,7 @@ describe('rules.unique', { skip: skipTests }, () => {
   })
 })
 
-describe('rules.exists', { skip: skipTests }, () => {
+describe('rules.exists', () => {
   test('passes when value exists', async () => {
     const result = await validate(
       { user_id: 1 },
@@ -170,7 +158,7 @@ describe('rules.exists', { skip: skipTests }, () => {
   })
 })
 
-describe('combining db rules with other rules', { skip: skipTests }, () => {
+describe('combining db rules with other rules', () => {
   test('required + unique', async () => {
     const result = await validate(
       { email: '' },
@@ -204,15 +192,8 @@ describe('combining db rules with other rules', { skip: skipTests }, () => {
 
 // Cleanup
 after(async () => {
-  if (!skipTests && db) {
-    await db.close()
-  }
+  await db.close()
   if (existsSync(TEST_DB)) unlinkSync(TEST_DB)
   if (existsSync(TEST_DB + '-wal')) unlinkSync(TEST_DB + '-wal')
   if (existsSync(TEST_DB + '-shm')) unlinkSync(TEST_DB + '-shm')
 })
-
-// Skip message
-if (skipTests) {
-  test('Database validation tests skipped (no usable SQLite)', { skip: true }, () => {})
-}

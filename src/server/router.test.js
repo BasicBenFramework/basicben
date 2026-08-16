@@ -5,6 +5,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert'
 import { Router, createRouter } from './router.js'
+import { createApp } from './http.js'
 
 describe('Router', () => {
   test('registers GET routes', () => {
@@ -268,5 +269,79 @@ describe('route names among middleware', () => {
     router.resource('/posts', { show: handler }, { middleware: [mw], name: 'posts' })
 
     assert.strictEqual(router.route('posts.show', { id: 42 }), '/posts/42')
+  })
+})
+
+describe('route names among middleware, end to end', () => {
+  // The checks above read the router's own arrays. These serve real requests,
+  // because the failure was only visible at request time: applyTo() wraps every
+  // middleware entry in wrapAsync, so a name left in the chain became a call of
+  // a string and answered 500 "fn is not a function".
+
+  /** Serve `router` on an ephemeral port. */
+  async function serve(router) {
+    const app = createApp()
+    router.applyTo(app)
+
+    await new Promise(resolve => app.listen(0, resolve))
+
+    return {
+      url: `http://127.0.0.1:${app.server.address().port}`,
+      close: () => new Promise(resolve => app.close(resolve))
+    }
+  }
+
+  function sendJson(res, body) {
+    res.setHeader('Content-Type', 'application/json')
+    res.end(JSON.stringify(body))
+  }
+
+  const controller = {
+    index: (req, res) => sendJson(res, { action: 'index' }),
+    show: (req, res) => sendJson(res, { action: 'show', id: req.params.id })
+  }
+
+  test('resource() with middleware answers 200 and runs the middleware', async () => {
+    const seen = []
+    const router = new Router()
+    router.resource('/posts', controller, {
+      only: ['index', 'show'],
+      middleware: [(req, res, next) => { seen.push(req.path); next() }]
+    })
+
+    const server = await serve(router)
+    try {
+      const index = await fetch(`${server.url}/posts`)
+      assert.strictEqual(index.status, 200)
+      assert.deepStrictEqual(await index.json(), { action: 'index' })
+
+      const show = await fetch(`${server.url}/posts/42`)
+      assert.strictEqual(show.status, 200)
+      assert.deepStrictEqual(await show.json(), { action: 'show', id: '42' })
+    } finally {
+      await server.close()
+    }
+
+    assert.deepStrictEqual(seen, ['/posts', '/posts/42'], 'middleware should run for each route')
+
+    // The name has to survive too — it was dropped along with the 500.
+    assert.strictEqual(router.route('posts.index'), '/posts')
+    assert.strictEqual(router.route('posts.show', { id: 42 }), '/posts/42')
+  })
+
+  test('a name written after middleware answers 200', async () => {
+    const router = new Router()
+    router.get('/posts/:id', (req, res, next) => next(), 'posts.show', controller.show)
+
+    const server = await serve(router)
+    try {
+      const res = await fetch(`${server.url}/posts/7`)
+      assert.strictEqual(res.status, 200)
+      assert.deepStrictEqual(await res.json(), { action: 'show', id: '7' })
+    } finally {
+      await server.close()
+    }
+
+    assert.strictEqual(router.route('posts.show', { id: 7 }), '/posts/7')
   })
 })

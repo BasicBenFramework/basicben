@@ -6,22 +6,11 @@ import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert'
 import { unlinkSync, existsSync } from 'node:fs'
 import { QueryBuilder } from './QueryBuilder.js'
+import { createSqliteAdapter } from './adapters/sqlite.js'
 
 const TEST_DB = './test-querybuilder.db'
 
-// node:sqlite is built in on the supported Node versions, so this only guards
-// against an environment that genuinely cannot open a database.
-let createSqliteAdapter
-let skipTests = false
-
-try {
-  const module = await import('./adapters/sqlite.js')
-  createSqliteAdapter = module.createSqliteAdapter
-} catch {
-  skipTests = true
-}
-
-describe('QueryBuilder', { skip: skipTests }, () => {
+describe('QueryBuilder', () => {
   let db
 
   before(async () => {
@@ -335,8 +324,3 @@ describe('QueryBuilder', { skip: skipTests }, () => {
     })
   })
 })
-
-// If tests are skipped, add a note
-if (skipTests) {
-  test('QueryBuilder tests skipped (no usable SQLite)', { skip: true }, () => {})
-}

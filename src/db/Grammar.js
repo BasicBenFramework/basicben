@@ -9,6 +9,15 @@ export class Grammar {
   }
 
   /**
+   * Whether the driver speaks the Postgres dialect.
+   *
+   * @returns {boolean}
+   */
+  isPostgres() {
+    return this.driver === 'postgres' || this.driver === 'pg' || this.driver === 'neon'
+  }
+
+  /**
    * Whether this dialect needs a RETURNING clause to report a new row's id.
    *
    * The Postgres adapter reads lastInsertRowid from the returned row, so an
@@ -17,7 +26,29 @@ export class Grammar {
    * @returns {boolean}
    */
   supportsReturning() {
-    return this.driver === 'postgres' || this.driver === 'pg' || this.driver === 'neon'
+    return this.isPostgres()
+  }
+
+  /**
+   * Column definition for an auto-incrementing integer primary key.
+   *
+   * SQLite spells this INTEGER PRIMARY KEY AUTOINCREMENT; Postgres has no such
+   * keyword and rejects the statement outright.
+   *
+   * @returns {string}
+   */
+  autoIncrementPrimaryKey() {
+    return this.isPostgres() ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'
+  }
+
+  /**
+   * Column type for a timestamp. DATETIME is a SQLite spelling; Postgres wants
+   * TIMESTAMP. CURRENT_TIMESTAMP works as a default in both.
+   *
+   * @returns {string}
+   */
+  timestampType() {
+    return this.isPostgres() ? 'TIMESTAMP' : 'DATETIME'
   }
 
   /**

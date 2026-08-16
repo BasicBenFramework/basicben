@@ -8,7 +8,8 @@
  * default-exported auth guard would reject login and registration too. Attach
  * this to the routes that need it instead:
  *
- *   import { auth } from '../middleware/{{name}}.js'
+ *   // src/routes/api/posts.js — where make:route generates, so two levels up
+ *   import { auth } from '../../middleware/{{lower}}.js'
  *   router.get('/api/posts', auth, PostController.index)
  */
 

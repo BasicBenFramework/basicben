@@ -7,8 +7,28 @@ import { readdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { getDb } from './index.js'
+import { Grammar } from './Grammar.js'
+import { QueryBuilder } from './QueryBuilder.js'
 
 const MIGRATIONS_TABLE = '_migrations'
+
+/**
+ * Grammar for the connected driver.
+ *
+ * The runner's own bookkeeping is as dialect-sensitive as anything it runs:
+ * placeholders are '?' on SQLite and $1, $2 on Postgres, and the two spell the
+ * migrations table's DDL differently.
+ */
+function grammarFor(db) {
+  return new Grammar(db.driver || 'sqlite')
+}
+
+/**
+ * Query builder scoped to the migrations table.
+ */
+function migrationsTable(db) {
+  return new QueryBuilder(db, MIGRATIONS_TABLE, db.driver || 'sqlite')
+}
 
 /**
  * Create migrator instance
@@ -91,10 +111,16 @@ export async function createMigrator(migrationsDir = 'migrations') {
       // Get all tables
       const tables = await getAllTables(db)
 
+      // Postgres refuses to drop a table another table's foreign key points at,
+      // and the catalogue lists tables in no dependency order, so a blind sweep
+      // needs CASCADE. It drops the dependent constraint, not the dependent
+      // table, which is what a full sweep wants. SQLite has no such clause.
+      const cascade = grammarFor(db).isPostgres() ? ' CASCADE' : ''
+
       // Drop all tables (except sqlite internal tables)
       for (const table of tables) {
         if (!table.startsWith('sqlite_')) {
-          await db.exec(`DROP TABLE IF EXISTS "${table}"`)
+          await db.exec(`DROP TABLE IF EXISTS "${table}"${cascade}`)
         }
       }
 
@@ -126,12 +152,14 @@ export async function createMigrator(migrationsDir = 'migrations') {
  * Create migrations table if it doesn't exist
  */
 async function ensureMigrationsTable(db) {
+  const grammar = grammarFor(db)
+
   await db.exec(`
-    CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+    CREATE TABLE IF NOT EXISTS ${grammar.escapeId(MIGRATIONS_TABLE)} (
+      id ${grammar.autoIncrementPrimaryKey()},
       migration TEXT NOT NULL UNIQUE,
       batch INTEGER NOT NULL,
-      ran_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      ran_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 }
@@ -168,47 +196,55 @@ async function getPendingMigrations(db, dir) {
  * Get all ran migrations
  */
 async function getRanMigrations(db) {
-  return db.all(`SELECT * FROM ${MIGRATIONS_TABLE} ORDER BY batch, id`)
+  return migrationsTable(db).orderBy('batch').orderBy('id').get()
+}
+
+/**
+ * Get the highest batch number, or 0 if nothing has run.
+ *
+ * MAX() takes no parameters, so this one query is portable as written.
+ */
+async function getMaxBatch(db) {
+  const table = grammarFor(db).escapeId(MIGRATIONS_TABLE)
+  const result = await db.get(`SELECT MAX(batch) AS max FROM ${table}`)
+
+  // Postgres returns null for an empty table; SQLite returns null too.
+  return Number(result?.max) || 0
 }
 
 /**
  * Get next batch number
  */
 async function getNextBatch(db) {
-  const result = await db.get(`SELECT MAX(batch) as max FROM ${MIGRATIONS_TABLE}`)
-  return (result?.max || 0) + 1
+  return (await getMaxBatch(db)) + 1
 }
 
 /**
  * Get last batch number
  */
 async function getLastBatch(db) {
-  const result = await db.get(`SELECT MAX(batch) as max FROM ${MIGRATIONS_TABLE}`)
-  return result?.max || null
+  return (await getMaxBatch(db)) || null
 }
 
 /**
  * Get migrations by batch
  */
 async function getMigrationsByBatch(db, batch) {
-  return db.all(`SELECT * FROM ${MIGRATIONS_TABLE} WHERE batch = ? ORDER BY id`, [batch])
+  return migrationsTable(db).where('batch', batch).orderBy('id').get()
 }
 
 /**
  * Record that a migration has run
  */
 async function recordMigration(db, name, batch) {
-  await db.run(
-    `INSERT INTO ${MIGRATIONS_TABLE} (migration, batch) VALUES (?, ?)`,
-    [name, batch]
-  )
+  await migrationsTable(db).insert({ migration: name, batch })
 }
 
 /**
  * Remove migration record
  */
 async function removeMigration(db, name) {
-  await db.run(`DELETE FROM ${MIGRATIONS_TABLE} WHERE migration = ?`, [name])
+  await migrationsTable(db).where('migration', name).delete()
 }
 
 /**
@@ -232,19 +268,18 @@ function findMigrationFile(dir, name) {
  * Get all table names (for fresh command)
  */
 async function getAllTables(db) {
-  // SQLite
-  const sqliteTables = await db.all(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-  ).catch(() => [])
-
-  if (sqliteTables.length > 0) {
-    return sqliteTables.map(t => t.name)
+  // Ask the driver we actually connected to. Probing SQLite's catalogue first
+  // and falling back on error can't work: the SQLite adapter is synchronous, so
+  // a failing query throws before there is a promise to catch.
+  if (grammarFor(db).isPostgres()) {
+    const tables = await db.all(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+    )
+    return tables.map(t => t.tablename)
   }
 
-  // Postgres
-  const pgTables = await db.all(
-    "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
-  ).catch(() => [])
-
-  return pgTables.map(t => t.tablename)
+  const tables = await db.all(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+  )
+  return tables.map(t => t.name)
 }

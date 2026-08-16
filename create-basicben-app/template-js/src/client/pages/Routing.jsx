@@ -212,13 +212,21 @@ router.route('users.posts', { id: 42 })
           </CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            The name has to come immediately after the path, before any middleware. The router only checks the first argument after the path for a name, so a name placed after middleware is treated as middleware itself, which loses the name and makes the route fail at request time.
+            The name is picked out by type, not by position: of the arguments between the path and the handler, the first string is the name and the rest are middleware. Both orderings below register the same named route. Put the name straight after the path anyway — it reads better, and it is where the next person will look for it.
           </p>
 
-          <CodeBlock title="Order matters when a route is both named and guarded">
-{`router.get('/api/posts/:id', 'posts.show', auth, PostController.show)  // correct
-router.get('/api/posts/:id', auth, 'posts.show', PostController.show)  // breaks`}
+          <CodeBlock title="The name can sit anywhere among the middleware">
+{`router.get('/api/posts/:id', 'posts.show', auth, PostController.show)
+router.get('/api/posts/:id', auth, 'posts.show', PostController.show)
+
+// Both give:
+router.route('posts.show', { id: 42 })
+// => '/api/posts/42'`}
           </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Before 0.1.17 only the first argument after the path was checked, so a name placed after middleware stayed in the middleware chain and was called as a function at request time. If you are on an older version, keep the name immediately after the path.
+          </p>
 
           <p className={`text-sm ${t.muted} mt-4`}>
             Asking for a name that was never registered throws, so a renamed route fails at the call site instead of quietly producing a broken URL.
@@ -256,14 +264,25 @@ router.get('/api/posts/:id', auth, 'posts.show', PostController.show)  // breaks
           </CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            To put a resource behind middleware, wrap it in a group. Do not use the <code>middleware</code> option: in 0.1.14 it is placed ahead of the generated route name, which leaves the name in the middleware chain and makes every route in the resource fail with a 500 at request time.
+            Pass <code>middleware</code> to put every generated route behind it. Wrapping the resource in a group does the same thing and is the better choice when other routes share the same guard.
           </p>
 
           <CodeBlock title="Middleware on a resource">
-{`router.group('/api', auth, (group) => {
+{`// Directly on the resource
+router.resource('/api/widgets', WidgetController, {
+  name: 'widgets',
+  middleware: [auth]
+})
+
+// Or through a group, which other routes can share
+router.group('/api', auth, (group) => {
   group.resource('/widgets', WidgetController, { name: 'widgets' })
 })`}
           </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            The <code>middleware</code> option was unusable before 0.1.17, when the generated route name was still read positionally: the option placed the middleware ahead of the name, which left the name in the chain and made every route in the resource fail with a 500. On an older version, use the group.
+          </p>
         </Card>
 
         <Card>
@@ -324,7 +343,16 @@ res.status(204)                  // sets the status, returns res`}
           </CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            Pass the status code to <code>res.json()</code> rather than chaining it. In 0.1.14 <code>res.json()</code> defaults its status argument to 200 and applies it unconditionally, so <code>res.status(404).json(...)</code> overwrites the 404 and responds 200. Giving the code to <code>res.json()</code> directly produces the right status on every version.
+            Both ways of setting a status work. <code>res.json()</code> applies its second argument when you pass one and otherwise keeps whatever <code>res.status()</code> already set, so an explicit second argument wins over an earlier <code>res.status()</code> call.
+          </p>
+
+          <CodeBlock title="Either form">
+{`res.json({ error: 'Not found' }, 404)   // 404
+res.status(404).json({ error: 'Not found' })  // 404`}
+          </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Before 0.1.15 <code>res.json()</code> defaulted its status to 200 and applied it unconditionally, so <code>res.status(404).json(...)</code> answered 200. Passing the code to <code>res.json()</code> directly is correct on every version, which is why the examples here do it that way.
           </p>
         </Card>
 

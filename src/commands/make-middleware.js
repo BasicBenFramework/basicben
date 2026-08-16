@@ -33,9 +33,17 @@ export async function run(args, flags) {
 
     if (names.lower === 'auth') {
       console.log(`${dim('JWT auth middleware generated')}`)
-      console.log(`${dim('Requires APP_KEY in .env')}\n`)
+      console.log(`${dim('Requires APP_KEY in .env')}`)
+      console.log(
+        `\n${dim('Exported by name, so it stays off until you attach it to the')}`
+      )
+      console.log(`${dim('routes that need it:')}`)
+      console.log(`  ${cyan(`import { auth } from '../middleware/${fileName}'`)}`)
+      console.log(
+        `  ${cyan("router.get('/api/posts', auth, PostController.index)")}\n`
+      )
     } else {
-      console.log()
+      console.log(`${dim('Default-exported, so it runs on every request')}\n`)
     }
   } catch (err) {
     console.error(`\n${red('Error:')} ${err.message}\n`)

@@ -207,6 +207,7 @@ export const down = async (db) => {
           <CodeBlock title="seeds/01_users.js">
 {`import { db } from '@basicbenframework/core/db'
 import { hashPassword } from '@basicbenframework/core/auth'
+import { ROLES } from '@basicbenframework/core/auth/permissions'
 
 export async function seed() {
   const password = await hashPassword('password123')
@@ -214,12 +215,21 @@ export async function seed() {
   await (await db.table('users')).insert({
     name: 'Admin User',
     email: 'admin@example.com',
-    password
+    password,
+    role: ROLES.ADMIN
   })
 
   console.log('Seeded 1 user')
 }`}
           </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Seed a password through <code>hashPassword</code> rather than writing a literal, and set
+            <code>role</code> explicitly. The column defaults to <code>subscriber</code>, and the
+            migration that promotes the first account runs before any seeder, against an empty
+            table — so a seeded user named &ldquo;Admin User&rdquo; without a role is a subscriber
+            that cannot reach anything the admin area gates.
+          </p>
 
           <CodeBlock title="seeds/02_posts.js">
 {`import { db } from '@basicbenframework/core/db'
