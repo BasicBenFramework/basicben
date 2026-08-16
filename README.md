@@ -146,6 +146,7 @@ BasicBen includes WordPress-like blogging features out of the box:
 
 ### Content Management
 - **Posts** — Create, edit, publish with drafts and scheduling
+- **Markdown** — Written in Markdown, rendered and sanitized on save
 - **Pages** — Static pages with hierarchy support
 - **Categories** — Hierarchical post organization
 - **Tags** — Flat tagging system
@@ -282,6 +283,11 @@ basicben migrate                   # Run all pending migrations
 basicben migrate:rollback          # Roll back the last batch
 basicben migrate:fresh             # Drop everything and re-run all
 basicben migrate:status            # Show which migrations have run
+
+# Content
+basicben content:rerender          # Rebuild stored HTML from the Markdown source
+basicben content:rerender posts    # Just one table
+basicben content:rerender --dry-run
 
 # Updates
 basicben updates check             # Check for available updates
@@ -785,6 +791,107 @@ and redeemable once. Redemption is a single conditional `UPDATE`, so two
 concurrent requests cannot both succeed. Changing an email address revokes any
 outstanding link and clears the flag, so it always describes the current
 address.
+
+---
+
+## Content & Markdown
+
+Posts and pages are written in Markdown. Every table storing content keeps two
+columns: `content` holds the Markdown and is canonical, and `content_html` holds
+the rendered, sanitized result.
+
+```js
+import { renderContent, excerpt, slugify } from '@basicbenframework/core/content'
+
+const html = await renderContent('# Title\n\nSome **bold** text.')
+const summary = excerpt(markdown, 200)   // plain text, cut at a word boundary
+const url = slugify('Hello, World!')      // "hello-world"
+```
+
+Rendering happens **on save**, not per request — a blog is read far more often
+than it is written. Models do it for you; `Post.create` and `Post.update` render
+whenever `content` changes, so the two columns cannot drift apart.
+
+Never render `content` as HTML. It is Markdown, and `content_html` is the column
+themes read.
+
+### Why there is no Markdown dependency
+
+The framework has no runtime dependencies, and this is the place that argument
+usually breaks down: hand-writing a parser sounds like an XSS risk. It is the
+reverse. CommonMark *requires* raw HTML to pass through verbatim — 64 of the
+spec's 652 cases exist to pin that down — which is exactly why every
+off-the-shelf parser tells you to sanitize its output.
+
+This parser refuses those 64 cases on purpose. It escapes everything it reads
+and emits only tags from its own vocabulary, so no input can become a tag.
+`sanitizeHtml` still runs afterwards, as a second layer rather than the only one.
+
+It is measured against the real CommonMark suite on every test run, and the
+number is reported rather than claimed: **93% of the spec excluding the raw-HTML
+sections**, which are the ones it will never pass by design.
+
+### What is supported
+
+Headings (ATX and setext), emphasis, strong, strikethrough, inline code, fenced
+and indented code blocks, blockquotes, nested and tight/loose lists, links,
+reference links, images, autolinks, tables, hard line breaks, backslash escapes,
+and HTML entities. Headings get `id` anchors automatically.
+
+### Sanitizing other HTML
+
+The parser is safe on its own, but imported content — a WordPress export, a
+plugin's output, a field you opened up to raw HTML — is not.
+
+```js
+import { sanitizeHtml } from '@basicbenframework/core/content'
+
+sanitizeHtml(imported)                              // allowlist, drops the rest
+sanitizeHtml(imported, { schemes: ['https'] })      // narrow the URL schemes
+sanitizeHtml(imported, { allowed: { p: [], a: ['href'] } })
+```
+
+It is an allowlist: anything not named is removed. `script`, `style`, `iframe`,
+`svg` and `math` are removed along with their contents; other unknown tags are
+unwrapped so their text survives. Event handlers and `style` attributes never
+pass. URLs are checked after entity decoding, so `&#x6A;avascript:` is caught.
+
+### Extending the pipeline
+
+Plugins can post-process rendered HTML through the `content.render` filter —
+syntax highlighting, lazy-loaded images, a table of contents:
+
+```js
+hooks.on('content.render', (html, { table, id }) =>
+  html.replace(/<code>/g, '<code class="hljs">')
+)
+```
+
+The filter runs **before** sanitization, never after. Sanitizing last and
+unconditionally means no plugin can put markup on the page the allowlist has not
+seen.
+
+The practical consequence, and the first thing you will hit writing a plugin:
+**your markup is subject to the allowlist too.** `<span class>`, `<code class>`
+and `<img loading>` pass because they are on it; `<p class>` does not, and the
+attribute will simply be gone. Widen the list rather than moving the filter:
+
+```js
+await renderContent(markdown, {
+  allowed: { ...DEFAULT_ALLOWED, p: ['class'] }
+})
+```
+
+### Rerendering
+
+Stored HTML goes stale when the parser changes, the allowlist changes, or a
+plugin that hooks `content.render` is installed or removed:
+
+```bash
+basicben content:rerender
+```
+
+It only ever writes `content_html`, so it is safe to run repeatedly.
 
 ---
 

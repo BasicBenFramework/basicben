@@ -52,10 +52,21 @@ export default function PostLayout({
             />
           )}
 
-          {/* Post Content */}
+          {/*
+            Post Content
+
+            `content_html` is rendered from the Markdown in `content` and
+            sanitized against an allowlist on the way — see
+            @basicbenframework/core/content. That is what makes
+            dangerouslySetInnerHTML correct here rather than merely convenient:
+            the guarantee lives at the write boundary, not at this line.
+
+            Never point this at `content`. That is raw Markdown, and rendering
+            it as HTML is exactly the stored-XSS hole this replaced.
+          */}
           <div
             className="theme-post-content"
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            dangerouslySetInnerHTML={{ __html: post.content_html || '' }}
           />
 
           {/* Tags */}

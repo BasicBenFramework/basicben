@@ -21,7 +21,10 @@ export interface Post {
   id: number
   user_id: number
   title: string
+  /** Markdown source. Canonical — this is what the author wrote. */
   content: string
+  /** Rendered, sanitized HTML. A cache of `content`; never edit it directly. */
+  content_html?: string
   slug?: string
   excerpt?: string
   featured_image?: number
@@ -60,7 +63,10 @@ export interface Page {
   id: number
   title: string
   slug: string
+  /** Markdown source. Canonical — this is what the author wrote. */
   content?: string
+  /** Rendered, sanitized HTML. A cache of `content`; never edit it directly. */
+  content_html?: string
   template: string
   published: boolean
   parent_id?: number

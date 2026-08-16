@@ -1,4 +1,5 @@
 import { getDb } from '@basicbenframework/core/db'
+import { renderContent, slugify } from '@basicbenframework/core/content'
 import type { Page as PageType } from '../types'
 
 interface CreatePageData {
@@ -23,13 +24,6 @@ interface UpdatePageData {
   menu_order?: number
   meta_title?: string
   meta_description?: string
-}
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
 }
 
 export const Page = {
@@ -72,13 +66,19 @@ export const Page = {
     const slug = data.slug || slugify(data.title)
     const now = new Date().toISOString()
 
+    // Markdown stays canonical; the HTML beside it is a cache built on write.
+    const contentHtml = await renderContent(data.content || '', {
+      context: { table: 'pages', slug }
+    })
+
     const result = await db.run(
-      `INSERT INTO pages (title, slug, content, template, published, parent_id, menu_order, meta_title, meta_description, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO pages (title, slug, content, content_html, template, published, parent_id, menu_order, meta_title, meta_description, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.title,
         slug,
         data.content || null,
+        contentHtml,
         data.template || 'default',
         data.published ? 1 : 0,
         data.parent_id || null,
@@ -95,6 +95,7 @@ export const Page = {
       title: data.title,
       slug,
       content: data.content,
+      content_html: contentHtml,
       template: data.template || 'default',
       published: data.published || false,
       parent_id: data.parent_id,
@@ -117,6 +118,13 @@ export const Page = {
 
     if ('published' in data) {
       updateData.published = data.published ? 1 : 0
+    }
+
+    // Re-render whenever the source changes, so the two can never disagree.
+    if ('content' in data) {
+      updateData.content_html = await renderContent(data.content || '', {
+        context: { table: 'pages', id }
+      })
     }
 
     const fields = Object.keys(updateData).map(k => `${k} = ?`).join(', ')

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from '@basicbenframework/core/client'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import MarkdownEditor from '../../components/MarkdownEditor'
 
 interface Category {
   id: number
@@ -148,13 +149,12 @@ export default function AdminPostEditor() {
 
               <div className="admin-form-group">
                 <label className="admin-label">Content</label>
-                <textarea
+                <MarkdownEditor
                   name="content"
                   value={formData.content}
                   onChange={handleChange}
-                  className="admin-textarea"
-                  style={{ minHeight: '400px' }}
-                  placeholder="Write your content here... (Markdown supported)"
+                  minHeight="400px"
+                  placeholder="Write your content here. Markdown is supported."
                   required
                 />
               </div>

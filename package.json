@@ -27,6 +27,7 @@
     "./auth/totp": "./src/auth/totp.js",
     "./auth/two-factor": "./src/auth/two-factor.js",
     "./auth/webauthn": "./src/auth/webauthn/index.js",
+    "./content": "./src/content/index.js",
     "./db": "./src/db/index.js",
     "./mail": "./src/mail/index.js",
     "./hooks": "./src/hooks/index.js",

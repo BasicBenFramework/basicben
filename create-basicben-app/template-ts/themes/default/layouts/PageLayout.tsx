@@ -36,10 +36,20 @@ export default function PageLayout({
               <h1 className="theme-post-title">{page.title}</h1>
             </header>
 
-            {page.content && (
+            {/*
+              `content_html` is rendered from the Markdown in `content` and
+              sanitized against an allowlist on the way — see
+              @basicbenframework/core/content. That is what makes
+              dangerouslySetInnerHTML correct here rather than merely
+              convenient: the guarantee lives at the write boundary.
+
+              Never point this at `content`. That is raw Markdown, and
+              rendering it as HTML is the stored-XSS hole this replaced.
+            */}
+            {page.content_html && (
               <div
                 className="theme-post-content"
-                dangerouslySetInnerHTML={{ __html: page.content }}
+                dangerouslySetInnerHTML={{ __html: page.content_html }}
               />
             )}
           </article>

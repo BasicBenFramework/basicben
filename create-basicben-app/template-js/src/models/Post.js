@@ -1,4 +1,5 @@
 import { getDb } from '@basicbenframework/core/db'
+import { renderContent } from '@basicbenframework/core/content'
 
 export const Post = {
   async all() {
@@ -39,20 +40,39 @@ export const Post = {
 
   async create(data) {
     const db = await getDb()
+
+    // Markdown is what the author wrote and what gets stored; the HTML beside
+    // it is a cache, rebuilt here so reads never have to render.
+    const contentHtml = await renderContent(data.content || '', {
+      context: { table: 'posts', userId: data.user_id }
+    })
+
     const result = await db.run(
-      'INSERT INTO posts (user_id, title, content, published) VALUES (?, ?, ?, ?)',
-      [data.user_id, data.title, data.content, data.published ? 1 : 0]
+      'INSERT INTO posts (user_id, title, content, content_html, published) VALUES (?, ?, ?, ?, ?)',
+      [data.user_id, data.title, data.content, contentHtml, data.published ? 1 : 0]
     )
-    return { id: result.lastInsertRowid, ...data }
+
+    return { id: result.lastInsertRowid, ...data, content_html: contentHtml }
   },
 
   async update(id, data) {
     const db = await getDb()
-    const fields = Object.keys(data).map(k => `${k} = ?`).join(', ')
+
+    const updateData = { ...data }
+
+    // Re-render whenever the source changes, so the two can never disagree.
+    if ('content' in data) {
+      updateData.content_html = await renderContent(data.content || '', {
+        context: { table: 'posts', id }
+      })
+    }
+
+    const fields = Object.keys(updateData).map(k => `${k} = ?`).join(', ')
     await db.run(
       `UPDATE posts SET ${fields}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [...Object.values(data), id]
+      [...Object.values(updateData), id]
     )
+
     return this.find(id)
   },
 

@@ -368,6 +368,107 @@ if [ "$APP_NAME" = "smoke-ts" ]; then
   esac
 fi
 
+# --- Markdown content ----------------------------------------------------------
+#
+# Before this existed the editor advertised Markdown and stored whatever was
+# typed, which the theme then rendered with dangerouslySetInnerHTML — so the
+# advertised feature did nothing and the unadvertised one was stored XSS.
+#
+# A fresh account is used because the checks above deliberately lock accounts
+# out, and a throttled login here would look like a Markdown failure.
+
+MD_EMAIL="author-$$@example.com"
+
+curl -s -X POST "http://localhost:$PORT/api/auth/register" \
+  -H 'Content-Type: application/json' \
+  -d "{\"name\":\"Author\",\"email\":\"$MD_EMAIL\",\"password\":\"password123\"}" > /dev/null
+
+MD_TOKEN="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$MD_EMAIL\",\"password\":\"password123\"}" \
+  | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')"
+
+[ -n "$MD_TOKEN" ] || fail "could not sign in to create a post"
+
+# Markdown that also carries a script tag and a javascript: link. Both must
+# survive as visible text; neither may become markup.
+MD_BODY='{"title":"Markdown test","content":"# Heading\n\nSome **bold** text and a [link](https://example.com).\n\n- one\n- two\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))","published":true}'
+
+CREATED="$(curl -s -X POST "http://localhost:$PORT/api/posts" \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $MD_TOKEN" \
+  -d "$MD_BODY")"
+
+POST_ID="$(printf '%s' "$CREATED" | sed -n 's/.*"id":\([0-9]*\).*/\1/p' | head -1)"
+[ -n "$POST_ID" ] || { echo "$CREATED"; fail "could not create a post"; }
+
+STORED="$(curl -s "http://localhost:$PORT/api/posts/$POST_ID" \
+  -H "Authorization: Bearer $MD_TOKEN")"
+
+case "$STORED" in
+  *'<h1'*) pass "markdown is rendered on save" ;;
+  *) echo "$STORED"; fail "a heading should have become <h1>" ;;
+esac
+
+case "$STORED" in
+  *'<strong>bold</strong>'*) pass "inline marks render" ;;
+  *) fail "**bold** should have become <strong>" ;;
+esac
+
+case "$STORED" in
+  *'<li>one</li>'*) pass "lists render" ;;
+  *) fail "a bulleted list should have become <li> items" ;;
+esac
+
+case "$STORED" in
+  *'href=\"https://example.com\"'*) pass "links render" ;;
+  *) fail "a markdown link should have become an anchor" ;;
+esac
+
+# The security claim, checked against what is actually stored.
+case "$STORED" in
+  *'"content_html"'*'<script>'*) echo "$STORED"; fail "a script tag survived into stored HTML" ;;
+  *) pass "a script tag is escaped, not executed" ;;
+esac
+
+case "$STORED" in
+  *'href=\"javascript:'*) echo "$STORED"; fail "a javascript: URL survived into stored HTML" ;;
+  *) pass "a javascript: link does not become an anchor" ;;
+esac
+
+# The Markdown source is kept intact — it is the canonical copy, and losing it
+# would make the HTML impossible to regenerate.
+case "$STORED" in
+  *'# Heading'*) pass "the markdown source is preserved alongside the html" ;;
+  *) fail "the original markdown should still be stored in content" ;;
+esac
+
+# Editing must re-render, or the two columns silently drift apart.
+curl -s -X PUT "http://localhost:$PORT/api/posts/$POST_ID" \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $MD_TOKEN" \
+  -d '{"title":"Markdown test","content":"## Edited heading","published":true}' > /dev/null
+
+EDITED="$(curl -s "http://localhost:$PORT/api/posts/$POST_ID" \
+  -H "Authorization: Bearer $MD_TOKEN")"
+
+case "$EDITED" in
+  *'<h2'*) pass "editing re-renders the html" ;;
+  *) echo "$EDITED"; fail "an edit should have re-rendered content_html" ;;
+esac
+
+# The backfill command exists because stored HTML goes stale when the parser or
+# the allowlist changes.
+RERENDER="$(cd "$WORK_DIR/$APP_NAME" && npx basicben content:rerender 2>&1)" || {
+  echo "$RERENDER"
+  fail "content:rerender exited non-zero"
+}
+
+case "$RERENDER" in
+  *'posts'*) pass "content:rerender runs over stored content" ;;
+  *) echo "$RERENDER"; fail "content:rerender should have reported the posts table" ;;
+esac
+
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"
 echo ""

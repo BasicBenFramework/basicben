@@ -26,6 +26,9 @@ const commands = {
   'migrate:status': () => import('../commands/migrate-status.js'),
   'migrate:make': () => import('../commands/make-migration.js'), // alias
 
+  // Content
+  'content:rerender': () => import('../commands/content-rerender.js'),
+
   // Seeding
   seed: () => import('../commands/seed.js'),
   'db:seed': () => import('../commands/seed.js'), // alias
@@ -116,6 +119,15 @@ export const commandMeta = {
   'migrate:status': {
     description: 'Show which migrations have run',
     usage: 'basicben migrate:status'
+  },
+
+  'content:rerender': {
+    description: 'Rebuild rendered HTML from the Markdown source',
+    usage: 'basicben content:rerender [table...]',
+    options: {
+      '--dry-run': 'Report what would change without writing'
+    },
+    example: 'basicben content:rerender posts'
   },
 
   seed: {

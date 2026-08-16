@@ -2,6 +2,10 @@
 *.test.js
 **/*.test.js
 
+# Test fixtures. The CommonMark suite is 140kB and is only read by
+# markdown.test.js, which does not ship — so neither should it.
+src/content/commonmark-spec.json
+
 # Development
 .claude/
 plans/
