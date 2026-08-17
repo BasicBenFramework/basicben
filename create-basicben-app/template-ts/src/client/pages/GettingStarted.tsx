@@ -184,11 +184,20 @@ import { loadPlugins } from '@basicbenframework/core/plugins/loader'`}</pre>
   db: {
     driver: 'sqlite',
     url: process.env.DATABASE_URL || './data.db'
-  }
+  },
+
+  // Imported plugin objects. Also accepts true to rely on the
+  // directory scan alone, or false to disable plugins entirely.
+  plugins: [],
+  pluginsDir: 'plugins'
 }`}</pre>
           </div>
           <p className={`text-sm ${t.muted} mt-4`}>
             Set <code>spa: true</code> before deploying. Without it the production server returns 404 for any client route that is not a real file, which breaks deep links and page refreshes.
+          </p>
+          <p className={`text-sm ${t.muted} mt-4`}>
+            The same keys can be passed straight to <code>createServer</code>, which is what the
+            generated <code>src/server/index.ts</code> does; an argument there wins over the file.
           </p>
         </Card>
 

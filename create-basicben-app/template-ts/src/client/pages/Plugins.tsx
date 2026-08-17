@@ -58,11 +58,11 @@ export function Plugins() {
           </CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            Available families: <code>server.*</code>, <code>request.*</code>,{' '}
+            All 38, by family: <code>server.*</code>, <code>request.*</code>,{' '}
             <code>post.*</code>, <code>page.*</code>, <code>comment.*</code>,{' '}
             <code>content.render/save/delete</code>, <code>media.*</code>, <code>auth.*</code>,{' '}
-            <code>admin.*</code>, <code>plugin.*</code>,{' '}
-            <code>mail.*</code>. Every hook the framework declares fires — that is checked by a
+            <code>email.*</code>, <code>mail.*</code>, <code>admin.*</code>,{' '}
+            <code>plugin.*</code>. Every hook the framework declares fires — that is checked by a
             test that walks the constants and looks for a call site.
           </p>
         </Card>
