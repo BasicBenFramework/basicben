@@ -196,8 +196,33 @@ npx basicben build > /dev/null 2>&1 || fail "build failed"
 [ -f dist/server/index.js ] || fail "dist/server/index.js missing after build"
 pass "built client and server"
 
-npx basicben migrate > /dev/null 2>&1 || fail "migrations failed"
-pass "ran migrations"
+# --- Database ----------------------------------------------------------------
+#
+# SQLite unless told otherwise. Point SMOKE_DATABASE_URL at a Postgres database
+# and the whole suite below runs against it:
+#
+#   SMOKE_DATABASE_URL=postgres://user@localhost:5432/smoke ./scripts/smoke-test.sh
+#
+# That is how dialect portability gets verified rather than assumed. It was
+# assumed for a long time, and the app was unusable on Postgres the entire time:
+# the migrations were SQLite-only, the rate limiter's hand-written SQL used `?`
+# placeholders, its timestamp columns overflowed a 32-bit integer, and the
+# models' raw INSERTs returned no id.
+#
+# The connection string goes into .env because that is what both the CLI and
+# `node --env-file=.env dist/server/index.js` read — one place covers migrating
+# and serving.
+if [ -n "${SMOKE_DATABASE_URL:-}" ]; then
+  printf '\nDATABASE_URL=%s\n' "$SMOKE_DATABASE_URL" >> .env
+
+  # Repeatable against a database that already has tables from a previous run.
+  npx basicben migrate:fresh > "$WORK_DIR/migrate.log" 2>&1 \
+    || { cat "$WORK_DIR/migrate.log"; fail "migrations failed against SMOKE_DATABASE_URL"; }
+  pass "ran migrations against $(printf '%s' "$SMOKE_DATABASE_URL" | sed 's|://[^@/]*@|://…@|')"
+else
+  npx basicben migrate > /dev/null 2>&1 || fail "migrations failed"
+  pass "ran migrations"
+fi
 
 # --- Plugin activation --------------------------------------------------------
 #

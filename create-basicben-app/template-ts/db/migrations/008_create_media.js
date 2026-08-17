@@ -1,7 +1,7 @@
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id ${grammar.autoIncrementPrimaryKey()},
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       filename TEXT NOT NULL,
       original_name TEXT NOT NULL,
@@ -9,7 +9,7 @@ export const up = async (db) => {
       mime_type TEXT,
       size INTEGER,
       alt_text TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 
@@ -17,6 +17,6 @@ export const up = async (db) => {
   await db.exec('CREATE INDEX idx_media_mime ON media(mime_type)')
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS media')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('media'))
 }

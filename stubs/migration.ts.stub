@@ -1,21 +1,33 @@
 /**
  * Migration: {{description}}
  *
- * The runner passes the connected adapter. Only what a migration uses is
- * declared here — the framework's `getDb()` is typed as `any`, so importing a
- * `Database` type is not an option, and a narrow local shape documents the
- * contract better than `any` would.
+ * The runner passes the connected adapter and a grammar for its dialect. Use
+ * the grammar for anything the two databases spell differently — a literal
+ * `INTEGER PRIMARY KEY AUTOINCREMENT` is a SQLite-only migration, and Postgres
+ * rejects it outright rather than adapting.
+ *
+ * Only what a migration uses is declared here — the framework's `getDb()` is
+ * typed as `any`, so importing a `Database` type is not an option, and a narrow
+ * local shape documents the contract better than `any` would.
  */
 interface MigrationDb {
   exec: (sql: string) => Promise<void>
 }
 
-export const up = async (db: MigrationDb) => {
+interface Grammar {
+  /** `INTEGER PRIMARY KEY AUTOINCREMENT` or `SERIAL PRIMARY KEY`. */
+  autoIncrementPrimaryKey: () => string
+  /** `DATETIME` or `TIMESTAMP`. */
+  timestampType: () => string
+  isPostgres: () => boolean
+}
+
+export const up = async (db: MigrationDb, grammar: Grammar) => {
   await db.exec(`
     CREATE TABLE {{tableName}} (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      id ${grammar.autoIncrementPrimaryKey()},
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP,
+      updated_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 }

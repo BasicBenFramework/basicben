@@ -5,6 +5,8 @@
  * questions: how many are still inside the window, and is this key blocked.
  */
 
+import { Grammar } from '../db/Grammar.js'
+
 /**
  * In-process storage.
  *
@@ -170,23 +172,48 @@ export class DatabaseStore {
     return { count: row.hits.length, blocked: false, resetAt: (row.hits[0] ?? now) + windowMs }
   }
 
+  /**
+   * Placeholders for the connected driver.
+   *
+   * These statements are written by hand rather than through the query builder,
+   * so nothing was substituting `$1` for `?` — every one of them was a syntax
+   * error on Postgres. Since the limiter runs in front of login and register,
+   * that made those routes 500 on a Postgres app rather than merely losing the
+   * throttle.
+   *
+   * @param {number} count
+   * @returns {string[]}
+   */
+  async #marks(count) {
+    const db = await this.getDb()
+    const grammar = new Grammar(db.driver || 'sqlite')
+
+    return Array.from({ length: count }, (_, i) => grammar.placeholder(i))
+  }
+
   async reset(key) {
     const db = await this.getDb()
-    await db.run(`DELETE FROM ${this.table} WHERE key = ?`, [key])
+    const [p1] = await this.#marks(1)
+    await db.run(`DELETE FROM ${this.table} WHERE key = ${p1}`, [key])
   }
 
   /** Remove rows whose window and block have both lapsed. */
   async sweep(now = Date.now()) {
     const db = await this.getDb()
+    const [p1, p2] = await this.#marks(2)
     const result = await db.run(
-      `DELETE FROM ${this.table} WHERE updated_at < ? AND (blocked_until IS NULL OR blocked_until < ?)`,
+      `DELETE FROM ${this.table} WHERE updated_at < ${p1} AND (blocked_until IS NULL OR blocked_until < ${p2})`,
       [now - 86_400_000, now]
     )
     return result.changes ?? 0
   }
 
   async #load(db, key, windowMs, now) {
-    const row = await db.get(`SELECT hits, blocked_until FROM ${this.table} WHERE key = ?`, [key])
+    const [p1] = await this.#marks(1)
+    const row = await db.get(
+      `SELECT hits, blocked_until FROM ${this.table} WHERE key = ${p1}`,
+      [key]
+    )
 
     if (!row) return { hits: [], blockedUntil: null }
 
@@ -209,14 +236,20 @@ export class DatabaseStore {
 
   async #save(db, key, hits, blockedUntil, now) {
     // One statement so two concurrent requests cannot both insert the same key.
+    //
+    // The update reads EXCLUDED rather than re-binding the same four values.
+    // Both dialects support it, and it keeps the parameter count matching the
+    // placeholder count — which is the mistake numbered placeholders punish.
+    const [p1, p2, p3, p4] = await this.#marks(4)
+
     await db.run(
       `INSERT INTO ${this.table} (key, hits, blocked_until, updated_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET hits = ?, blocked_until = ?, updated_at = ?`,
-      [
-        key, JSON.stringify(hits), blockedUntil, now,
-        JSON.stringify(hits), blockedUntil, now
-      ]
+       VALUES (${p1}, ${p2}, ${p3}, ${p4})
+       ON CONFLICT(key) DO UPDATE SET
+         hits = EXCLUDED.hits,
+         blocked_until = EXCLUDED.blocked_until,
+         updated_at = EXCLUDED.updated_at`,
+      [key, JSON.stringify(hits), blockedUntil, now]
     )
   }
 }

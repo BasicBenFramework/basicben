@@ -37,6 +37,21 @@ export class Grammar {
      */
     timestampType(): string;
     /**
+     * A DROP TABLE that works when other tables reference this one.
+     *
+     * Postgres refuses to drop a table another table has a foreign key into,
+     * unless told to CASCADE — which drops the dependent *constraint*, not the
+     * dependent table. SQLite has no such clause and does not object.
+     *
+     * Without this, rolling back was SQLite-only even once the forward
+     * migrations were portable: `DROP TABLE media` failed on Postgres because
+     * `posts.featured_image` referenced it, and the rollback stopped half-done.
+     *
+     * @param {string} table
+     * @returns {string}
+     */
+    dropTable(table: string): string;
+    /**
      * Validate an identifier (column/table name).
      * Only allows alphanumeric characters and underscores.
      * Must start with a letter or underscore.

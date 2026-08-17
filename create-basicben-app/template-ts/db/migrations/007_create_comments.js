@@ -1,15 +1,15 @@
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id ${grammar.autoIncrementPrimaryKey()},
       post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
       user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
       author_name TEXT,
       author_email TEXT,
       content TEXT NOT NULL,
-      approved BOOLEAN DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      approved INTEGER NOT NULL DEFAULT 0,
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 
@@ -19,6 +19,6 @@ export const up = async (db) => {
   await db.exec('CREATE INDEX idx_comments_approved ON comments(approved)')
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS comments')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('comments'))
 }

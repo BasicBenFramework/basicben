@@ -6,17 +6,17 @@
  * anyone verify an address or reset a password.
  */
 
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE auth_tokens (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id ${grammar.autoIncrementPrimaryKey()},
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       kind TEXT NOT NULL,
       token_hash TEXT NOT NULL,
       metadata TEXT,
-      expires_at DATETIME NOT NULL,
-      used_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      expires_at ${grammar.timestampType()} NOT NULL,
+      used_at ${grammar.timestampType()},
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 
@@ -25,6 +25,6 @@ export const up = async (db) => {
   await db.exec('CREATE INDEX idx_auth_tokens_user ON auth_tokens (user_id, kind)')
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS auth_tokens')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('auth_tokens'))
 }

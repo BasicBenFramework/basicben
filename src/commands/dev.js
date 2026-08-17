@@ -13,37 +13,8 @@ import { spawnBin } from '../cli/spawn.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-/**
- * Load .env file into process.env
- */
-function loadEnv(cwd) {
-  const envPath = resolve(cwd, '.env')
-  if (!existsSync(envPath)) return
-
-  const content = readFileSync(envPath, 'utf-8')
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) continue
-    const [key, ...rest] = trimmed.split('=')
-    if (key && rest.length) {
-      let value = rest.join('=').trim()
-      // Strip inline comments (but not if inside quotes)
-      if (!value.startsWith('"') && !value.startsWith("'")) {
-        const commentIndex = value.indexOf('#')
-        if (commentIndex !== -1) {
-          value = value.substring(0, commentIndex).trim()
-        }
-      }
-      process.env[key.trim()] = value
-    }
-  }
-}
-
 export async function run(args, flags) {
   const cwd = process.cwd()
-
-  // Load .env file
-  loadEnv(cwd)
 
   console.log(`\n${bold('BasicBen')} ${dim('dev')}\n`)
 

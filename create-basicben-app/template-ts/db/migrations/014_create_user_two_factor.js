@@ -10,21 +10,21 @@
  * code can be used again inside it.
  */
 
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE user_two_factor (
       user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       totp_secret TEXT,
-      totp_enabled_at DATETIME,
+      totp_enabled_at ${grammar.timestampType()},
       totp_last_step INTEGER,
       recovery_codes TEXT,
       failed_attempts INTEGER NOT NULL DEFAULT 0,
-      locked_until DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      locked_until ${grammar.timestampType()},
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS user_two_factor')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('user_two_factor'))
 }

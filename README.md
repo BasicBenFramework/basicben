@@ -219,9 +219,9 @@ export default {
 }
 ```
 
-Available: `server.*`, `request.*`, `post.*`, `page.*`, `comment.*`,
-`content.render/save/delete`, `media.*`, `auth.*`, `admin.*`, `plugin.*`,
-`mail.*`.
+All 38, by family: `server.*`, `request.*`, `post.*`, `page.*`, `comment.*`,
+`content.render/save/delete`, `media.*`, `auth.*`, `email.*`, `mail.*`,
+`admin.*`, `plugin.*`.
 
 **Settings reach `initialize`, not the hooks.** A hook callback receives the
 hook's own payload — `request.before` gets `{ req, res }` — so a plugin that
@@ -458,6 +458,42 @@ TURSO_AUTH_TOKEN=your-token
 ```
 
 An explicit `db.driver` in `basicben.config.js` always wins.
+
+### Writing portable migrations
+
+The migrator hands every `up` and `down` a grammar for the connected driver.
+Use it for anything the two databases spell differently — a literal
+`INTEGER PRIMARY KEY AUTOINCREMENT` is a SQLite-only migration, and Postgres
+rejects it rather than adapting.
+
+```js
+export const up = async (db, grammar) => {
+  await db.exec(`
+    CREATE TABLE widgets (
+      id ${'${grammar.autoIncrementPrimaryKey()}'},
+      created_at ${'${grammar.timestampType()}'} DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+}
+
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('widgets'))
+}
+```
+
+`dropTable` matters on rollback: Postgres refuses to drop a table another table
+references unless told to `CASCADE`, and SQLite has no such clause. Generated
+migrations already use all three.
+
+Placeholders need no thought — write `?` and the Postgres adapter rewrites them
+to `$1, $2, …`, leaving string literals and jsonb operators alone.
+
+Every shipped migration and the whole test suite are exercised against real
+Postgres, not just SQLite:
+
+```bash
+SMOKE_DATABASE_URL=postgres://user@localhost:5432/smoke ./scripts/smoke-test.sh
+```
 
 ### Turso
 
@@ -1418,6 +1454,8 @@ export default {
   },
 
   // Body parser
+  // Routes needing the raw bytes — webhook signature verification is the
+  // usual case — opt out with `skip`, which leaves the stream unread.
   bodyParser: {
     limit: '1mb'
   },

@@ -3,23 +3,19 @@
  *
  * Only a hash of the token is stored, so a copy of this table does not let
  * anyone read the site's content API.
- *
- * Unlike the migrations before it, this one asks the Grammar for its types
- * rather than writing SQLite's `INTEGER PRIMARY KEY AUTOINCREMENT` literally.
- * A headless setup is the case most likely to be on Postgres, and a table that
- * cannot be created there would make the feature SQLite-only without saying so.
  */
-
-import { Grammar } from '@basicbenframework/core/db'
 
 interface MigrationDb {
   exec: (sql: string) => Promise<void>
-  driver?: string
 }
 
-export const up = async (db: MigrationDb) => {
-  const grammar = new Grammar(db.driver || 'sqlite')
+interface Grammar {
+  autoIncrementPrimaryKey: () => string
+  timestampType: () => string
+  dropTable: (table: string) => string
+}
 
+export const up = async (db: MigrationDb, grammar: Grammar) => {
   await db.exec(`
     CREATE TABLE api_tokens (
       id ${grammar.autoIncrementPrimaryKey()},
@@ -38,6 +34,6 @@ export const up = async (db: MigrationDb) => {
   await db.exec('CREATE INDEX idx_api_tokens_user ON api_tokens (user_id)')
 }
 
-export const down = async (db: MigrationDb) => {
-  await db.exec('DROP TABLE IF EXISTS api_tokens')
+export const down = async (db: MigrationDb, grammar: Grammar) => {
+  await db.exec(grammar.dropTable('api_tokens'))
 }

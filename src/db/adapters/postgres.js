@@ -6,6 +6,77 @@
 let pg = null
 
 /**
+ * Rewrite `?` placeholders as `$1, $2, …`.
+ *
+ * The query builder already emits the right form through `Grammar`, but
+ * hand-written SQL does not, and there is a lot of hand-written SQL: the
+ * template's models are full of `WHERE id = ?`. Portable migrations only get an
+ * app as far as a schema it then cannot query, so the translation belongs here,
+ * once, rather than in every model.
+ *
+ * Two things are deliberately left alone:
+ *
+ *  - **Anything inside a string literal.** `WHERE note = 'why?'` binds nothing.
+ *  - **jsonb operators.** Postgres spells key-existence `?`, `?|` and `?&`, and
+ *    a query written against Postgres on purpose must survive being run.
+ *
+ * SQL that already uses `$n` is returned untouched, so builder output and
+ * anything a user wrote for Postgres directly are both safe.
+ *
+ * @param {string} sql
+ * @returns {string}
+ */
+export function toNumberedPlaceholders(sql) {
+  if (typeof sql !== 'string' || !sql.includes('?')) return sql
+
+  // Already Postgres-shaped. Renumbering would corrupt it.
+  if (/\$\d/.test(sql)) return sql
+
+  let out = ''
+  let index = 0
+  let quote = null
+
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i]
+
+    if (quote) {
+      out += char
+      // '' inside a single-quoted string is an escaped quote, not the end.
+      if (char === quote && sql[i + 1] === quote) {
+        out += sql[++i]
+      } else if (char === quote) {
+        quote = null
+      }
+      continue
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char
+      out += char
+      continue
+    }
+
+    if (char === '?') {
+      const next = sql[i + 1]
+
+      // ?, ?| and ?& are jsonb operators, not placeholders.
+      if (next === '?' || next === '|' || next === '&') {
+        out += char + next
+        i++
+        continue
+      }
+
+      out += `$${++index}`
+      continue
+    }
+
+    out += char
+  }
+
+  return out
+}
+
+/**
  * Load pg dynamically
  */
 async function loadDriver() {
@@ -75,7 +146,7 @@ export async function createPostgresAdapter(url, options = {}) {
      * Run INSERT/UPDATE/DELETE
      */
     async run(sql, params = []) {
-      const result = await pool.query(sql, normalizeParams(params))
+      const result = await pool.query(toNumberedPlaceholders(sql), normalizeParams(params))
 
       // Try to get lastInsertRowid from RETURNING clause
       let lastInsertRowid = null
@@ -93,7 +164,7 @@ export async function createPostgresAdapter(url, options = {}) {
      * Get single row
      */
     async get(sql, params = []) {
-      const result = await pool.query(sql, normalizeParams(params))
+      const result = await pool.query(toNumberedPlaceholders(sql), normalizeParams(params))
       return result.rows[0]
     },
 
@@ -101,7 +172,7 @@ export async function createPostgresAdapter(url, options = {}) {
      * Get all rows
      */
     async all(sql, params = []) {
-      const result = await pool.query(sql, normalizeParams(params))
+      const result = await pool.query(toNumberedPlaceholders(sql), normalizeParams(params))
       return result.rows
     },
 
@@ -124,7 +195,7 @@ export async function createPostgresAdapter(url, options = {}) {
         // Create a transaction-scoped adapter
         const txAdapter = {
           async run(sql, params = []) {
-            const result = await client.query(sql, normalizeParams(params))
+            const result = await client.query(toNumberedPlaceholders(sql), normalizeParams(params))
             let lastInsertRowid = null
             if (result.rows && result.rows[0] && result.rows[0].id !== undefined) {
               lastInsertRowid = result.rows[0].id
@@ -132,11 +203,11 @@ export async function createPostgresAdapter(url, options = {}) {
             return { lastInsertRowid, changes: result.rowCount }
           },
           async get(sql, params = []) {
-            const result = await client.query(sql, normalizeParams(params))
+            const result = await client.query(toNumberedPlaceholders(sql), normalizeParams(params))
             return result.rows[0]
           },
           async all(sql, params = []) {
-            const result = await client.query(sql, normalizeParams(params))
+            const result = await client.query(toNumberedPlaceholders(sql), normalizeParams(params))
             return result.rows
           },
           async exec(sql) {

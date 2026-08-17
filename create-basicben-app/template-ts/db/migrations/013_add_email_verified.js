@@ -6,11 +6,11 @@
  * strange way to introduce it.
  */
 
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0
   `)
-  await db.exec('ALTER TABLE users ADD COLUMN email_verified_at DATETIME')
+  await db.exec(`ALTER TABLE users ADD COLUMN email_verified_at ${grammar.timestampType()}`)
 
   await db.exec(`
     UPDATE users

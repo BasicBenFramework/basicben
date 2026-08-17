@@ -1,4 +1,4 @@
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   // Add new columns to posts table for blogging features
   await db.exec('ALTER TABLE posts ADD COLUMN slug TEXT')
   await db.exec('ALTER TABLE posts ADD COLUMN excerpt TEXT')
@@ -6,7 +6,7 @@ export const up = async (db) => {
   await db.exec('ALTER TABLE posts ADD COLUMN category_id INTEGER REFERENCES categories(id)')
   await db.exec('ALTER TABLE posts ADD COLUMN meta_title TEXT')
   await db.exec('ALTER TABLE posts ADD COLUMN meta_description TEXT')
-  await db.exec('ALTER TABLE posts ADD COLUMN publish_at DATETIME')
+  await db.exec(`ALTER TABLE posts ADD COLUMN publish_at ${grammar.timestampType()}`)
 
   // Create indexes for new columns
   await db.exec('CREATE UNIQUE INDEX idx_posts_slug ON posts(slug)')

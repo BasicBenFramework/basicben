@@ -15,7 +15,11 @@
 import { verifyJwt } from '@basicbenframework/core/auth'
 import { DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import { isApiToken, verifyApiToken } from '@basicbenframework/core/auth/api-tokens'
-import { Settings } from '../models/Settings'
+// The extension is required. Everything in src/middleware is imported by the
+// middleware autoloader through Node's own `import()`, which does no extension
+// guessing — Vite resolves it either way, so without this the file works in the
+// bundle and fails to load at boot, reported and skipped.
+import { Settings } from '../models/Settings.ts'
 import type { Request, Response } from '../types'
 
 interface JwtPayload {

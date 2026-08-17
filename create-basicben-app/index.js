@@ -122,6 +122,12 @@ async function main() {
     },
     devDependencies: {
       '@vitejs/plugin-react': '^6.0.5',
+      // Tailwind is compiled at build time. It was previously loaded from
+      // cdn.tailwindcss.com, which ships a compiler to the browser and is
+      // documented as development-only — a deployed site lost its styling
+      // entirely whenever that CDN was unreachable.
+      tailwindcss: '^4.3.3',
+      '@tailwindcss/vite': '^4.3.3',
       vite: '^8.2.1',
       vitest: '^4.0.0',
       'typescript': '^5.8',

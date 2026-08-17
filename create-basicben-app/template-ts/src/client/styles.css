@@ -1,0 +1,37 @@
+/*
+ * Tailwind, compiled at build time.
+ *
+ * This used to be `<script src="https://cdn.tailwindcss.com">` in index.html,
+ * which survived into the production build — so a deployed site downloaded a
+ * compiler and generated its CSS in the browser on every visit, and lost all
+ * styling whenever the CDN was unreachable. Tailwind documents that build as
+ * being for development only.
+ *
+ * Tailwind 4 configures itself from CSS rather than a JavaScript object, so the
+ * theme extensions that used to sit inline in a <script> live here.
+ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* Used by the page shell in index.html. */
+  --color-dark-900: #0f0f0f;
+  --color-dark-800: #1a1a1a;
+  --color-dark-700: #222222;
+  --color-dark-600: #333333;
+
+  /* Toasts slide in. The matching slide-out and the two fades were configured
+     and never used, so they are not carried over. */
+  --animate-slide-in: slideIn 0.3s ease-out;
+
+  @keyframes slideIn {
+    0% {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { getDb } from '@basicbenframework/core/db'
+import { getDb, query } from '@basicbenframework/core/db'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent } from '@basicbenframework/core/content'
 import { getStorage } from '@basicbenframework/core/storage'
@@ -73,10 +73,17 @@ export const Post = {
     // to be what gets written, or the filter is decoration.
     const contentSaved = await hooks.filter(HOOKS.CONTENT_SAVE, contentHtml, { type: 'post', data })
 
-    const result = await db.run(
-      'INSERT INTO posts (user_id, title, content, content_html, published) VALUES (?, ?, ?, ?, ?)',
-      [data.user_id, data.title, data.content, contentSaved, data.published ? 1 : 0]
-    )
+    // Through the query builder, which appends RETURNING id on Postgres. A raw
+    // INSERT there reports lastInsertRowid as null, so the row is written and
+    // the caller is handed an object with no id — the failure looks like a bug
+    // in whatever used the id next.
+    const result = await (await query('posts')).insert({
+      user_id: data.user_id,
+      title: data.title,
+      content: data.content,
+      content_html: contentSaved,
+      published: data.published ? 1 : 0
+    })
 
     const now = new Date().toISOString()
     return {

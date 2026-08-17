@@ -1,4 +1,4 @@
-import { getDb } from '@basicbenframework/core/db'
+import { getDb, query } from '@basicbenframework/core/db'
 import type { Media as MediaType } from '../types'
 
 interface CreateMediaData {
@@ -104,20 +104,19 @@ export const Media = {
     const db = await getDb()
     const now = new Date().toISOString()
 
-    const result = await db.run(
-      `INSERT INTO media (user_id, filename, original_name, path, mime_type, size, alt_text, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        data.user_id || null,
-        data.filename,
-        data.original_name,
-        data.path,
-        data.mime_type || null,
-        data.size || null,
-        data.alt_text || null,
-        now
-      ]
-    )
+    // Through the query builder, which appends RETURNING id on Postgres. A raw
+    // INSERT there reports lastInsertRowid as null, so the row is written and
+    // the caller is handed an object with no id.
+    const result = await (await query('media')).insert({
+      user_id: data.user_id || null,
+      filename: data.filename,
+      original_name: data.original_name,
+      path: data.path,
+      mime_type: data.mime_type || null,
+      size: data.size || null,
+      alt_text: data.alt_text || null,
+      created_at: now
+    })
 
     return {
       id: result.lastInsertRowid as number,

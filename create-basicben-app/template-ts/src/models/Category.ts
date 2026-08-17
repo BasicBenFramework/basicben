@@ -1,4 +1,4 @@
-import { getDb } from '@basicbenframework/core/db'
+import { getDb, query } from '@basicbenframework/core/db'
 import type { Category as CategoryType } from '../types'
 
 interface CreateCategoryData {
@@ -65,11 +65,16 @@ export const Category = {
     const db = await getDb()
     const slug = data.slug || slugify(data.name)
 
-    const result = await db.run(
-      `INSERT INTO categories (name, slug, description, parent_id)
-       VALUES (?, ?, ?, ?)`,
-      [data.name, slug, data.description || null, data.parent_id || null]
-    )
+    // Through the query builder, which appends RETURNING id on Postgres. A raw
+    // INSERT there reports lastInsertRowid as null, so the row is written and
+    // the caller is handed an object with no id — the failure looks like a bug
+    // in whatever used the id next.
+    const result = await (await query('categories')).insert({
+      name: data.name,
+      slug,
+      description: data.description || null,
+      parent_id: data.parent_id || null
+    })
 
     return {
       id: result.lastInsertRowid as number,

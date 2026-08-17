@@ -9,10 +9,10 @@
  * zero, so zero means "not supported" rather than "suspicious".
  */
 
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE user_credentials (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id ${grammar.autoIncrementPrimaryKey()},
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       credential_id TEXT NOT NULL UNIQUE,
       public_key TEXT NOT NULL,
@@ -21,8 +21,8 @@ export const up = async (db) => {
       transports TEXT,
       label TEXT,
       backed_up INTEGER NOT NULL DEFAULT 0,
-      last_used_at DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      last_used_at ${grammar.timestampType()},
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 
@@ -30,6 +30,6 @@ export const up = async (db) => {
   await db.exec('CREATE INDEX idx_user_credentials_user ON user_credentials (user_id)')
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS user_credentials')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('user_credentials'))
 }

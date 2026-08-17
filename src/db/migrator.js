@@ -20,6 +20,14 @@ const MIGRATIONS_TABLE = '_migrations'
  * The runner's own bookkeeping is as dialect-sensitive as anything it runs:
  * placeholders are '?' on SQLite and $1, $2 on Postgres, and the two spell the
  * migrations table's DDL differently.
+ *
+ * It is also handed to every migration as a second argument, so what a user
+ * writes can be as portable as what the runner writes. For a long time only the
+ * latter was: the framework's own `_migrations` table was built through this
+ * grammar while every shipped migration spelled `INTEGER PRIMARY KEY
+ * AUTOINCREMENT` literally, so `basicben migrate` against the Postgres option
+ * the templates advertise failed on the first table. Migrations taking only
+ * `(db)` are unaffected — an extra argument is ignored.
  */
 function grammarFor(db) {
   return new Grammar(db.driver || 'sqlite')
@@ -63,11 +71,13 @@ export async function createMigrator(migrationsDir = 'db/migrations', connection
       const batch = await getNextBatch(db)
       const ran = []
 
+      const grammar = grammarFor(db)
+
       for (const migration of pending) {
         const module = await loadMigration(migration.path)
 
         try {
-          await module.up(db)
+          await module.up(db, grammar)
           await recordMigration(db, migration.name, batch)
           ran.push(migration.name)
         } catch (err) {
@@ -90,6 +100,7 @@ export async function createMigrator(migrationsDir = 'db/migrations', connection
 
       const migrations = await getMigrationsByBatch(db, lastBatch)
       const rolledBack = []
+      const grammar = grammarFor(db)
 
       // Roll back in reverse order
       for (const migration of migrations.reverse()) {
@@ -102,7 +113,7 @@ export async function createMigrator(migrationsDir = 'db/migrations', connection
         const module = await loadMigration(filePath)
 
         try {
-          await module.down(db)
+          await module.down(db, grammar)
           await removeMigration(db, migration.migration)
           rolledBack.push(migration.migration)
         } catch (err) {

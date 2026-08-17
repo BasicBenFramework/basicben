@@ -1,10 +1,4 @@
 /**
- * Storage for rate limiter state.
- *
- * A store keeps the timestamps of recent hits per key and answers two
- * questions: how many are still inside the window, and is this key blocked.
- */
-/**
  * In-process storage.
  *
  * The default, and the right choice for smoothing traffic. **Not** the right

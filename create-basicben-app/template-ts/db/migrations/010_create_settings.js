@@ -1,12 +1,12 @@
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id ${grammar.autoIncrementPrimaryKey()},
       key TEXT UNIQUE NOT NULL,
       value TEXT,
       group_name TEXT DEFAULT 'general',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP,
+      updated_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 
@@ -26,6 +26,6 @@ export const up = async (db) => {
   `)
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS settings')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('settings'))
 }

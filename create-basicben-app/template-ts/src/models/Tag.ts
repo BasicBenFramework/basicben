@@ -1,4 +1,4 @@
-import { getDb } from '@basicbenframework/core/db'
+import { getDb, query } from '@basicbenframework/core/db'
 import type { Tag as TagType } from '../types'
 
 interface CreateTagData {
@@ -77,10 +77,11 @@ export const Tag = {
     const db = await getDb()
     const slug = data.slug || slugify(data.name)
 
-    const result = await db.run(
-      'INSERT INTO tags (name, slug) VALUES (?, ?)',
-      [data.name, slug]
-    )
+    // Through the query builder, which appends RETURNING id on Postgres. A raw
+    // INSERT there reports lastInsertRowid as null, so the row is written and
+    // the caller is handed an object with no id — the failure looks like a bug
+    // in whatever used the id next.
+    const result = await (await query('tags')).insert({ name: data.name, slug })
 
     return {
       id: result.lastInsertRowid as number,

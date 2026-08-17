@@ -19,6 +19,11 @@ npm run test:app
 
 # End-to-end: pack, scaffold, build, boot and typecheck a real app
 ./scripts/smoke-test.sh
+
+# The same suite against Postgres rather than SQLite. This is how dialect
+# portability stays verified — it was assumed for a long time, and a Postgres
+# app did not work at all during that time.
+SMOKE_DATABASE_URL=postgres://user@localhost:5432/smoke ./scripts/smoke-test.sh
 ```
 
 ---

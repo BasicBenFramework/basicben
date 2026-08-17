@@ -8,12 +8,17 @@
  */
 
 export const up = async (db) => {
+  // BIGINT, not INTEGER: these columns hold `Date.now()`, and a millisecond
+  // epoch passed 2^31 in 2001. SQLite's INTEGER is 64-bit so it never noticed;
+  // Postgres refused the first write with "value out of range for type
+  // integer", which failed every login and registration behind the limiter.
+  // BIGINT reads as INTEGER affinity on SQLite, so one spelling serves both.
   await db.exec(`
     CREATE TABLE rate_limits (
       key TEXT PRIMARY KEY,
       hits TEXT NOT NULL,
-      blocked_until INTEGER,
-      updated_at INTEGER NOT NULL
+      blocked_until BIGINT,
+      updated_at BIGINT NOT NULL
     )
   `)
 
@@ -21,6 +26,6 @@ export const up = async (db) => {
   await db.exec('CREATE INDEX idx_rate_limits_updated ON rate_limits (updated_at)')
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS rate_limits')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('rate_limits'))
 }

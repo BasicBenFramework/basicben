@@ -1,4 +1,4 @@
-import { getDb } from '@basicbenframework/core/db'
+import { getDb, query } from '@basicbenframework/core/db'
 import type { Comment as CommentType } from '../types'
 
 interface CreateCommentData {
@@ -69,20 +69,19 @@ export const Comment = {
     const db = await getDb()
     const now = new Date().toISOString()
 
-    const result = await db.run(
-      `INSERT INTO comments (post_id, user_id, parent_id, author_name, author_email, content, approved, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        data.post_id,
-        data.user_id || null,
-        data.parent_id || null,
-        data.author_name || null,
-        data.author_email || null,
-        data.content,
-        data.approved ? 1 : 0,
-        now
-      ]
-    )
+    // Through the query builder, which appends RETURNING id on Postgres. A raw
+    // INSERT there reports lastInsertRowid as null, so the row is written and
+    // the caller is handed an object with no id.
+    const result = await (await query('comments')).insert({
+      post_id: data.post_id,
+      user_id: data.user_id || null,
+      parent_id: data.parent_id || null,
+      author_name: data.author_name || null,
+      author_email: data.author_email || null,
+      content: data.content,
+      approved: data.approved ? 1 : 0,
+      created_at: now
+    })
 
     return {
       id: result.lastInsertRowid as number,

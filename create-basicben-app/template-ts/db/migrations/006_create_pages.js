@@ -1,18 +1,18 @@
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE pages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id ${grammar.autoIncrementPrimaryKey()},
       title TEXT NOT NULL,
       slug TEXT UNIQUE NOT NULL,
       content TEXT,
       template TEXT DEFAULT 'default',
-      published BOOLEAN DEFAULT 0,
+      published INTEGER NOT NULL DEFAULT 0,
       parent_id INTEGER REFERENCES pages(id) ON DELETE SET NULL,
       menu_order INTEGER DEFAULT 0,
       meta_title TEXT,
       meta_description TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP,
+      updated_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 
@@ -21,6 +21,6 @@ export const up = async (db) => {
   await db.exec('CREATE INDEX idx_pages_published ON pages(published)')
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS pages')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('pages'))
 }

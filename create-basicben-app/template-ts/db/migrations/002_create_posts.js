@@ -1,18 +1,18 @@
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE posts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id ${grammar.autoIncrementPrimaryKey()},
       user_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       content TEXT NOT NULL,
-      published BOOLEAN DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      published INTEGER NOT NULL DEFAULT 0,
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP,
+      updated_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `)
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS posts')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('posts'))
 }

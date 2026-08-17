@@ -6,15 +6,57 @@
  */
 
 /**
- * Parse request body based on content-type
+ * Build a predicate for routes the parser must not touch.
+ *
+ * Accepts a function, a path prefix, or a list of prefixes. `req.path` is set
+ * before middleware runs, so a prefix is enough to identify a route even though
+ * routing itself has not happened yet.
+ *
+ * @param {Function|string|string[]|undefined} skip
+ * @returns {(req: Object) => boolean}
+ */
+function skipPredicate(skip) {
+  if (!skip) return () => false
+  if (typeof skip === 'function') return skip
+
+  const prefixes = Array.isArray(skip) ? skip : [skip]
+
+  return (req) => prefixes.some((prefix) => (req.path || req.url || '').startsWith(prefix))
+}
+
+/**
+ * Parse request body based on content-type.
+ *
+ * `skip` leaves the request stream untouched, which is the only way to serve a
+ * route that needs the bytes exactly as sent. Webhook signature verification is
+ * the usual case: the signature is computed over the raw body, and a body that
+ * has been parsed and re-stringified does not reproduce it — key order, spacing
+ * and number formatting are all free to change.
+ *
+ * @param {Object} [options]
+ * @param {string|number} [options.limit] - maximum body size
+ * @param {Function|string|string[]} [options.skip] - routes to leave unparsed
+ *
+ * @example
+ * // A webhook route reads the stream itself.
+ * app.use(bodyParser({ skip: '/api/webhooks/' }))
+ *
+ * @example
+ * app.use(bodyParser({ skip: (req) => req.headers['content-type'] === 'application/octet-stream' }))
  */
 export function bodyParser(options = {}) {
   const limit = options.limit || '1mb'
   const maxBytes = parseSize(limit)
+  const shouldSkip = skipPredicate(options.skip)
 
   return async (req, res, next) => {
     // Skip if no body expected
     if (req.method === 'GET' || req.method === 'HEAD') {
+      return next()
+    }
+
+    // Opted out: the stream is left unread so the route can consume it.
+    if (shouldSkip(req)) {
       return next()
     }
 
@@ -124,14 +166,25 @@ function parseSize(str) {
 }
 
 /**
- * JSON-only body parser
+ * JSON-only body parser.
+ *
+ * Takes the same `skip` option as `bodyParser`, for the same reason.
+ *
+ * @param {Object} [options]
+ * @param {string|number} [options.limit] - maximum body size
+ * @param {Function|string|string[]} [options.skip] - routes to leave unparsed
  */
 export function json(options = {}) {
   const limit = options.limit || '1mb'
   const maxBytes = parseSize(limit)
+  const shouldSkip = skipPredicate(options.skip)
 
   return async (req, res, next) => {
     if (req.method === 'GET' || req.method === 'HEAD') {
+      return next()
+    }
+
+    if (shouldSkip(req)) {
       return next()
     }
 

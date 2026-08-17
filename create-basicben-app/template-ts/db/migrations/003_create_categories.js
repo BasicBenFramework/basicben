@@ -1,12 +1,12 @@
-export const up = async (db) => {
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id ${grammar.autoIncrementPrimaryKey()},
       name TEXT NOT NULL,
       slug TEXT UNIQUE NOT NULL,
       description TEXT,
       parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 
@@ -14,6 +14,6 @@ export const up = async (db) => {
   await db.exec('CREATE INDEX idx_categories_parent ON categories(parent_id)')
 }
 
-export const down = async (db) => {
-  await db.exec('DROP TABLE IF EXISTS categories')
+export const down = async (db, grammar) => {
+  await db.exec(grammar.dropTable('categories'))
 }
