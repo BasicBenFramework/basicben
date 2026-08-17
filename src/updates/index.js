@@ -4,7 +4,6 @@
  * Provides automatic update checking and installation for:
  * - Core framework
  * - Plugins
- * - Themes
  */
 
 import { RegistryClient } from './registry.js'
@@ -44,14 +43,11 @@ const DEFAULT_CONFIG = {
   checkInterval: 86400, // 24 hours
   notifyCore: true,
   notifyPlugins: true,
-  notifyThemes: true,
   allowCoreUpdates: true,
   allowPluginUpdates: true,
-  allowThemeUpdates: true,
   autoBackup: true,
   maxBackups: 5,
   pluginsDir: 'plugins',
-  themesDir: 'themes',
   backupsDir: 'backups'
 }
 
@@ -82,8 +78,8 @@ export class UpdateManager {
   /**
    * Check for all available updates
    * @param {boolean} force - Force fresh check (ignore cache)
-   * @returns {Promise<{ core: CoreUpdate|null, plugins: object[], themes: object[] }>}
-   *   Update info for core, plugins, and themes
+   * @returns {Promise<{ core: CoreUpdate|null, plugins: object[] }>}
+   *   Update info for core and plugins
    */
   async checkAll(force = false) {
     // Use cache if recent and not forced
@@ -94,13 +90,12 @@ export class UpdateManager {
       }
     }
 
-    const [core, plugins, themes] = await Promise.all([
+    const [core, plugins] = await Promise.all([
       this.checkCoreUpdate(),
-      this.checkPluginUpdates(),
-      this.checkThemeUpdates()
+      this.checkPluginUpdates()
     ])
 
-    this.cachedUpdates = { core, plugins, themes }
+    this.cachedUpdates = { core, plugins }
     this.lastCheck = Date.now()
 
     return this.cachedUpdates
@@ -179,20 +174,6 @@ export class UpdateManager {
       return await this.registry.checkPluginUpdates(installed)
     } catch (error) {
       console.error('Failed to check plugin updates:', error.message)
-      return []
-    }
-  }
-
-  /**
-   * Check for theme updates
-   * @returns {Promise<object[]>} List of available updates
-   */
-  async checkThemeUpdates() {
-    try {
-      const installed = await this.getInstalledThemes()
-      return await this.registry.checkThemeUpdates(installed)
-    } catch (error) {
-      console.error('Failed to check theme updates:', error.message)
       return []
     }
   }
@@ -418,96 +399,6 @@ export class UpdateManager {
     return { success: true, slug }
   }
 
-  /**
-   * Install a theme from registry
-   * @param {string} slug - Theme slug
-   * @param {object} options - Install options
-   * @returns {Promise<UpdateResult>} Install result
-   */
-  async installTheme(slug, options = {}) {
-    const { version = 'latest', onProgress } = options
-
-    onProgress?.({ step: 'fetch', message: `Fetching ${slug}...` })
-
-    // Get theme info
-    const theme = await this.registry.getTheme(slug)
-    if (!theme) {
-      throw new Error(`Theme not found: ${slug}`)
-    }
-
-    // Get download info
-    const downloadInfo = await this.registry.getThemeDownload(
-      slug,
-      version === 'latest' ? theme.currentVersion : version
-    )
-
-    if (!downloadInfo?.url) {
-      throw new Error(`Could not get download URL for ${slug}`)
-    }
-
-    // Download and extract
-    onProgress?.({ step: 'download', message: 'Downloading...' })
-    const themeDir = join(process.cwd(), this.config.themesDir, slug)
-
-    await downloadAndExtract(downloadInfo.url, themeDir, {
-      checksum: downloadInfo.checksum
-    })
-
-    onProgress?.({ step: 'complete', message: 'Theme installed!' })
-
-    return {
-      success: true,
-      slug,
-      version: theme.currentVersion,
-      path: themeDir
-    }
-  }
-
-  /**
-   * Update an installed theme
-   * @param {string} slug - Theme slug
-   * @param {object} options - Update options
-   * @returns {Promise<UpdateResult>} Update result
-   */
-  async updateTheme(slug, options = {}) {
-    const { version = 'latest', onProgress } = options
-
-    const themeDir = join(process.cwd(), this.config.themesDir, slug)
-    if (!await pathExists(themeDir)) {
-      throw new Error(`Theme not installed: ${slug}`)
-    }
-
-    // Backup current theme
-    if (this.config.autoBackup) {
-      const installed = await this.getInstalledThemes()
-      const current = installed.find(t => t.slug === slug)
-      if (current) {
-        const backupDir = join(process.cwd(), this.config.backupsDir, 'themes', `${slug}-${current.version}`)
-        await copyDir(themeDir, backupDir)
-      }
-    }
-
-    // Install new version
-    return await this.installTheme(slug, { version, onProgress })
-  }
-
-  /**
-   * Remove a theme
-   * @param {string} slug - Theme slug
-   * @returns {Promise<object>} Remove result
-   */
-  async removeTheme(slug) {
-    const themeDir = join(process.cwd(), this.config.themesDir, slug)
-
-    if (!await pathExists(themeDir)) {
-      throw new Error(`Theme not installed: ${slug}`)
-    }
-
-    await removeDir(themeDir)
-
-    return { success: true, slug }
-  }
-
   // ============================================================
   // Backup Management
   // ============================================================
@@ -537,19 +428,13 @@ export class UpdateManager {
       await copyDir(pluginsDir, join(backupDir, 'plugins'))
     }
 
-    // Backup themes
-    const themesDir = join(process.cwd(), this.config.themesDir)
-    if (await pathExists(themesDir)) {
-      await copyDir(themesDir, join(backupDir, 'themes'))
-    }
-
     // Create manifest
     const manifest = {
       id: backupId,
       type,
       timestamp: new Date().toISOString(),
       version: this.currentVersion,
-      contents: ['package.json', 'plugins', 'themes']
+      contents: ['package.json', 'plugins']
     }
     await writeFile(
       join(backupDir, 'manifest.json'),
@@ -616,13 +501,6 @@ export class UpdateManager {
     if (await pathExists(pluginsBackup)) {
       await removeDir(join(process.cwd(), this.config.pluginsDir))
       await copyDir(pluginsBackup, join(process.cwd(), this.config.pluginsDir))
-    }
-
-    // Restore themes
-    const themesBackup = join(backupDir, 'themes')
-    if (await pathExists(themesBackup)) {
-      await removeDir(join(process.cwd(), this.config.themesDir))
-      await copyDir(themesBackup, join(process.cwd(), this.config.themesDir))
     }
 
     // Run npm install to restore dependencies
@@ -750,43 +628,6 @@ export class UpdateManager {
     }
 
     return plugins
-  }
-
-  /**
-   * Get installed themes
-   * @returns {Promise<object[]>}
-   */
-  async getInstalledThemes() {
-    const themesDir = join(process.cwd(), this.config.themesDir)
-
-    if (!await pathExists(themesDir)) {
-      return []
-    }
-
-    const { readdir } = await import('node:fs/promises')
-    const entries = await readdir(themesDir, { withFileTypes: true })
-    const themes = []
-
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const themeJsonPath = join(themesDir, entry.name, 'theme.json')
-        if (await pathExists(themeJsonPath)) {
-          try {
-            const config = JSON.parse(await readFile(themeJsonPath, 'utf-8'))
-            themes.push({
-              slug: entry.name,
-              name: config.name,
-              version: config.version,
-              description: config.description
-            })
-          } catch {
-            // Skip invalid themes
-          }
-        }
-      }
-    }
-
-    return themes
   }
 
   /**

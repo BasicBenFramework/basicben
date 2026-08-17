@@ -119,7 +119,7 @@ export const Post = {
 /**
  * Resolve each post's featured image to a URL.
  *
- * `featured_image` is a foreign key into `media`, but the themes rendered it as
+ * `featured_image` is a foreign key into `media`, but the front end renders it as
  * a filename — producing `/uploads/3` for every post that had one. The join
  * supplies the storage key and this turns it into a URL, which is the only
  * thing a browser can use.

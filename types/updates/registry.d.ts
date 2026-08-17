@@ -104,31 +104,6 @@ export class RegistryClient {
      */
     checkPluginUpdates(installed: object[]): Promise<object[]>;
     /**
-     * Search themes in registry
-     * @param {object} options - Search options
-     * @returns {Promise<object>} Search results
-     */
-    searchThemes(options?: object): Promise<object>;
-    /**
-     * Get theme details
-     * @param {string} slug - Theme slug
-     * @returns {Promise<object|null>} Theme details
-     */
-    getTheme(slug: string): Promise<object | null>;
-    /**
-     * Get download URL for theme
-     * @param {string} slug - Theme slug
-     * @param {string} version - Version to download
-     * @returns {Promise<object>} Download info
-     */
-    getThemeDownload(slug: string, version?: string): Promise<object>;
-    /**
-     * Check for theme updates
-     * @param {object[]} installed - List of installed themes with slug and version
-     * @returns {Promise<object[]>} List of available updates
-     */
-    checkThemeUpdates(installed: object[]): Promise<object[]>;
-    /**
      * Validate license key
      * @param {string} key - License key
      * @returns {Promise<object>} License info

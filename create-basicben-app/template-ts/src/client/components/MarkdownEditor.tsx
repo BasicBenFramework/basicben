@@ -266,7 +266,7 @@ export default function MarkdownEditor({
         />
       ) : (
         <div
-          className="markdown-editor-preview theme-post-content"
+          className="markdown-editor-preview"
           style={{
             minHeight,
             padding: '0.75rem',

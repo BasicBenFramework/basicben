@@ -29,7 +29,7 @@ export const CAPABILITIES = [
   'category.manage', 'tag.manage',
   'comment.create', 'comment.moderate',
   'media.upload', 'media.delete', 'media.delete.own',
-  'settings.manage', 'theme.manage', 'plugin.manage', 'update.manage',
+  'settings.manage', 'plugin.manage', 'update.manage',
   'user.manage'
 ]
 

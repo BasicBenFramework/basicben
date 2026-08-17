@@ -136,11 +136,8 @@ export default function AdminDashboard() {
         </div>
 
         <div className="admin-card">
-          <h3 className="admin-card-title">Appearance</h3>
+          <h3 className="admin-card-title">Extend</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
-            <a href="/admin/themes" className="admin-btn admin-btn-secondary">
-              🎨 Themes
-            </a>
             <a href="/admin/plugins" className="admin-btn admin-btn-secondary">
               🔌 Plugins
             </a>

@@ -87,14 +87,6 @@ export const Settings = {
     return value !== 'false' // Default to true
   },
 
-  async getActiveTheme(): Promise<string> {
-    return (await this.get('active_theme')) || 'default'
-  },
-
-  async setActiveTheme(theme: string): Promise<void> {
-    await this.set('active_theme', theme, 'appearance')
-  },
-
   async getEnabledPlugins(): Promise<string[]> {
     const value = await this.get('enabled_plugins')
     try {

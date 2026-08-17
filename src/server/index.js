@@ -135,26 +135,6 @@ export async function createServer(options = {}) {
     }
   }
 
-  // Load themes. Nothing called this before, so the themes singleton was always
-  // empty at runtime — which is why `basicben theme list` showed no status and
-  // why the theme API could not report an active theme.
-  if (mergedConfig.themes !== false) {
-    const { loadThemes } = await import('../themes/loader.js')
-
-    const themeResult = await loadThemes(mergedConfig.themesDir || 'themes', {
-      activeTheme: mergedConfig.activeTheme || await readActiveTheme(mergedConfig),
-      context: { config: mergedConfig, hooks }
-    })
-
-    if (themeResult.loaded.length > 0) {
-      console.log(`Loaded themes: ${themeResult.loaded.join(', ')}`)
-    }
-
-    for (const error of themeResult.errors) {
-      console.error(`Theme error (${error.name}): ${error.error}`)
-    }
-  }
-
   // Apply plugin routes
   router.applyTo(app)
 
@@ -262,11 +242,6 @@ async function readEnabledPlugins(config) {
   } catch {
     return []
   }
-}
-
-/** The theme the admin UI has activated. */
-async function readActiveTheme(config) {
-  return await readSetting('active_theme', config)
 }
 
 async function requestHooksMiddleware(req, res, next) {
@@ -411,8 +386,6 @@ export { loadRoutes, loadMiddleware, loadConfig } from './loader.js'
 export { hooks, HOOKS } from '../hooks/index.js'
 export { plugins } from '../plugins/index.js'
 export { loadPlugins } from '../plugins/loader.js'
-export { themes } from '../themes/index.js'
-export { loadThemes } from '../themes/loader.js'
 export { updates } from '../updates/index.js'
 export {
   getEnvironment,

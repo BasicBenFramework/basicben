@@ -37,7 +37,6 @@ const commands = {
   // Updates & Package Management
   updates: () => import('../commands/updates.js'),
   plugin: () => import('../commands/plugin.js'),
-  theme: () => import('../commands/theme.js'),
   registry: () => import('../commands/registry.js'),
   license: () => import('../commands/license.js'),
 
@@ -166,20 +165,8 @@ export const commandMeta = {
       'deactivate <slug>': 'Deactivate a plugin'
     }
   },
-  theme: {
-    description: 'Manage themes',
-    usage: 'basicben theme <command> [options]',
-    options: {
-      'list': 'List installed themes',
-      'search <query>': 'Search theme registry',
-      'install <slug>': 'Install a theme',
-      'update <slug>': 'Update a theme',
-      'remove <slug>': 'Remove a theme',
-      'activate <slug>': 'Activate a theme'
-    }
-  },
   registry: {
-    description: 'Manage plugin/theme registries',
+    description: 'Manage plugin registries',
     usage: 'basicben registry <command> [options]',
     options: {
       'list': 'List configured registries',

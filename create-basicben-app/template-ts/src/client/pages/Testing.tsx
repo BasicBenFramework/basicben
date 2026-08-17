@@ -66,13 +66,13 @@ export function Testing() {
         <Card>
           <h2 className="text-lg font-semibold mb-2">What the Framework Does Not Provide</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            There is no testing module. Alongside the package root there are twenty-one entry
+            There is no testing module. Alongside the package root there are nineteen entry
             points — <code>server</code>, <code>client</code>, <code>db</code>,{' '}
             <code>auth</code>, <code>validation</code>, <code>content</code>,{' '}
             <code>storage</code>, <code>mail</code>, <code>hooks</code>, <code>plugins</code>,{' '}
-            <code>themes</code>, <code>rate-limit</code>, <code>updates</code>, and the{' '}
+            <code>rate-limit</code>, <code>updates</code>, and the{' '}
             <code>auth/*</code>,{' '}
-            <code>storage/*</code>, <code>plugins/*</code> and <code>themes/*</code> families —
+            <code>storage/*</code> and <code>plugins/*</code> families —
             and not one of them is for tests. No test client, no request builder, no database
             reset helper, no model factories.
           </p>

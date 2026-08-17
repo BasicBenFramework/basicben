@@ -83,7 +83,6 @@ export function GettingStarted() {
 ├── db/
 │   ├── migrations/       # Database migrations
 │   └── seeds/            # Database seeders
-├── themes/               # Installed themes
 ├── plugins/              # Installed plugins
 ├── mail/                 # Email templates
 ├── public/               # Static assets
@@ -153,7 +152,6 @@ import { signJwt, verifyJwt } from '@basicbenframework/core/auth'
 import { can, ROLES } from '@basicbenframework/core/auth/permissions'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { plugins } from '@basicbenframework/core/plugins'
-import { themes } from '@basicbenframework/core/themes'
 import { updates } from '@basicbenframework/core/updates'`}</pre>
           </div>
         </Card>

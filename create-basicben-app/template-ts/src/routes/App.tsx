@@ -1,5 +1,4 @@
-import { useEffect } from 'react'
-import { createClientApp, createThemeRegistry, ThemeProvider, useActiveTheme } from '@basicbenframework/core/client'
+import { createClientApp } from '@basicbenframework/core/client'
 import { AppLayout } from '../client/layouts/AppLayout'
 import { AuthLayout } from '../client/layouts/AuthLayout'
 import { DocsLayout } from '../client/layouts/DocsLayout'
@@ -29,90 +28,13 @@ import AdminCategories from '../client/pages/admin/Categories'
 import AdminTags from '../client/pages/admin/Tags'
 import AdminComments from '../client/pages/admin/Comments'
 import AdminMedia from '../client/pages/admin/Media'
-import AdminThemes from '../client/pages/admin/Themes'
 import AdminPlugins from '../client/pages/admin/Plugins'
 import AdminSettings from '../client/pages/admin/Settings'
 
 // Admin layout wrapper (no default layout)
 const NoLayout = ({ children }: { children: React.ReactNode }) => <>{children}</>
 
-/**
- * Discover every installed theme's React components.
- *
- * The browser cannot read the themes/ directory and a bundler cannot follow an
- * import path only known at runtime, so the pattern is declared here at build
- * time. Vite turns each match into its own lazily-loaded chunk, and the active
- * theme decides which one is fetched — a site with six themes installed does
- * not ship six sets of layouts to every visitor.
- */
-const themeLayouts = createThemeRegistry(
-  import.meta.glob('../../themes/*/layouts/*.tsx')
-)
-
-const themeComponents = createThemeRegistry(
-  import.meta.glob('../../themes/*/components/*.tsx')
-)
-
-/**
- * Load the active theme's stylesheet, and only that one.
- *
- * Imported the usual way, every installed theme's CSS would be in the bundle at
- * once — and because each theme declares its own `:root`, whichever happened to
- * load last would win no matter which theme is active. `?url` keeps them out of
- * the bundle and hands back a path instead, so exactly one theme's CSS is in the
- * document at a time and switching themes swaps it.
- */
-const themeStyles = import.meta.glob('../../themes/*/styles/*.css', {
-  query: '?url',
-  import: 'default'
-})
-
-function ThemeStyles() {
-  const { active } = useActiveTheme()
-
-  useEffect(() => {
-    if (!active) return
-
-    let cancelled = false
-    const added: HTMLLinkElement[] = []
-
-    // variables.css before main.css: it declares the custom properties the
-    // rest of the stylesheet reads.
-    const paths = Object.keys(themeStyles)
-      .filter(path => path.includes(`/themes/${active}/`))
-      .sort((a, b) => Number(a.endsWith('main.css')) - Number(b.endsWith('main.css')))
-
-    Promise.all(paths.map(path => (themeStyles[path] as () => Promise<string>)())).then(urls => {
-      if (cancelled) return
-      for (const href of urls) {
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.dataset.themeStyle = active
-        link.href = href
-        document.head.appendChild(link)
-        added.push(link)
-      }
-    })
-
-    return () => {
-      cancelled = true
-      added.forEach(link => link.remove())
-    }
-  }, [active])
-
-  return null
-}
-
-/** Wraps the app so any page can reach the active theme's components. */
-const withThemes = ({ children }: { children: React.ReactNode }) => (
-  <ThemeProvider layouts={themeLayouts} components={themeComponents} fallback="default">
-    <ThemeStyles />
-    {children}
-  </ThemeProvider>
-)
-
 export default createClientApp({
-  provider: withThemes,
   layout: AppLayout,
   routes: {
     '/': Home,
@@ -146,7 +68,6 @@ export default createClientApp({
     '/admin/tags': { component: AdminTags, layout: NoLayout, auth: true },
     '/admin/comments': { component: AdminComments, layout: NoLayout, auth: true },
     '/admin/media': { component: AdminMedia, layout: NoLayout, auth: true },
-    '/admin/themes': { component: AdminThemes, layout: NoLayout, auth: true },
     '/admin/plugins': { component: AdminPlugins, layout: NoLayout, auth: true },
     '/admin/settings': { component: AdminSettings, layout: NoLayout, auth: true },
   }

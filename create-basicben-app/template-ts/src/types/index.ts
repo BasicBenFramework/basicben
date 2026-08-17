@@ -29,7 +29,7 @@ export interface Post {
   excerpt?: string
   /** Foreign key into `media`. Not a filename — see `featured_image_url`. */
   featured_image?: number
-  /** Resolved by the model through the storage adapter; this is what a theme renders. */
+  /** Resolved by the model through the storage adapter. */
   featured_image_url?: string | null
   category_id?: number
   meta_title?: string

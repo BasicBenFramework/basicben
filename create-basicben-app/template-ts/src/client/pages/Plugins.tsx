@@ -22,8 +22,8 @@ export function Plugins() {
   return (
     <div>
       <PageHeader
-        title="Plugins & Themes"
-        subtitle="Hooks that fire, and themes that can override React"
+        title="Plugins"
+        subtitle="One file, a set of hooks, and routes of its own"
       />
 
       <div className="space-y-6">
@@ -61,7 +61,7 @@ export function Plugins() {
             Available families: <code>server.*</code>, <code>request.*</code>,{' '}
             <code>post.*</code>, <code>page.*</code>, <code>comment.*</code>,{' '}
             <code>content.render/save/delete</code>, <code>media.*</code>, <code>auth.*</code>,{' '}
-            <code>admin.*</code>, <code>theme.*</code>, <code>plugin.*</code>,{' '}
+            <code>admin.*</code>, <code>plugin.*</code>,{' '}
             <code>mail.*</code>. Every hook the framework declares fires — that is checked by a
             test that walks the constants and looks for a call site.
           </p>
@@ -130,53 +130,14 @@ basicben plugin deactivate my-plugin`}
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Themes override React, not just CSS</h2>
-          <p className={`text-sm ${t.muted} mb-4`}>
-            A theme's <code>layouts/</code> and <code>components/</code> are real React components,
-            and the app resolves them at runtime. The browser cannot read the themes directory and
-            a bundler cannot follow a path known only at runtime, so the pattern is declared at
-            build time and Vite code-splits each theme.
-          </p>
-
-          <CodeBlock title="src/routes/App.tsx">
-{`import { createClientApp, createThemeRegistry, ThemeProvider } from '@basicbenframework/core/client'
-
-const layouts = createThemeRegistry(import.meta.glob('../../themes/*/layouts/*.tsx'))
-const components = createThemeRegistry(import.meta.glob('../../themes/*/components/*.tsx'))
-
-export default createClientApp({
-  provider: ({ children }) => (
-    <ThemeProvider layouts={layouts} components={components} fallback="default">
-      {children}
-    </ThemeProvider>
-  ),
-  routes: { /* … */ }
-})`}
-          </CodeBlock>
-
-          <CodeBlock title="A page rendering through whichever theme is active">
-{`<ThemeLayout layout="ArchiveLayout" posts={posts} title="Feed">
-  {() => <MyOwnListing posts={posts} />}
-</ThemeLayout>`}
-          </CodeBlock>
-
-          <p className={`text-sm ${t.muted} mt-4`}>
-            Resolution walks the active theme, then the fallback theme, then gives up and renders
-            the children — a missing layout is a gap in a theme, not an error. That is what lets a
-            theme be partial: the shipped <code>minimal</code> theme implements two layouts and
-            inherits the rest from <code>default</code>.
-          </p>
-        </Card>
-
-        <Card>
           <h2 className="text-lg font-semibold mb-2">Where hooks fire matters</h2>
           <p className={`text-sm ${t.muted}`}>
             The hook registry is a singleton per JavaScript realm, and the browser is a different
             realm from the server. A plugin loaded from <code>plugins/</code> registers in the
             server's registry, so a hook fired in the browser would consult an empty one. That is
-            why <code>admin.menu</code>, <code>admin.dashboard</code> and{' '}
-            <code>theme.render</code> fire on the server and reach the UI through an API — the
-            admin asks the server what to render, because the server is where plugins are.
+            why <code>admin.menu</code> and <code>admin.dashboard</code> fire on the server and
+            reach the UI through an API — the admin asks the server what to render, because the
+            server is where plugins are.
           </p>
         </Card>
       </div>

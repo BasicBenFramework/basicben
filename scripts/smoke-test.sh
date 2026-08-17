@@ -206,25 +206,6 @@ grep -q "PROBE:server.started" "$WORK_DIR/server.log" \
   || fail "server.started never fired — it only fires from app.start(), which nothing calls"
 pass "server.started fires"
 
-# Only the TypeScript template ships a themes/ directory; loadThemes() returns
-# early when there is none, which is correct rather than a failure.
-grep -qi "Loaded themes" "$WORK_DIR/server.log" \
-  || fail "loadThemes() is not being called"
-pass "themes load at boot"
-
-# Two themes, so switching and the partial-implementation fallback have
-# something real to exercise. `minimal` implements two layouts and inherits
-# the rest from `default`.
-grep -qi "Loaded themes.*minimal" "$WORK_DIR/server.log" \
-  || fail "the second theme was not discovered"
-pass "more than one theme is installed"
-
-# Each theme's layouts must be separate chunks, or lazy loading buys nothing.
-ARCHIVE_CHUNKS="$(find dist/client/assets -name 'ArchiveLayout-*.js' 2>/dev/null | wc -l | tr -d ' ')"
-[ "$ARCHIVE_CHUNKS" = "2" ] \
-  || fail "expected one ArchiveLayout chunk per theme, found $ARCHIVE_CHUNKS"
-pass "each theme's layouts are code-split separately"
-
 status() { curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT$1"; }
 
 # --- Assertions --------------------------------------------------------------
@@ -278,7 +259,7 @@ auth_status() {
   curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" "http://localhost:$PORT$2"
 }
 
-for path in /api/settings /api/plugins /api/themes; do
+for path in /api/settings /api/plugins; do
   code="$(auth_status "$VISITOR_TOKEN" "$path")"
   [ "$code" = "403" ] || fail "subscriber got $code on $path, expected 403"
 done
@@ -482,7 +463,7 @@ esac
 # --- Markdown content ----------------------------------------------------------
 #
 # Before this existed the editor advertised Markdown and stored whatever was
-# typed, which the theme then rendered with dangerouslySetInnerHTML — so the
+# typed, which was then rendered with dangerouslySetInnerHTML — so the
 # advertised feature did nothing and the unadvertised one was stored XSS.
 #
 # A fresh account is used because the checks above deliberately lock accounts

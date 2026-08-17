@@ -2,7 +2,7 @@
  * Hook System for BasicBen CMS
  *
  * Provides WordPress-like action and filter hooks for extensibility.
- * Plugins and themes can register callbacks that fire at specific points.
+ * Plugins can register callbacks that fire at specific points.
  */
 
 /**
@@ -274,10 +274,6 @@ export const HOOKS = {
   ADMIN_MENU: 'admin.menu',
   ADMIN_DASHBOARD: 'admin.dashboard',
   ADMIN_INIT: 'admin.init',
-
-  // Theme hooks
-  THEME_ACTIVATED: 'theme.activated',
-  THEME_RENDER: 'theme.render',
 
   // Plugin hooks
   PLUGIN_ACTIVATED: 'plugin.activated',

@@ -1,7 +1,7 @@
 /**
  * CLI command: basicben updates
  *
- * Check for and apply updates to core, plugins, and themes.
+ * Check for and apply updates to core and plugins.
  *
  * Usage:
  *   basicben updates check        Check for available updates
@@ -83,17 +83,6 @@ async function checkUpdates(updates, flags) {
       console.log(`\n   Run ${cyan('basicben plugin update --all')} to update all`)
     } else {
       console.log(`${green('✓')} Plugins: ${dim('All up to date')}`)
-    }
-
-    // Theme updates
-    if (result.themes?.length > 0) {
-      console.log(`\n${yellow('⬆')}  ${bold(`${result.themes.length} theme update(s) available:`)}`)
-      for (const theme of result.themes) {
-        console.log(`   ${theme.name}: ${dim(theme.currentVersion)} → ${green(theme.latestVersion)}`)
-      }
-      console.log(`\n   Run ${cyan('basicben theme update --all')} to update all`)
-    } else {
-      console.log(`${green('✓')} Themes: ${dim('All up to date')}`)
     }
 
     // Output JSON if requested

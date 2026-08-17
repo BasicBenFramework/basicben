@@ -43,7 +43,7 @@ npx basicben dev
 
 Your app is running at `http://localhost:3000` — a working CMS, not a starter
 skeleton: authentication with two-factor and passkeys, posts and pages,
-categories, tags, comments, a media library, themes, plugins, and an admin
+categories, tags, comments, a media library, plugins, and an admin
 panel to manage them.
 
 Apps are TypeScript. Nothing forces you to annotate anything — Vite compiles
@@ -87,7 +87,6 @@ my-app/
 ├── db/
 │   ├── migrations/          # Database migrations
 │   └── seeds/               # Database seeders
-├── themes/                  # Installed themes
 ├── plugins/                 # Installed plugins
 ├── mail/                    # Email templates
 ├── public/                  # Static assets
@@ -158,14 +157,14 @@ Navigate to `/admin` to access:
 - Category and tag management
 - Comment moderation
 - Media library
-- Theme and plugin management
+- Plugin management
 - Site settings
 
 ---
 
-## Plugins & Themes
+## Plugins
 
-BasicBen supports a WordPress-like plugin and theme ecosystem.
+Plugins extend the CMS without forking it.
 
 ### Installing Plugins
 
@@ -180,20 +179,9 @@ basicben plugin install seo-tools
 basicben plugin update --all
 ```
 
-### Installing Themes
-
-```bash
-# Search for themes
-basicben theme search blog
-
-# Install and activate a theme
-basicben theme install developer-blog
-basicben theme activate developer-blog
-```
-
 ### Custom Registries
 
-Add private or enterprise registries:
+Add private or enterprise plugin registries:
 
 ```bash
 # Add a custom registry
@@ -228,8 +216,8 @@ export default {
 ```
 
 Available: `server.*`, `request.*`, `post.*`, `page.*`, `comment.*`,
-`content.render/save/delete`, `media.*`, `auth.*`, `admin.*`, `theme.*`,
-`plugin.*`, `mail.*`.
+`content.render/save/delete`, `media.*`, `auth.*`, `admin.*`, `plugin.*`,
+`mail.*`.
 
 **Settings reach `initialize`, not the hooks.** A hook callback receives the
 hook's own payload — `request.before` gets `{ req, res }` — so a plugin that
@@ -295,54 +283,7 @@ export default {
 }
 ```
 
-Plugins and themes can be written in JavaScript or TypeScript — `.ts`/`.tsx` files are compiled at build time via Vite.
-
-### Themes can override React, not just CSS
-
-A theme's `layouts/` and `components/` are real React components, and the app
-resolves them at runtime:
-
-```jsx
-import { createThemeRegistry, ThemeProvider, ThemeLayout } from '@basicbenframework/core/client'
-
-// Declared at build time so Vite can code-split each theme.
-const layouts = createThemeRegistry(import.meta.glob('../../themes/*/layouts/*.tsx'))
-
-createClientApp({
-  provider: ({ children }) => <ThemeProvider layouts={layouts}>{children}</ThemeProvider>,
-  routes: { /* … */ }
-})
-```
-
-Then a page renders through whichever theme is active, falling back to its own
-markup when the theme does not provide that layout:
-
-```jsx
-<ThemeLayout layout="ArchiveLayout" posts={posts} title="Feed">
-  {() => <MyOwnListing posts={posts} />}
-</ThemeLayout>
-```
-
-Resolution walks the active theme, then the fallback theme, then gives up — a
-missing layout is a gap in a theme, not an error. Chunks load lazily, so a site
-with six themes installed ships one theme's layouts to a visitor.
-
-### Creating Themes
-
-Themes live in the `themes/` directory with this structure:
-
-```
-themes/my-theme/
-├── theme.json           # Metadata and settings
-├── layouts/
-│   ├── DefaultLayout.tsx
-│   └── PostLayout.tsx
-├── components/
-│   ├── Header.tsx
-│   └── Footer.tsx
-└── styles/
-    └── main.css
-```
+Plugins can be written in JavaScript or TypeScript — Node strips types natively, so a `.ts` plugin needs no build step as long as it sticks to erasable syntax.
 
 ---
 
@@ -386,13 +327,6 @@ basicben plugin install <slug>     # Install a plugin
 basicben plugin update <slug>      # Update a plugin
 basicben plugin update --all       # Update all plugins
 basicben plugin remove <slug>      # Remove a plugin
-
-# Themes
-basicben theme list                # List installed themes
-basicben theme search <query>      # Search theme registry
-basicben theme install <slug>      # Install a theme
-basicben theme activate <slug>     # Activate a theme
-basicben theme update <slug>       # Update a theme
 
 # Registry & License
 basicben registry list             # List configured registries
@@ -1000,7 +934,7 @@ than it is written. Models do it for you; `Post.create` and `Post.update` render
 whenever `content` changes, so the two columns cannot drift apart.
 
 Never render `content` as HTML. It is Markdown, and `content_html` is the column
-themes read.
+that has been through the sanitizer.
 
 ### Why there is no Markdown dependency
 
@@ -1300,7 +1234,7 @@ after defaults to `subscriber`.
 
 | Role | Can |
 |------|-----|
-| `admin` | Everything, including settings, themes, plugins, and updates |
+| `admin` | Everything, including settings, plugins, and updates |
 | `editor` | Create, edit, publish, and delete any content; moderate comments |
 | `author` | Create and publish their own posts; upload media |
 | `contributor` | Write their own drafts; cannot publish or upload |
@@ -1484,7 +1418,6 @@ Errors thrown inside a callback are caught and logged — they do not abort the 
 | `request.after` | action | After route handler |
 | `post.created` | action | After post is created |
 | `comment.created` | action | After comment is created |
-| `theme.activated` | action | When theme is activated |
 | `plugin.activated` | action | When plugin is activated |
 | `content.render` | filter | Transform rendered HTML |
 
@@ -1498,7 +1431,7 @@ BasicBen includes an automatic update system:
 import { updates } from '@basicbenframework/core'
 
 // Check for updates
-const { core, plugins, themes } = await updates.checkAll()
+const { core, plugins } = await updates.checkAll()
 
 if (core.available) {
   console.log(`Update available: ${core.current} → ${core.latest}`)

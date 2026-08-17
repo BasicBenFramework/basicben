@@ -4,8 +4,6 @@ export { db, query, getDb, QueryBuilder, Grammar } from "./db/index.js";
 export { hooks, HookManager, HOOKS } from "./hooks/index.js";
 export { plugins, PluginManager } from "./plugins/index.js";
 export { loadPlugins, scanPlugins, loadEnabledPlugins, saveEnabledPlugins } from "./plugins/loader.js";
-export { themes, ThemeManager } from "./themes/index.js";
-export { loadThemes, scanThemes, getThemeStylePath } from "./themes/loader.js";
 export { updates, UpdateManager, RegistryClient } from "./updates/index.js";
 export { parseVersion, compareVersions, isNewer, isOlder, isEqual, satisfies, getChannel, incrementVersion } from "./updates/version.js";
 export { createLimiter, rateLimit, parseDuration, clientAddress, MemoryStore, DatabaseStore } from "./server/rate-limit.js";

@@ -8,7 +8,6 @@ interface UpdateInfo {
     latest: string
   }
   pluginCount: number
-  themeCount: number
 }
 
 export default function UpdateBanner() {
@@ -27,7 +26,6 @@ export default function UpdateBanner() {
         // throwing, so the version fields are only there when one is offered.
         core: { available?: boolean; current?: string; latest?: string } | null
         plugins: unknown[]
-        themes: unknown[]
       }>('/api/updates/check')
 
       const core = data.core
@@ -36,10 +34,9 @@ export default function UpdateBanner() {
         : undefined
 
       setUpdate({
-        hasUpdates: Boolean(coreUpdate) || data.plugins.length > 0 || data.themes.length > 0,
+        hasUpdates: Boolean(coreUpdate) || data.plugins.length > 0,
         coreUpdate,
-        pluginCount: data.plugins.length,
-        themeCount: data.themes.length
+        pluginCount: data.plugins.length
       })
     } catch (error) {
       // Silently fail - banner is non-critical
@@ -63,9 +60,6 @@ export default function UpdateBanner() {
       parts.push(`${update.pluginCount} plugin update${update.pluginCount > 1 ? 's' : ''}`)
     }
 
-    if (update.themeCount > 0) {
-      parts.push(`${update.themeCount} theme update${update.themeCount > 1 ? 's' : ''}`)
-    }
 
     if (update.coreUpdate) {
       return parts[0] + (parts.length > 1 ? ` and ${parts.slice(1).join(', ')}` : '')

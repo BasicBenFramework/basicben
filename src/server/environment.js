@@ -120,19 +120,6 @@ export function canInstallPlugins() {
   return true
 }
 
-/**
- * Check if theme installation is allowed
- * @returns {boolean}
- */
-export function canInstallThemes() {
-  // Cloud may restrict themes based on plan
-  if (isCloud()) {
-    const plan = process.env.BASICBEN_PLAN || 'starter'
-    return plan !== 'starter'
-  }
-
-  return true
-}
 
 /**
  * Get the update channel

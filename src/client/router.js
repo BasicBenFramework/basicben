@@ -25,7 +25,7 @@ import { RouterContext, AuthContext } from './context.js'
  *   keeps the site's navigation instead of rendering a bare string.
  * @param {import('react').ComponentType<{children: any}>} [config.provider] - Wraps the
  *   entire tree, outside the auth and router contexts. Use it for anything every
- *   route needs and that must survive navigation — a theme registry, a data
+ *   route needs and that must survive navigation — a query client, a data
  *   cache, an error boundary.
  * @returns {import('react').FunctionComponent} React component
  */
@@ -166,7 +166,7 @@ export function createClientApp(config) {
     )
 
     // An app-supplied wrapper goes outside both, so anything it provides is
-    // available to every route and every layout — a theme registry, a query
+    // available to every route and every layout — a store, a query
     // client, an error boundary. Outside rather than inside because a provider
     // that only covered the matched route would remount on every navigation.
     return Provider ? createElement(Provider, null, tree) : tree

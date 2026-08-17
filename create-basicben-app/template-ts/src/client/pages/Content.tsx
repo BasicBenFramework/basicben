@@ -32,7 +32,7 @@ export function Content() {
           <p className={`text-sm ${t.muted} mb-4`}>
             Every table that stores content keeps two columns. <code>content</code> holds the
             Markdown and is canonical; <code>content_html</code> holds the rendered, sanitized
-            result. Themes read the second one.
+            result. That is the one you render.
           </p>
 
           <CodeBlock title="The content pipeline">

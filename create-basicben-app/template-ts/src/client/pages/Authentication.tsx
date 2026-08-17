@@ -372,7 +372,7 @@ export default (router) => {
 
           <div className="grid gap-2 sm:grid-cols-2">
             {[
-              { role: 'admin', desc: 'Everything, including settings, users, themes and plugins' },
+              { role: 'admin', desc: 'Everything, including settings, users and plugins' },
               { role: 'editor', desc: 'Create, edit, publish and delete any post or page' },
               { role: 'author', desc: 'Create and publish posts, edit and delete their own' },
               { role: 'contributor', desc: 'Write and edit their own drafts, but not publish or upload media' },

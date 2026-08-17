@@ -42,7 +42,6 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     { path: '/admin/tags', label: 'Tags', icon: '🏷️' },
     { path: '/admin/comments', label: 'Comments', icon: '💬' },
     { path: '/admin/media', label: 'Media', icon: '🖼️' },
-    { path: '/admin/themes', label: 'Themes', icon: '🎨' },
     { path: '/admin/plugins', label: 'Plugins', icon: '🔌' },
     { path: '/admin/updates', label: 'Updates', icon: '⬆️' },
     { path: '/admin/settings', label: 'Settings', icon: '⚙️' },

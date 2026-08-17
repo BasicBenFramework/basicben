@@ -114,18 +114,6 @@ export const commandMeta: {
             'deactivate <slug>': string;
         };
     };
-    theme: {
-        description: string;
-        usage: string;
-        options: {
-            list: string;
-            'search <query>': string;
-            'install <slug>': string;
-            'update <slug>': string;
-            'remove <slug>': string;
-            'activate <slug>': string;
-        };
-    };
     registry: {
         description: string;
         usage: string;

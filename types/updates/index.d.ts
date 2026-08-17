@@ -24,13 +24,12 @@ export class UpdateManager {
             error?: string;
         };
         plugins: any[];
-        themes: any[];
     };
     /**
      * Check for all available updates
      * @param {boolean} force - Force fresh check (ignore cache)
-     * @returns {Promise<{ core: CoreUpdate|null, plugins: object[], themes: object[] }>}
-     *   Update info for core, plugins, and themes
+     * @returns {Promise<{ core: CoreUpdate|null, plugins: object[] }>}
+     *   Update info for core and plugins
      */
     checkAll(force?: boolean): Promise<{
         core: {
@@ -45,7 +44,6 @@ export class UpdateManager {
             error?: string;
         } | null;
         plugins: object[];
-        themes: object[];
     }>;
     /**
      * What a core update check reports.
@@ -97,11 +95,6 @@ export class UpdateManager {
      */
     checkPluginUpdates(): Promise<object[]>;
     /**
-     * Check for theme updates
-     * @returns {Promise<object[]>} List of available updates
-     */
-    checkThemeUpdates(): Promise<object[]>;
-    /**
      * Update the core framework
      * @param {string} version - Target version (default: latest)
      * @param {object} options - Update options
@@ -146,38 +139,6 @@ export class UpdateManager {
      * @returns {Promise<object>} Remove result
      */
     removePlugin(slug: string): Promise<object>;
-    /**
-     * Install a theme from registry
-     * @param {string} slug - Theme slug
-     * @param {object} options - Install options
-     * @returns {Promise<UpdateResult>} Install result
-     */
-    installTheme(slug: string, options?: object): Promise<{
-        success: boolean;
-        version?: string;
-        previousVersion?: string;
-        slug?: string;
-        message?: string;
-    }>;
-    /**
-     * Update an installed theme
-     * @param {string} slug - Theme slug
-     * @param {object} options - Update options
-     * @returns {Promise<UpdateResult>} Update result
-     */
-    updateTheme(slug: string, options?: object): Promise<{
-        success: boolean;
-        version?: string;
-        previousVersion?: string;
-        slug?: string;
-        message?: string;
-    }>;
-    /**
-     * Remove a theme
-     * @param {string} slug - Theme slug
-     * @returns {Promise<object>} Remove result
-     */
-    removeTheme(slug: string): Promise<object>;
     /**
      * Create a backup
      * @param {string} type - Backup type (pre-update, manual, etc.)
@@ -237,11 +198,6 @@ export class UpdateManager {
      * @returns {Promise<object[]>}
      */
     getInstalledPlugins(): Promise<object[]>;
-    /**
-     * Get installed themes
-     * @returns {Promise<object[]>}
-     */
-    getInstalledThemes(): Promise<object[]>;
     /**
      * Update package.json with new framework version
      * @param {string} version - Target version

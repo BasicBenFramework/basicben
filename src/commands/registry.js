@@ -1,7 +1,7 @@
 /**
  * CLI command: basicben registry
  *
- * Manage plugin/theme registries and license keys.
+ * Manage plugin registries and license keys.
  *
  * Usage:
  *   basicben registry list              List configured registries

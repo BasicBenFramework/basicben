@@ -39,11 +39,6 @@ export function canManualUpdate(): boolean;
  */
 export function canInstallPlugins(): boolean;
 /**
- * Check if theme installation is allowed
- * @returns {boolean}
- */
-export function canInstallThemes(): boolean;
-/**
  * Get the update channel
  * @returns {string} 'stable', 'beta', or 'dev'
  */

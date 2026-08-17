@@ -21,7 +21,7 @@
  *   keeps the site's navigation instead of rendering a bare string.
  * @param {import('react').ComponentType<{children: any}>} [config.provider] - Wraps the
  *   entire tree, outside the auth and router contexts. Use it for anything every
- *   route needs and that must survive navigation — a theme registry, a data
+ *   route needs and that must survive navigation — a query client, a data
  *   cache, an error boundary.
  * @returns {import('react').FunctionComponent} React component
  */

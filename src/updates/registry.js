@@ -1,5 +1,5 @@
 /**
- * Registry client for fetching updates, plugins, and themes
+ * Registry client for fetching updates and plugins
  */
 
 import https from 'node:https'
@@ -281,84 +281,7 @@ export class RegistryClient {
   }
 
   // ============================================================
-  // Themes
   // ============================================================
-
-  /**
-   * Search themes in registry
-   * @param {object} options - Search options
-   * @returns {Promise<object>} Search results
-   */
-  async searchThemes(options = {}) {
-    const params = new URLSearchParams()
-    if (options.search) params.set('search', options.search)
-    if (options.category) params.set('category', options.category)
-    if (options.page) params.set('page', options.page.toString())
-    if (options.limit) params.set('limit', options.limit.toString())
-
-    const query = params.toString()
-    const path = `/themes${query ? `?${query}` : ''}`
-
-    try {
-      const result = await this.tryRegistries(path)
-      return result?.data || { themes: [], total: 0 }
-    } catch {
-      // Return empty list if registry is unavailable
-      return { themes: [], total: 0 }
-    }
-  }
-
-  /**
-   * Get theme details
-   * @param {string} slug - Theme slug
-   * @returns {Promise<object|null>} Theme details
-   */
-  async getTheme(slug) {
-    const result = await this.tryRegistries(`/themes/${slug}`)
-    return result?.data || null
-  }
-
-  /**
-   * Get download URL for theme
-   * @param {string} slug - Theme slug
-   * @param {string} version - Version to download
-   * @returns {Promise<object>} Download info
-   */
-  async getThemeDownload(slug, version = 'latest') {
-    const result = await this.tryRegistries(`/themes/${slug}/download/${version}`)
-    return result ? { ...result.data, registry: result.registry } : null
-  }
-
-  /**
-   * Check for theme updates
-   * @param {object[]} installed - List of installed themes with slug and version
-   * @returns {Promise<object[]>} List of available updates
-   */
-  async checkThemeUpdates(installed) {
-    const updates = []
-
-    for (const theme of installed) {
-      try {
-        const latest = await this.getTheme(theme.slug)
-        if (latest && latest.currentVersion !== theme.version) {
-          const { compareVersions } = await import('./version.js')
-          if (compareVersions(latest.currentVersion, theme.version) > 0) {
-            updates.push({
-              slug: theme.slug,
-              name: latest.name,
-              currentVersion: theme.version,
-              latestVersion: latest.currentVersion,
-              changelog: latest.changelog
-            })
-          }
-        }
-      } catch {
-        // Skip themes that can't be checked
-      }
-    }
-
-    return updates
-  }
 
   // ============================================================
   // License

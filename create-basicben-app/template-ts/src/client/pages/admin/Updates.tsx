@@ -19,18 +19,9 @@ interface PluginUpdate {
   changelog?: string
 }
 
-interface ThemeUpdate {
-  name: string
-  slug: string
-  current: string
-  latest: string
-  changelog?: string
-}
-
 interface UpdateCheck {
   core: CoreUpdate
   plugins: PluginUpdate[]
-  themes: ThemeUpdate[]
   lastChecked: string
 }
 
@@ -99,30 +90,12 @@ export default function AdminUpdates() {
     }
   }
 
-  const handleThemeUpdate = async (slug: string) => {
-    if (!confirm(`Update theme "${slug}"?`)) return
-
-    setUpdating(`theme:${slug}`)
-    setError(null)
-
-    try {
-      await api.post(`/api/updates/themes/${slug}`)
-      alert('Theme updated successfully!')
-      checkUpdates(true)
-    } catch (err: any) {
-      setError(err.message || 'Failed to update theme')
-    } finally {
-      setUpdating(null)
-    }
-  }
-
   const handleUpdateAll = async () => {
     const pluginCount = updates?.plugins.length || 0
-    const themeCount = updates?.themes.length || 0
 
-    if (pluginCount === 0 && themeCount === 0) return
+    if (pluginCount === 0) return
 
-    if (!confirm(`Update ${pluginCount} plugins and ${themeCount} themes?`)) return
+    if (!confirm(`Update ${pluginCount} plugins?`)) return
 
     setUpdating('all')
     setError(null)
@@ -131,11 +104,6 @@ export default function AdminUpdates() {
       // Update plugins
       for (const plugin of updates?.plugins || []) {
         await api.post(`/api/updates/plugins/${plugin.slug}`)
-      }
-
-      // Update themes
-      for (const theme of updates?.themes || []) {
-        await api.post(`/api/updates/themes/${theme.slug}`)
       }
 
       alert('All updates applied successfully!')
@@ -164,10 +132,8 @@ export default function AdminUpdates() {
   }
 
   const hasPluginUpdates = (updates?.plugins.length || 0) > 0
-  const hasThemeUpdates = (updates?.themes.length || 0) > 0
   const totalUpdates = (updates?.core.available ? 1 : 0) +
-    (updates?.plugins.length || 0) +
-    (updates?.themes.length || 0)
+    (updates?.plugins.length || 0)
 
   return (
     <AdminLayout title="Updates">
@@ -330,53 +296,6 @@ export default function AdminUpdates() {
           <div className="updates-empty">
             <span className="updates-check-icon">✓</span>
             <p>All plugins are up to date</p>
-          </div>
-        )}
-      </div>
-
-      {/* Theme Updates */}
-      <div className="admin-card">
-        <div className="admin-card-header">
-          <h3 className="admin-card-title">Themes</h3>
-        </div>
-
-        {hasThemeUpdates ? (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Theme</th>
-                <th>Current</th>
-                <th>Latest</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {updates?.themes.map(theme => (
-                <tr key={theme.slug}>
-                  <td>
-                    <strong>{theme.name}</strong>
-                  </td>
-                  <td>{theme.current}</td>
-                  <td>
-                    <span className="admin-badge admin-badge-info">{theme.latest}</span>
-                  </td>
-                  <td>
-                    <button
-                      onClick={() => handleThemeUpdate(theme.slug)}
-                      className="admin-btn admin-btn-primary"
-                      disabled={updating === `theme:${theme.slug}`}
-                    >
-                      {updating === `theme:${theme.slug}` ? 'Updating...' : 'Update'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="updates-empty">
-            <span className="updates-check-icon">✓</span>
-            <p>All themes are up to date</p>
           </div>
         )}
       </div>

@@ -42,8 +42,7 @@ export const UpdatesController = {
       // Cache result
       cachedUpdates = {
         core: result.core,
-        plugins: result.plugins || [],
-        themes: result.themes || []
+        plugins: result.plugins || []
       }
       lastCheck = new Date()
 
@@ -82,20 +81,6 @@ export const UpdatesController = {
     } catch (error: any) {
       res.json({
         error: error.message || 'Failed to check plugin updates'
-      }, 500)
-    }
-  },
-
-  /**
-   * Check for theme updates only
-   */
-  async checkThemes(req: Request, res: Response) {
-    try {
-      const result = await updates.checkThemeUpdates()
-      res.json({ themes: result })
-    } catch (error: any) {
-      res.json({
-        error: error.message || 'Failed to check theme updates'
       }, 500)
     }
   },
@@ -163,37 +148,6 @@ export const UpdatesController = {
   },
 
   /**
-   * Update specific theme
-   */
-  async updateTheme(req: Request, res: Response) {
-    try {
-      const { slug } = req.params
-      const { version } = req.body
-
-      const result = await updates.updateTheme(slug, {
-        version,
-        onProgress: (step: string) => {
-          console.log(`[Theme Update: ${slug}] ${step}`)
-        }
-      })
-
-      // Clear cache
-      cachedUpdates = null
-
-      res.json({
-        success: true,
-        theme: slug,
-        version: result.version,
-        message: `Theme "${slug}" updated successfully`
-      })
-    } catch (error: any) {
-      res.json({
-        error: error.message || 'Failed to update theme'
-      }, 500)
-    }
-  },
-
-  /**
    * Get changelog for a version
    */
   async changelog(req: Request, res: Response) {
@@ -236,28 +190,6 @@ export const UpdatesController = {
   },
 
   /**
-   * Browse themes from registry
-   */
-  async browseThemes(req: Request, res: Response) {
-    try {
-      const { search, category, page = '1', limit = '20' } = req.query as any
-
-      const result = await updates.registry.searchThemes({
-        search,
-        category,
-        page: parseInt(page),
-        limit: parseInt(limit)
-      })
-
-      res.json(result)
-    } catch (error: any) {
-      res.json({
-        error: error.message || 'Failed to browse themes'
-      }, 500)
-    }
-  },
-
-  /**
    * Install plugin from registry
    */
   async installPlugin(req: Request, res: Response) {
@@ -284,37 +216,6 @@ export const UpdatesController = {
     } catch (error: any) {
       res.json({
         error: error.message || 'Failed to install plugin'
-      }, 500)
-    }
-  },
-
-  /**
-   * Install theme from registry
-   */
-  async installTheme(req: Request, res: Response) {
-    try {
-      const { slug, version } = req.body
-
-      if (!slug) {
-        return res.json({ error: 'Theme slug is required' }, 400)
-      }
-
-      const result = await updates.installTheme(slug, {
-        version,
-        onProgress: (step: string) => {
-          console.log(`[Theme Install: ${slug}] ${step}`)
-        }
-      })
-
-      res.json({
-        success: true,
-        theme: slug,
-        version: result.version,
-        message: `Theme "${slug}" installed successfully`
-      })
-    } catch (error: any) {
-      res.json({
-        error: error.message || 'Failed to install theme'
       }, 500)
     }
   },

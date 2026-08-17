@@ -23,8 +23,6 @@ export { cors } from "./cors.js";
 export { serveStatic } from "./static.js";
 export { plugins } from "../plugins/index.js";
 export { loadPlugins } from "../plugins/loader.js";
-export { themes } from "../themes/index.js";
-export { loadThemes } from "../themes/loader.js";
 export { updates } from "../updates/index.js";
 export { Router, createRouter } from "./router.js";
 export { bodyParser, json } from "./body-parser.js";

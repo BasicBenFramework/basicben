@@ -21,7 +21,6 @@ import commentsRoutes from '../routes/api/comments'
 import mediaRoutes from '../routes/api/media'
 import settingsRoutes from '../routes/api/settings'
 import feedRoutes from '../routes/api/feed'
-import themesRoutes from '../routes/api/themes'
 import pluginsRoutes from '../routes/api/plugins'
 import updatesRoutes from '../routes/api/updates'
 import adminRoutes from '../routes/api/admin'
@@ -57,7 +56,6 @@ commentsRoutes(router)
 mediaRoutes(router)
 settingsRoutes(router)
 feedRoutes(router)
-themesRoutes(router)
 pluginsRoutes(router)
 updatesRoutes(router)
 adminRoutes(router)
