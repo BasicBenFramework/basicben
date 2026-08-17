@@ -151,7 +151,7 @@ export default function AdminSettings() {
               <option value="true">Yes - Require approval</option>
               <option value="false">No - Auto-approve all</option>
             </select>
-            <p style={{ color: '#6b7280', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+            <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
               If enabled, comments from guests will require approval before appearing.
             </p>
           </div>
@@ -167,7 +167,7 @@ export default function AdminSettings() {
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
           {message && (
-            <span style={{ color: message.includes('Failed') ? '#ef4444' : '#22c55e' }}>
+            <span style={{ color: message.includes('Failed') ? 'var(--danger)' : 'var(--success)' }}>
               {message}
             </span>
           )}

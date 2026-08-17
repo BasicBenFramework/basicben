@@ -99,7 +99,7 @@ const bannerStyles = `
     justify-content: space-between;
     gap: 1rem;
     padding: 0.75rem 1.5rem;
-    background-color: #4f46e5;
+    background-color: var(--accent);
     color: white;
   }
 
@@ -133,12 +133,12 @@ const bannerStyles = `
 
   .update-banner-btn-primary {
     background-color: white;
-    color: #4f46e5;
+    color: var(--accent);
     border: none;
   }
 
   .update-banner-btn-primary:hover {
-    background-color: #f3f4f6;
+    background-color: var(--surface-hover);
   }
 
   .update-banner-btn-secondary {

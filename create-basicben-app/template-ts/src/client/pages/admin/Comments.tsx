@@ -86,7 +86,7 @@ export default function AdminComments() {
         </div>
 
         {comments.length === 0 ? (
-          <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+          <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>
             No {filter === 'pending' ? 'pending ' : ''}comments.
           </p>
         ) : (
@@ -96,23 +96,23 @@ export default function AdminComments() {
                 key={comment.id}
                 style={{
                   padding: '1rem',
-                  borderBottom: '1px solid #e5e7eb',
-                  backgroundColor: comment.approved ? 'white' : '#fffbeb'
+                  borderBottom: '1px solid var(--border)',
+                  backgroundColor: comment.approved ? 'var(--surface)' : 'var(--tint-warning)'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <div>
                     <strong>{comment.user_name || comment.author_name || 'Anonymous'}</strong>
                     {comment.post_title && (
-                      <span style={{ color: '#6b7280' }}> on {comment.post_title}</span>
+                      <span style={{ color: 'var(--fg-muted)' }}> on {comment.post_title}</span>
                     )}
                   </div>
-                  <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                  <span style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
                     {new Date(comment.created_at).toLocaleDateString()}
                   </span>
                 </div>
 
-                <p style={{ margin: '0.5rem 0', color: '#374151' }}>{comment.content}</p>
+                <p style={{ margin: '0.5rem 0', color: 'var(--fg)' }}>{comment.content}</p>
 
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   {!comment.approved && (

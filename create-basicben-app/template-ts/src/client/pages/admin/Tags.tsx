@@ -126,7 +126,7 @@ export default function AdminTags() {
         <div className="admin-card">
           <h3 className="admin-card-title">All Tags</h3>
           {tags.length === 0 ? (
-            <p style={{ color: '#6b7280' }}>No tags yet.</p>
+            <p style={{ color: 'var(--fg-muted)' }}>No tags yet.</p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {tags.map(tag => (
@@ -137,12 +137,12 @@ export default function AdminTags() {
                     alignItems: 'center',
                     gap: '0.5rem',
                     padding: '0.5rem 1rem',
-                    backgroundColor: '#f3f4f6',
+                    backgroundColor: 'var(--surface-hover)',
                     borderRadius: '0.375rem'
                   }}
                 >
                   <span>{tag.name}</span>
-                  <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>
+                  <span style={{ color: 'var(--fg-muted)', fontSize: '0.75rem' }}>
                     ({tag.post_count || 0})
                   </span>
                   <button

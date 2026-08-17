@@ -85,7 +85,7 @@ export default function AdminDashboard() {
         </div>
 
         {recentPosts.length === 0 ? (
-          <p style={{ color: '#6b7280' }}>No posts yet. Create your first post!</p>
+          <p style={{ color: 'var(--fg-muted)' }}>No posts yet. Create your first post!</p>
         ) : (
           <table className="admin-table">
             <thead>
@@ -124,13 +124,13 @@ export default function AdminDashboard() {
           <h3 className="admin-card-title">Content</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             <a href="/admin/posts/new" className="admin-btn admin-btn-secondary">
-              📝 New Post
+              New Post
             </a>
             <a href="/admin/pages/new" className="admin-btn admin-btn-secondary">
-              📄 New Page
+              New Page
             </a>
             <a href="/admin/media" className="admin-btn admin-btn-secondary">
-              🖼️ Upload Media
+              Upload Media
             </a>
           </div>
         </div>
@@ -139,10 +139,10 @@ export default function AdminDashboard() {
           <h3 className="admin-card-title">Extend</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             <a href="/admin/plugins" className="admin-btn admin-btn-secondary">
-              🔌 Plugins
+              Plugins
             </a>
             <a href="/admin/settings" className="admin-btn admin-btn-secondary">
-              ⚙️ Settings
+              Settings
             </a>
           </div>
         </div>
@@ -151,10 +151,10 @@ export default function AdminDashboard() {
           <h3 className="admin-card-title">Help</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
             <a href="https://basicben.com/docs" target="_blank" rel="noopener noreferrer" className="admin-btn admin-btn-secondary">
-              📚 Documentation
+              Documentation
             </a>
             <a href="/" className="admin-btn admin-btn-secondary">
-              🌐 View Site
+              View Site
             </a>
           </div>
         </div>

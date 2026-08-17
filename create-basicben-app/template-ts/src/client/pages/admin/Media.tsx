@@ -89,45 +89,21 @@ export default function AdminMedia() {
         className="admin-grid admin-grid-2"
         style={{
           gridTemplateColumns: '2fr 1fr',
-          outline: dragging ? '2px dashed #4f46e5' : 'none',
+          outline: dragging ? '2px dashed var(--accent)' : 'none',
           outlineOffset: '0.5rem'
         }}
       >
         <div className="admin-card">
-          <div className="admin-card-header" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-            <h2 className="admin-card-title" style={{ marginRight: 'auto' }}>
-              All Media{library.total > 0 && <span style={{ color: '#6b7280' }}> ({library.total})</span>}
+          {/* Title and the one primary action on the first row; the controls
+              that narrow the list on the second. Together they were too wide
+              for the column and wrapped the upload button onto its own line. */}
+          <div className="admin-card-header">
+            <h2 className="admin-card-title">
+              All Media
+              {library.total > 0 && (
+                <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}> ({library.total})</span>
+              )}
             </h2>
-
-            <input
-              type="search"
-              value={library.search}
-              onChange={event => library.setSearch(event.target.value)}
-              placeholder="Search files"
-              className="admin-input"
-              style={{ maxWidth: '180px' }}
-            />
-
-            <select
-              value={library.type}
-              onChange={event => library.setType(event.target.value)}
-              className="admin-input"
-              style={{ maxWidth: '140px' }}
-            >
-              <option value="">All types</option>
-              <option value="image">Images</option>
-              <option value="video">Video</option>
-              <option value="audio">Audio</option>
-              <option value="other">Documents</option>
-            </select>
-
-            <button
-              onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
-              className="admin-btn admin-btn-secondary"
-              title={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
-            >
-              {view === 'grid' ? '☰' : '▦'}
-            </button>
 
             <input
               ref={fileInput}
@@ -141,7 +117,41 @@ export default function AdminMedia() {
               }}
             />
             <button onClick={() => fileInput.current?.click()} className="admin-btn admin-btn-primary">
-              + Upload Files
+              Upload
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <input
+              type="search"
+              value={library.search}
+              onChange={event => library.setSearch(event.target.value)}
+              placeholder="Search files"
+              className="admin-input"
+              style={{ flex: 1, minWidth: 0 }}
+            />
+
+            <select
+              value={library.type}
+              onChange={event => library.setType(event.target.value)}
+              className="admin-select"
+              style={{ width: '140px', flexShrink: 0 }}
+            >
+              <option value="">All types</option>
+              <option value="image">Images</option>
+              <option value="video">Video</option>
+              <option value="audio">Audio</option>
+              <option value="other">Documents</option>
+            </select>
+
+            <button
+              onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
+              className="admin-btn admin-btn-secondary"
+              style={{ flexShrink: 0 }}
+              title={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+              aria-label={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+            >
+              {view === 'grid' ? '☰' : '▦'}
             </button>
           </div>
 
@@ -151,17 +161,17 @@ export default function AdminMedia() {
                 <div key={upload.name} style={{ fontSize: '0.8rem', marginBottom: '0.35rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>{upload.name}</span>
-                    <span style={{ color: upload.error ? '#b91c1c' : '#6b7280' }}>
+                    <span style={{ color: upload.error ? 'var(--danger)' : 'var(--fg-muted)' }}>
                       {upload.error || (upload.percent === null ? 'starting…' : `${upload.percent}%`)}
                     </span>
                   </div>
                   {!upload.error && (
-                    <div style={{ height: '3px', background: '#e5e7eb', borderRadius: '2px' }}>
+                    <div style={{ height: '3px', background: 'var(--border)', borderRadius: '2px' }}>
                       <div
                         style={{
                           height: '100%',
                           width: `${upload.percent ?? 0}%`,
-                          background: '#4f46e5',
+                          background: 'var(--accent)',
                           borderRadius: '2px',
                           transition: 'width 0.2s'
                         }}
@@ -292,7 +302,7 @@ export default function AdminMedia() {
               </div>
             </div>
           ) : (
-            <p style={{ color: '#6b7280' }}>Select a file to view details</p>
+            <p style={{ color: 'var(--fg-muted)' }}>Select a file to view details</p>
           )}
         </div>
       </div>

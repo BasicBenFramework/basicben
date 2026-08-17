@@ -57,13 +57,13 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
           void uploadAndSelect(Array.from(event.dataTransfer.files))
         }}
         style={{
-          background: '#fff',
+          background: 'var(--surface)',
           borderRadius: '0.5rem',
           width: 'min(880px, 100%)',
           maxHeight: '85vh',
           display: 'flex',
           flexDirection: 'column',
-          outline: dragging ? '2px dashed #4f46e5' : 'none'
+          outline: dragging ? '2px dashed var(--accent)' : 'none'
         }}
       >
         <div
@@ -72,7 +72,7 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
             gap: '0.5rem',
             alignItems: 'center',
             padding: '1rem',
-            borderBottom: '1px solid #e5e7eb'
+            borderBottom: '1px solid var(--border)'
           }}
         >
           <strong style={{ marginRight: 'auto' }}>Media library</strong>
@@ -119,14 +119,14 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
         </div>
 
         {library.uploads.length > 0 && (
-          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e5e7eb' }}>
+          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)' }}>
             {library.uploads.map(upload => (
               <div key={upload.name} style={{ fontSize: '0.8rem', marginBottom: '0.25rem' }}>
                 {upload.name}{' '}
                 {upload.error ? (
-                  <span style={{ color: '#b91c1c' }}>{upload.error}</span>
+                  <span style={{ color: 'var(--danger)' }}>{upload.error}</span>
                 ) : (
-                  <span style={{ color: '#6b7280' }}>
+                  <span style={{ color: 'var(--fg-muted)' }}>
                     {upload.percent === null ? 'starting…' : `${upload.percent}%`}
                   </span>
                 )}
@@ -137,7 +137,7 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
 
         <div style={{ overflowY: 'auto', padding: '1rem' }}>
           {library.loading ? (
-            <p style={{ color: '#6b7280', textAlign: 'center' }}>Loading…</p>
+            <p style={{ color: 'var(--fg-muted)', textAlign: 'center' }}>Loading…</p>
           ) : (
             <MediaGrid
               items={library.items}

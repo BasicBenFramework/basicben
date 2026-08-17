@@ -62,7 +62,7 @@ export default function AdminPosts() {
         </div>
 
         {posts.length === 0 ? (
-          <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+          <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>
             No posts yet. Create your first post!
           </p>
         ) : (
@@ -80,7 +80,7 @@ export default function AdminPosts() {
               {posts.map(post => (
                 <tr key={post.id}>
                   <td>
-                    <a href={`/admin/posts/${post.id}/edit`} style={{ color: '#4f46e5', fontWeight: 500 }}>
+                    <a href={`/admin/posts/${post.id}/edit`} style={{ color: 'var(--accent)', fontWeight: 500 }}>
                       {post.title}
                     </a>
                   </td>

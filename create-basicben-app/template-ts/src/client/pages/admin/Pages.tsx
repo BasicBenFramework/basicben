@@ -60,7 +60,7 @@ export default function AdminPages() {
         </div>
 
         {pages.length === 0 ? (
-          <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
+          <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>
             No pages yet. Create your first page!
           </p>
         ) : (
@@ -78,7 +78,7 @@ export default function AdminPages() {
               {pages.map(page => (
                 <tr key={page.id}>
                   <td>
-                    <a href={`/admin/pages/${page.id}/edit`} style={{ color: '#4f46e5', fontWeight: 500 }}>
+                    <a href={`/admin/pages/${page.id}/edit`} style={{ color: 'var(--accent)', fontWeight: 500 }}>
                       {page.title}
                     </a>
                   </td>

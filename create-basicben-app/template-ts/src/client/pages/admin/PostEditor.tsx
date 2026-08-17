@@ -275,8 +275,8 @@ export default function AdminPostEditor() {
                     className={`admin-badge ${formData.tags.includes(tag.id) ? 'admin-badge-info' : ''}`}
                     style={{
                       cursor: 'pointer',
-                      border: '1px solid #d1d5db',
-                      backgroundColor: formData.tags.includes(tag.id) ? '#dbeafe' : 'white'
+                      border: '1px solid var(--border-strong)',
+                      backgroundColor: formData.tags.includes(tag.id) ? 'var(--tint-info)' : 'var(--surface)'
                     }}
                   >
                     {tag.name}
@@ -284,7 +284,7 @@ export default function AdminPostEditor() {
                 ))}
               </div>
               {allTags.length === 0 && (
-                <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
                   No tags yet. <a href="/admin/tags">Create one</a>
                 </p>
               )}

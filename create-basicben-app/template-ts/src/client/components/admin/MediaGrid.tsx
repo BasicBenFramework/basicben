@@ -55,7 +55,7 @@ export default function MediaGrid({
 
   if (items.length === 0) {
     return (
-      <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>{emptyMessage}</p>
+      <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>{emptyMessage}</p>
     )
   }
 
@@ -82,10 +82,10 @@ export default function MediaGrid({
               style={{
                 position: 'relative',
                 cursor: 'pointer',
-                border: selected ? '2px solid #4f46e5' : '1px solid #e5e7eb',
+                border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
                 borderRadius: '0.375rem',
                 overflow: 'hidden',
-                backgroundColor: '#f9fafb',
+                backgroundColor: 'var(--surface-hover)',
                 display: view === 'list' ? 'flex' : 'block',
                 alignItems: 'center',
                 gap: view === 'list' ? '0.75rem' : undefined
@@ -136,7 +136,7 @@ export default function MediaGrid({
                 style={{
                   padding: view === 'list' ? '0' : '0.5rem',
                   fontSize: '0.75rem',
-                  color: '#6b7280',
+                  color: 'var(--fg-muted)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
@@ -153,7 +153,7 @@ export default function MediaGrid({
       <div ref={sentinel} style={{ height: '1px' }} />
 
       {loadingMore && (
-        <p style={{ textAlign: 'center', color: '#6b7280', padding: '1rem' }}>Loading more…</p>
+        <p style={{ textAlign: 'center', color: 'var(--fg-muted)', padding: '1rem' }}>Loading more…</p>
       )}
     </>
   )

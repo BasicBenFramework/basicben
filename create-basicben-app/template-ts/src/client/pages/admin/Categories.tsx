@@ -146,7 +146,7 @@ export default function AdminCategories() {
         <div className="admin-card">
           <h3 className="admin-card-title">All Categories</h3>
           {categories.length === 0 ? (
-            <p style={{ color: '#6b7280' }}>No categories yet.</p>
+            <p style={{ color: 'var(--fg-muted)' }}>No categories yet.</p>
           ) : (
             <table className="admin-table">
               <thead>

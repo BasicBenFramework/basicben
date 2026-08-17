@@ -325,7 +325,7 @@ const updatesStyles = `
   }
 
   .updates-subtitle {
-    color: #6b7280;
+    color: var(--fg-muted);
     margin: 0;
   }
 
@@ -339,9 +339,9 @@ const updatesStyles = `
   }
 
   .updates-alert-error {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
+    background-color: var(--tint-danger);
+    color: var(--danger);
+    border: 1px solid var(--danger);
   }
 
   .updates-alert button {
@@ -356,8 +356,8 @@ const updatesStyles = `
     display: flex;
     gap: 1.5rem;
     padding: 1rem;
-    background-color: #eff6ff;
-    border: 1px solid #bfdbfe;
+    background-color: var(--tint-info);
+    border: 1px solid var(--info);
     border-radius: 0.5rem;
   }
 
@@ -376,12 +376,12 @@ const updatesStyles = `
 
   .updates-core-info p {
     margin: 0 0 0.25rem;
-    color: #374151;
+    color: var(--fg);
   }
 
   .updates-release-date {
     font-size: 0.875rem;
-    color: #6b7280 !important;
+    color: var(--fg-muted) !important;
   }
 
   .updates-core-actions {
@@ -402,8 +402,8 @@ const updatesStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #d1fae5;
-    color: #065f46;
+    background-color: var(--tint-success);
+    color: var(--success);
     border-radius: 50%;
     font-size: 1.25rem;
     font-weight: bold;
@@ -414,7 +414,7 @@ const updatesStyles = `
     align-items: center;
     gap: 1rem;
     padding: 1.5rem;
-    color: #6b7280;
+    color: var(--fg-muted);
   }
 
   .updates-empty .updates-check-icon {
@@ -430,7 +430,7 @@ const updatesStyles = `
   .updates-changelog-toggle {
     background: none;
     border: none;
-    color: #4f46e5;
+    color: var(--accent);
     cursor: pointer;
     padding: 0;
     font-size: 0.875rem;
@@ -443,7 +443,7 @@ const updatesStyles = `
   .updates-changelog-content {
     margin-top: 0.75rem;
     padding: 1rem;
-    background-color: #f9fafb;
+    background-color: var(--surface-hover);
     border-radius: 0.375rem;
     overflow-x: auto;
   }
@@ -457,7 +457,7 @@ const updatesStyles = `
 
   .updates-last-checked {
     text-align: center;
-    color: #9ca3af;
+    color: var(--fg-subtle);
     font-size: 0.875rem;
     margin-top: 1.5rem;
   }

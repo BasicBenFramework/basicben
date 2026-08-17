@@ -142,7 +142,7 @@ export default function AdminPlugins() {
     const stars = []
     for (let i = 1; i <= 5; i++) {
       stars.push(
-        <span key={i} style={{ color: i <= rating ? '#f59e0b' : '#d1d5db' }}>
+        <span key={i} style={{ color: i <= rating ? 'var(--warning)' : 'var(--border-strong)' }}>
           ★
         </span>
       )
@@ -212,12 +212,12 @@ export default function AdminPlugins() {
                       <div>
                         <strong>{plugin.name}</strong>
                         {plugin.description && (
-                          <p style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
+                          <p style={{ margin: '0.25rem 0 0', color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
                             {plugin.description}
                           </p>
                         )}
                         {plugin.author && (
-                          <p style={{ margin: '0.25rem 0 0', color: '#9ca3af', fontSize: '0.75rem' }}>
+                          <p style={{ margin: '0.25rem 0 0', color: 'var(--fg-subtle)', fontSize: '0.75rem' }}>
                             by {plugin.author}
                           </p>
                         )}
@@ -346,17 +346,17 @@ const pluginStyles = `
   .plugin-tab {
     padding: 0.75rem 1.5rem;
     background: white;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border);
     border-radius: 0.5rem 0.5rem 0 0;
     cursor: pointer;
     font-weight: 500;
-    color: #6b7280;
+    color: var(--fg-muted);
   }
 
   .plugin-tab.active {
     background: white;
     border-bottom-color: white;
-    color: #4f46e5;
+    color: var(--accent);
     margin-bottom: -1px;
     position: relative;
     z-index: 1;
@@ -370,13 +370,13 @@ const pluginStyles = `
   .plugin-empty {
     text-align: center;
     padding: 3rem;
-    color: #6b7280;
+    color: var(--fg-muted);
   }
 
   .plugin-loading {
     text-align: center;
     padding: 2rem;
-    color: #6b7280;
+    color: var(--fg-muted);
   }
 
   .plugin-grid {
@@ -386,7 +386,7 @@ const pluginStyles = `
   }
 
   .plugin-card {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border);
     border-radius: 0.5rem;
     padding: 1rem;
     display: flex;
@@ -401,7 +401,7 @@ const pluginStyles = `
   .plugin-card-icon {
     width: 48px;
     height: 48px;
-    background: #f3f4f6;
+    background: var(--surface-hover);
     border-radius: 0.5rem;
     display: flex;
     align-items: center;
@@ -439,12 +439,12 @@ const pluginStyles = `
   }
 
   .plugin-downloads {
-    color: #6b7280;
+    color: var(--fg-muted);
     font-size: 0.75rem;
   }
 
   .plugin-card-description {
-    color: #6b7280;
+    color: var(--fg-muted);
     font-size: 0.875rem;
     margin: 0 0 0.5rem;
     overflow: hidden;
@@ -455,7 +455,7 @@ const pluginStyles = `
   }
 
   .plugin-card-meta {
-    color: #9ca3af;
+    color: var(--fg-subtle);
     font-size: 0.75rem;
     margin: 0;
   }
