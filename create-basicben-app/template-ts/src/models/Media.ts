@@ -16,19 +16,59 @@ interface UpdateMediaData {
 }
 
 export const Media = {
-  async all(page = 1, perPage = 20): Promise<{ items: MediaType[]; total: number }> {
+  /**
+   * A page of media, optionally filtered.
+   *
+   * Search and type are applied in SQL rather than by the caller because the
+   * result is paginated: filtering the twenty rows a page happens to hold would
+   * search the current page instead of the library.
+   *
+   * @param page - 1-based
+   * @param perPage
+   * @param filters - `search` matches the original filename; `type` is a mime
+   *   prefix such as 'image', or 'other' for anything that is not image, video
+   *   or audio.
+   */
+  async all(
+    page = 1,
+    perPage = 20,
+    filters: { search?: string; type?: string } = {}
+  ): Promise<{ items: MediaType[]; total: number }> {
     const db = await getDb()
     const offset = (page - 1) * perPage
+
+    const where: string[] = []
+    const params: unknown[] = []
+
+    if (filters.search) {
+      where.push('m.original_name LIKE ?')
+      params.push(`%${filters.search}%`)
+    }
+
+    if (filters.type === 'other') {
+      where.push("COALESCE(m.mime_type, '') NOT LIKE 'image/%'")
+      where.push("COALESCE(m.mime_type, '') NOT LIKE 'video/%'")
+      where.push("COALESCE(m.mime_type, '') NOT LIKE 'audio/%'")
+    } else if (filters.type) {
+      where.push('m.mime_type LIKE ?')
+      params.push(`${filters.type}/%`)
+    }
+
+    const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
     const items = await db.all(`
       SELECT m.*, u.name as user_name
       FROM media m
       LEFT JOIN users u ON u.id = m.user_id
+      ${clause}
       ORDER BY m.created_at DESC
       LIMIT ? OFFSET ?
-    `, [perPage, offset])
+    `, [...params, perPage, offset])
 
-    const countResult = await db.get('SELECT COUNT(*) as total FROM media')
+    const countResult = await db.get(
+      `SELECT COUNT(*) as total FROM media m ${clause}`,
+      params
+    )
     const total = countResult?.total || 0
 
     return { items, total }

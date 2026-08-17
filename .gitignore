@@ -39,3 +39,4 @@ plans/
 
 # Test apps
 my-test-app/
+.playwright-mcp/

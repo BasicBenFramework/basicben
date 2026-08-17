@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { renderContentSync } from '@basicbenframework/core/content'
+import MediaPicker, { markdownFor } from './admin/MediaPicker'
 
 /**
  * Markdown editor with a live preview.
@@ -55,8 +56,7 @@ const MARKS: Mark[] = [
   { label: '"', title: 'Quote', before: '', linePrefix: '> ', placeholder: 'Quoted' },
   { label: '•', title: 'Bulleted list', before: '', linePrefix: '- ', placeholder: 'Item' },
   { label: '1.', title: 'Numbered list', before: '', linePrefix: '1. ', placeholder: 'Item' },
-  { label: '🔗', title: 'Link (⌘K)', before: '[', after: '](https://)', placeholder: 'link text' },
-  { label: '🖼', title: 'Image', before: '![', after: '](/uploads/)', placeholder: 'alt text' }
+  { label: '🔗', title: 'Link (⌘K)', before: '[', after: '](https://)', placeholder: 'link text' }
 ]
 
 export default function MarkdownEditor({
@@ -68,6 +68,7 @@ export default function MarkdownEditor({
   required
 }: MarkdownEditorProps) {
   const [mode, setMode] = useState<Mode>('write')
+  const [picking, setPicking] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Rendering on every keystroke is wasteful but not slow — a long post takes a
@@ -156,6 +157,25 @@ export default function MarkdownEditor({
     })
   }
 
+  /**
+   * Drop text in at the caret, replacing any selection.
+   *
+   * Used by the media picker, which produces a finished piece of Markdown
+   * rather than wrapping what is already there the way the toolbar marks do.
+   */
+  const insertAtCursor = (text: string) => {
+    const textarea = textareaRef.current
+    const start = textarea ? textarea.selectionStart : value.length
+    const end = textarea ? textarea.selectionEnd : value.length
+
+    emit(value.slice(0, start) + text + value.slice(end))
+
+    requestAnimationFrame(() => {
+      textarea?.focus()
+      textarea?.setSelectionRange(start + text.length, start + text.length)
+    })
+  }
+
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Tab') {
       // Tab indents rather than leaving the field: inside a Markdown editor a
@@ -223,6 +243,25 @@ export default function MarkdownEditor({
           </button>
         ))}
 
+        <button
+          type="button"
+          title="Insert media"
+          onClick={() => setPicking(true)}
+          disabled={mode === 'preview'}
+          style={{
+            minWidth: '2rem',
+            padding: '0.25rem 0.5rem',
+            border: '1px solid transparent',
+            borderRadius: '0.25rem',
+            backgroundColor: 'transparent',
+            cursor: mode === 'preview' ? 'default' : 'pointer',
+            opacity: mode === 'preview' ? 0.4 : 1,
+            fontSize: '0.875rem'
+          }}
+        >
+          🖼
+        </button>
+
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
           {(['write', 'preview'] as Mode[]).map((tab) => (
             <button
@@ -285,6 +324,16 @@ export default function MarkdownEditor({
         Markdown supported — headings, lists, links, tables, and fenced code.
         HTML is shown as text rather than rendered.
       </p>
+
+      {picking && (
+        <MediaPicker
+          onClose={() => setPicking(false)}
+          onSelect={(item) => {
+            insertAtCursor(markdownFor(item))
+            setPicking(false)
+          }}
+        />
+      )}
     </div>
   )
 }

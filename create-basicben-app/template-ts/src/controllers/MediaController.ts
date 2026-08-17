@@ -27,7 +27,9 @@ export const MediaController = {
   async index(req: Request, res: Response) {
     const page = parseInt(req.query.page as string) || 1
     const perPage = parseInt(req.query.per_page as string) || 20
-    const { items, total } = await Media.all(page, perPage)
+    const search = (req.query.search as string) || undefined
+    const type = (req.query.type as string) || undefined
+    const { items, total } = await Media.all(page, perPage, { search, type })
 
     res.json({
       media: await withUrls(items),
@@ -127,7 +129,11 @@ export const MediaController = {
     const { alt_text } = req.body as { alt_text?: string }
     const updated = await Media.update(parseInt(req.params.id), { alt_text })
 
-    res.json({ media: updated })
+    // Through withUrls like index and show, so a caller that swaps the updated
+    // row into its list does not lose the URL and blank out the thumbnail.
+    const [withUrl] = await withUrls([updated])
+
+    res.json({ media: withUrl })
   },
 
   async destroy(req: Request, res: Response) {
