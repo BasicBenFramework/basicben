@@ -41,6 +41,20 @@ export class PluginManager {
     activePlugins: Set<string>;
     /** @type {Map<string, Object>} */
     pluginSettings: Map<string, any>;
+    /**
+     * How each plugin got here — 'config' when it was passed to createApp,
+     * 'directory' when it was found in the plugins folder.
+     *
+     * Kept beside the config rather than inferred later: a plugin's `name` is
+     * whatever its object says, which need not match the filename it was read
+     * from, so comparing names against a directory listing gets it wrong for
+     * exactly the plugins whose naming is least obvious.
+     *
+     * @type {Map<string, {source: string}>}
+     */
+    pluginMeta: Map<string, {
+        source: string;
+    }>;
     /** @type {Object} */
     context: any;
     /**
@@ -53,9 +67,13 @@ export class PluginManager {
      * Register a plugin
      *
      * @param {PluginConfig} config - Plugin configuration
+     * @param {Object} [meta] - Where it came from
+     * @param {'config'|'directory'} [meta.source] - Registration style
      * @returns {this}
      */
-    register(config: PluginConfig): this;
+    register(config: PluginConfig, meta?: {
+        source?: "config" | "directory";
+    }): this;
     /**
      * Activate a plugin
      *
@@ -95,12 +113,13 @@ export class PluginManager {
     /**
      * Get all registered plugins
      *
-     * @returns {Array<{name: string, version: string, active: boolean, description?: string}>}
+     * @returns {Array<{name: string, version: string, active: boolean, source: string, description?: string}>}
      */
     list(): Array<{
         name: string;
         version: string;
         active: boolean;
+        source: string;
         description?: string;
     }>;
     /**

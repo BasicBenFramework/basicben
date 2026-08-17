@@ -22,8 +22,13 @@ import mediaRoutes from '../routes/api/media'
 import settingsRoutes from '../routes/api/settings'
 import feedRoutes from '../routes/api/feed'
 import pluginsRoutes from '../routes/api/plugins'
-import updatesRoutes from '../routes/api/updates'
 import adminRoutes from '../routes/api/admin'
+
+// Plugins are imported for the same reason routes are: a static import is
+// something the bundler can follow, so the plugin is still there after a
+// production build. A directory scan is not — it reads the source tree at
+// runtime, which a deployed bundle does not have.
+import helloWorld from '../../plugins/hello-world'
 
 // Determine static directory based on environment
 // In production, static files are in dist/client (relative to app root/cwd)
@@ -36,8 +41,13 @@ const app = await createServer({
   // spa serves index.html for unmatched client routes, so deep links and
   // refreshes work in production instead of returning a JSON 404
   static: { dir: staticDir, spa: true },
-  // Enable plugins
-  plugins: true,
+  // Plugins registered explicitly. Set `plugins: true` to rely on the
+  // directory scan alone, or `pluginsDir: false` to turn the scan off and load
+  // only what is listed here.
+  plugins: [helloWorld],
+  // Still scanned, which is convenient in development: drop a file into
+  // plugins/ and restart, no edit here. A name listed above is not registered
+  // twice.
   pluginsDir: 'plugins'
 })
 
@@ -57,7 +67,6 @@ mediaRoutes(router)
 settingsRoutes(router)
 feedRoutes(router)
 pluginsRoutes(router)
-updatesRoutes(router)
 adminRoutes(router)
 router.applyTo(app)
 

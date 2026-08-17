@@ -1,9 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
 import { Settings } from '../models/Settings'
 import type { Request, Response } from '../types'
-
-const PLUGINS_DIR = 'plugins'
 
 interface PluginInfo {
   name: string
@@ -11,6 +7,8 @@ interface PluginInfo {
   description?: string
   author?: string
   active: boolean
+  /** Where the plugin came from: a file in plugins/, or the server config. */
+  source: 'directory' | 'config'
   settings?: Record<string, unknown>
 }
 
@@ -136,7 +134,7 @@ export const PluginController = {
 }
 
 /**
- * The installed plugins, as the plugin manager knows them.
+ * The registered plugins, as the plugin manager knows them.
  *
  * This used to re-implement discovery here and pull metadata out of each
  * plugin's source with `content.match(/name:\s*['"]([^'"]+)['"]/)`. That reads
@@ -145,17 +143,18 @@ export const PluginController = {
  * plugin that computes its metadata rather than writing it as a literal.
  *
  * The manager has the real config, because the plugin was actually imported.
+ * It covers both registration styles, so a plugin passed to `createServer`
+ * shows up here alongside the ones found in `plugins/`, each carrying the
+ * source the loader recorded when it registered them.
+ *
+ * It deliberately does not scan for itself when the list comes back empty. It
+ * used to, as a fallback, and that made this page contradict the server: an app
+ * configured with `pluginsDir: false` still saw its plugins/ directory listed
+ * here, marked active, when the server had loaded none of it. No plugins is a
+ * real answer, and the route only runs inside a server that has already booted.
  */
 async function getInstalledPlugins(): Promise<PluginInfo[]> {
   const { plugins } = await import('@basicbenframework/core/plugins')
-  const { loadPlugins } = await import('@basicbenframework/core/plugins/loader')
-
-  // In the server process these are already loaded at boot. Loading again is
-  // idempotent — register() overwrites by name — and covers the case where this
-  // controller runs somewhere the boot sequence has not.
-  if (plugins.list().length === 0) {
-    await loadPlugins(PLUGINS_DIR, { context: {} })
-  }
 
   return plugins.list() as PluginInfo[]
 }

@@ -55,6 +55,19 @@ export class PluginManager {
     /** @type {Map<string, Object>} */
     this.pluginSettings = new Map()
 
+    /**
+     * How each plugin got here — 'config' when it was passed to createApp,
+     * 'directory' when it was found in the plugins folder.
+     *
+     * Kept beside the config rather than inferred later: a plugin's `name` is
+     * whatever its object says, which need not match the filename it was read
+     * from, so comparing names against a directory listing gets it wrong for
+     * exactly the plugins whose naming is least obvious.
+     *
+     * @type {Map<string, {source: string}>}
+     */
+    this.pluginMeta = new Map()
+
     /** @type {Object} */
     this.context = {}
   }
@@ -72,9 +85,11 @@ export class PluginManager {
    * Register a plugin
    *
    * @param {PluginConfig} config - Plugin configuration
+   * @param {Object} [meta] - Where it came from
+   * @param {'config'|'directory'} [meta.source] - Registration style
    * @returns {this}
    */
-  register(config) {
+  register(config, meta = {}) {
     if (!config.name) {
       throw new Error('Plugin must have a name')
     }
@@ -88,6 +103,7 @@ export class PluginManager {
     }
 
     this.plugins.set(config.name, config)
+    this.pluginMeta.set(config.name, { source: meta.source || 'config' })
 
     // Initialize default settings
     if (config.settings) {
@@ -244,7 +260,7 @@ export class PluginManager {
   /**
    * Get all registered plugins
    *
-   * @returns {Array<{name: string, version: string, active: boolean, description?: string}>}
+   * @returns {Array<{name: string, version: string, active: boolean, source: string, description?: string}>}
    */
   list() {
     const result = []
@@ -255,7 +271,8 @@ export class PluginManager {
         version: config.version,
         description: config.description,
         author: config.author,
-        active: this.activePlugins.has(name)
+        active: this.activePlugins.has(name),
+        source: this.pluginMeta.get(name)?.source || 'config'
       })
     }
 
@@ -309,6 +326,7 @@ export class PluginManager {
 
     this.plugins.delete(name)
     this.pluginSettings.delete(name)
+    this.pluginMeta.delete(name)
 
     return true
   }

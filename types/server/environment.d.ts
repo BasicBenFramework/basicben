@@ -29,31 +29,6 @@ export function getRegion(): string | null;
  */
 export function getVersion(): string;
 /**
- * Check if manual updates are allowed
- * @returns {boolean}
- */
-export function canManualUpdate(): boolean;
-/**
- * Check if plugin installation is allowed
- * @returns {boolean}
- */
-export function canInstallPlugins(): boolean;
-/**
- * Get the update channel
- * @returns {string} 'stable', 'beta', or 'dev'
- */
-export function getUpdateChannel(): string;
-/**
- * Get license key
- * @returns {string|null}
- */
-export function getLicenseKey(): string | null;
-/**
- * Assert that running in self-hosted mode
- * @throws {Error} If running in cloud mode
- */
-export function assertSelfHosted(): void;
-/**
  * Assert that running in cloud mode
  * @throws {Error} If running in self-hosted mode
  */

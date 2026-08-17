@@ -4,8 +4,7 @@ export { db, query, getDb, QueryBuilder, Grammar } from "./db/index.js";
 export { hooks, HookManager, HOOKS } from "./hooks/index.js";
 export { plugins, PluginManager } from "./plugins/index.js";
 export { loadPlugins, scanPlugins, loadEnabledPlugins, saveEnabledPlugins } from "./plugins/loader.js";
-export { updates, UpdateManager, RegistryClient } from "./updates/index.js";
-export { parseVersion, compareVersions, isNewer, isOlder, isEqual, satisfies, getChannel, incrementVersion } from "./updates/version.js";
+export { parseVersion, compareVersions, isNewer, isOlder, isEqual, satisfies, getChannel, incrementVersion } from "./version.js";
 export { createLimiter, rateLimit, parseDuration, clientAddress, MemoryStore, DatabaseStore } from "./server/rate-limit.js";
 export { sendMail, consoleTransport, httpTransport, smtpTransport, resendTransport, renderMail, resolveTransport, resetMailer } from "./mail/index.js";
 export { issueToken, redeemToken, revokeTokens, hasRecentToken, pruneExpiredTokens, TOKEN_KINDS } from "./auth/tokens.js";
@@ -14,4 +13,4 @@ export { generateRecoveryCodes, hashRecoveryCodes, findRecoveryCode, lockoutStat
 export { encodeBase32, decodeBase32 } from "./auth/base32.js";
 export { generateRegistrationOptions, generateAuthenticationOptions, verifyRegistration, verifyAuthentication } from "./auth/webauthn/index.js";
 export { ROLES, DEFAULT_ROLE, CAPABILITIES, can, capabilitiesFor, isValidRole, requireCapability, requireRole, requireAdminArea, isVerified, UNVERIFIED_CAPABILITIES } from "./auth/permissions.js";
-export { getEnvironment, isCloud, isSelfHosted, getVersion, canManualUpdate, getUpdateChannel, getLicenseKey } from "./server/environment.js";
+export { getEnvironment, isCloud, isSelfHosted, getVersion } from "./server/environment.js";

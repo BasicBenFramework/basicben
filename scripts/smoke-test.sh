@@ -212,7 +212,18 @@ pass "activating a missing plugin fails loudly"
 
 npx basicben plugin activate probe > /dev/null 2>&1 || fail "could not activate the probe plugin"
 npx basicben plugin activate broken > /dev/null 2>&1 || true
+npx basicben plugin activate hello-world > /dev/null 2>&1 \
+  || fail "could not activate the plugin the template ships"
 pass "activated a plugin from the CLI"
+
+# `plugin list` scans the directory in a process of its own, so it has to
+# discover and import each plugin before it can report anything about it. A
+# TypeScript plugin only appears here if Node stripped its types on the way in.
+PLUGIN_LIST="$(npx basicben plugin list --json 2>/dev/null)"
+case "$PLUGIN_LIST" in
+  *'"hello-world"'*) pass "the CLI lists a TypeScript plugin" ;;
+  *) echo "$PLUGIN_LIST"; fail "a .ts plugin was not discovered by the CLI" ;;
+esac
 
 # --- Boot --------------------------------------------------------------------
 
@@ -551,6 +562,51 @@ case "$PROBE_ROUTE" in
   *'"ok"'*) pass "plugin routes are mounted" ;;
   *) echo "$PROBE_ROUTE"; fail "the plugin's route was never registered" ;;
 esac
+
+# The point of passing plugins to createServer rather than scanning for them:
+# this route comes from a plugin bundled into dist/server by a static import,
+# so it works on a host that ships a bundle instead of a source tree.
+HELLO_ROUTE="$(curl -s "http://localhost:$PORT/api/hello")"
+case "$HELLO_ROUTE" in
+  *'hello-world plugin'*) pass "an explicitly registered plugin mounts its routes" ;;
+  *) echo "$HELLO_ROUTE"; fail "the plugin passed to createServer never registered" ;;
+esac
+
+PLUGIN_API="$(curl -s "http://localhost:$PORT/api/plugins" -H "Authorization: Bearer $OWNER_TOKEN")"
+
+# Matching on substrings here would pass by accident: every plugin's fields sit
+# in one flat array, so "probe" appearing somewhere before "directory" proves
+# nothing about which plugin carries which source.
+plugin_report() {
+  printf '%s' "$PLUGIN_API" | PLUGIN_NAME="$1" node -e '
+    let raw = ""
+    process.stdin.on("data", (chunk) => (raw += chunk))
+    process.stdin.on("end", () => {
+      const found = (JSON.parse(raw).plugins || [])
+        .filter((plugin) => plugin.name === process.env.PLUGIN_NAME)
+
+      process.stdout.write(
+        found.length === 1 ? String(found[0].source) : `count=${found.length}`
+      )
+    })
+  ' 2>/dev/null
+}
+
+# hello-world is listed in the config array *and* sits in plugins/. Both copies
+# load; exactly one registration should survive, and it should be the explicit
+# one.
+HELLO_SOURCE="$(plugin_report hello-world)"
+[ "$HELLO_SOURCE" = "config" ] \
+  || { echo "$PLUGIN_API"; fail "hello-world reported '$HELLO_SOURCE', expected a single config registration"; }
+pass "a plugin in both config and plugins/ registers once, from config"
+
+# Where a plugin came from is recorded when it is registered, not guessed from
+# the filename afterwards — a plugin whose name differs from its file would be
+# mislabelled by any such guess.
+PROBE_SOURCE="$(plugin_report probe)"
+[ "$PROBE_SOURCE" = "directory" ] \
+  || { echo "$PLUGIN_API"; fail "the scanned plugin reported '$PROBE_SOURCE', expected directory"; }
+pass "a scanned plugin reports where it was found"
 
 # The admin API only exists in the TypeScript template.
 MENU="$(curl -s "http://localhost:$PORT/api/admin/menu" -H "Authorization: Bearer $OWNER_TOKEN")"

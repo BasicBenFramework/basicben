@@ -92,10 +92,6 @@
     "./plugins/loader": {
       "types": "./types/plugins/loader.d.ts",
       "default": "./src/plugins/loader.js"
-    },
-    "./updates": {
-      "types": "./types/updates/index.d.ts",
-      "default": "./src/updates/index.js"
     }
   },
   "engines": {
@@ -110,7 +106,6 @@
     "test:cli": "node --test \"src/cli/**/*.test.js\"",
     "test:scaffolding": "node --test \"src/scaffolding/**/*.test.js\"",
     "test:app": "./scripts/test-app.sh",
-    "test:app:ts": "./scripts/test-app.sh --typescript",
     "build:types": "tsc -p tsconfig.types.json",
     "release": "./scripts/publish.sh"
   },

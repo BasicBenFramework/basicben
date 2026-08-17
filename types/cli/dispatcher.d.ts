@@ -89,48 +89,14 @@ export const commandMeta: {
         usage: string;
         example: string;
     };
-    updates: {
-        description: string;
-        usage: string;
-        options: {
-            check: string;
-            apply: string;
-            changelog: string;
-            '--json': string;
-            '-y, --yes': string;
-        };
-    };
     plugin: {
         description: string;
         usage: string;
         options: {
             list: string;
-            'search <query>': string;
-            'install <slug>': string;
-            'update <slug>': string;
-            'update --all': string;
-            'remove <slug>': string;
-            'activate <slug>': string;
-            'deactivate <slug>': string;
-        };
-    };
-    registry: {
-        description: string;
-        usage: string;
-        options: {
-            list: string;
-            'add <url>': string;
-            'remove <url>': string;
-            'ping [url]': string;
-        };
-    };
-    license: {
-        description: string;
-        usage: string;
-        options: {
-            'set <key>': string;
-            status: string;
-            remove: string;
+            'activate <name>': string;
+            'deactivate <name>': string;
+            '--json': string;
         };
     };
     help: {

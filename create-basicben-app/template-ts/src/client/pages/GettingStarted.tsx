@@ -152,7 +152,7 @@ import { signJwt, verifyJwt } from '@basicbenframework/core/auth'
 import { can, ROLES } from '@basicbenframework/core/auth/permissions'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { plugins } from '@basicbenframework/core/plugins'
-import { updates } from '@basicbenframework/core/updates'`}</pre>
+import { loadPlugins } from '@basicbenframework/core/plugins/loader'`}</pre>
           </div>
         </Card>
 

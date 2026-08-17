@@ -15,8 +15,7 @@ export { hooks, HookManager, HOOKS } from './hooks/index.js'
 export { plugins, PluginManager } from './plugins/index.js'
 export { loadPlugins, scanPlugins, loadEnabledPlugins, saveEnabledPlugins } from './plugins/loader.js'
 
-// Updates
-export { updates, UpdateManager, RegistryClient } from './updates/index.js'
+// Version comparison
 export {
   parseVersion,
   compareVersions,
@@ -26,7 +25,7 @@ export {
   satisfies,
   getChannel,
   incrementVersion
-} from './updates/version.js'
+} from './version.js'
 
 // Rate limiting
 export {
@@ -113,10 +112,7 @@ export {
   getEnvironment,
   isCloud,
   isSelfHosted,
-  getVersion,
-  canManualUpdate,
-  getUpdateChannel,
-  getLicenseKey
+  getVersion
 } from './server/environment.js'
 
 // These will be implemented in later phases

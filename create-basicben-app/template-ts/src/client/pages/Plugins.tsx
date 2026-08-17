@@ -23,7 +23,7 @@ export function Plugins() {
     <div>
       <PageHeader
         title="Plugins"
-        subtitle="One file, a set of hooks, and routes of its own"
+        subtitle="One file, a set of hooks, and routes of its own — shipped with your code"
       />
 
       <div className="space-y-6">
@@ -64,6 +64,42 @@ export function Plugins() {
             <code>admin.*</code>, <code>plugin.*</code>,{' '}
             <code>mail.*</code>. Every hook the framework declares fires — that is checked by a
             test that walks the constants and looks for a call site.
+          </p>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-2">Registering</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            Two ways, and the difference only shows up at deploy time. Passing the plugin to{' '}
+            <code>createServer</code> is a static import, so it survives a production build. The{' '}
+            <code>plugins/</code> directory is scanned as well, which is convenient while you work
+            — but a scan reads the source tree at runtime, and a host that ships a bundle has no
+            source tree to read.
+          </p>
+
+          <CodeBlock title="src/server/index.ts">
+{`import helloWorld from '../../plugins/hello-world'
+
+const app = await createServer({
+  // Bundled with the app. Works everywhere.
+  plugins: [helloWorld],
+
+  // Also scanned, for dropping a file in during development.
+  // Set to false to load only what is listed above.
+  pluginsDir: 'plugins'
+})`}
+          </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            A plugin named in both is registered once, from the list. <code>plugins: false</code>{' '}
+            turns the system off entirely.
+          </p>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            There is no install command and no plugin registry. A plugin is source in your
+            repository, so it arrives the way the rest of your code does — through git and your
+            package manager. Downloading one into a running server is the WordPress model, and it
+            does not survive a redeploy on any host that rebuilds from an image.
           </p>
         </Card>
 

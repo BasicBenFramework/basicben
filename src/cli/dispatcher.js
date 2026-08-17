@@ -34,11 +34,8 @@ const commands = {
   'db:seed': () => import('../commands/seed.js'), // alias
   'make:seed': () => import('../commands/make-seed.js'),
 
-  // Updates & Package Management
-  updates: () => import('../commands/updates.js'),
+  // Plugins
   plugin: () => import('../commands/plugin.js'),
-  registry: () => import('../commands/registry.js'),
-  license: () => import('../commands/license.js'),
 
   // Help
   help: () => import('../commands/help.js')
@@ -140,48 +137,14 @@ export const commandMeta = {
     example: 'basicben make:seed users'
   },
 
-  updates: {
-    description: 'Check for and apply framework updates',
-    usage: 'basicben updates [check|apply|changelog]',
-    options: {
-      'check': 'Check for available updates',
-      'apply': 'Apply core update',
-      'changelog': 'View changelog for latest version',
-      '--json': 'Output as JSON',
-      '-y, --yes': 'Skip confirmation prompts'
-    }
-  },
   plugin: {
-    description: 'Manage plugins',
+    description: 'Manage plugins in the plugins directory',
     usage: 'basicben plugin <command> [options]',
     options: {
-      'list': 'List installed plugins',
-      'search <query>': 'Search plugin registry',
-      'install <slug>': 'Install a plugin',
-      'update <slug>': 'Update a plugin',
-      'update --all': 'Update all plugins',
-      'remove <slug>': 'Remove a plugin',
-      'activate <slug>': 'Activate a plugin',
-      'deactivate <slug>': 'Deactivate a plugin'
-    }
-  },
-  registry: {
-    description: 'Manage plugin registries',
-    usage: 'basicben registry <command> [options]',
-    options: {
-      'list': 'List configured registries',
-      'add <url>': 'Add a registry',
-      'remove <url>': 'Remove a registry',
-      'ping [url]': 'Test registry connection(s)'
-    }
-  },
-  license: {
-    description: 'Manage license key',
-    usage: 'basicben license <command>',
-    options: {
-      'set <key>': 'Set license key',
-      'status': 'Show license status',
-      'remove': 'Remove license key'
+      'list': 'List plugins and whether each is active',
+      'activate <name>': 'Activate a plugin',
+      'deactivate <name>': 'Deactivate a plugin',
+      '--json': 'Output as JSON'
     }
   },
 

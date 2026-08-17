@@ -40,6 +40,12 @@ ${bold('Database')}
   ${cyan('migrate:rollback')}   Roll back last batch
   ${cyan('migrate:fresh')}      Drop all and re-run
   ${cyan('migrate:status')}     Show migration status
+  ${cyan('seed')}               Run database seeders
+
+${bold('Plugins')}
+  ${cyan('plugin list')}        List plugins and their status
+  ${cyan('plugin activate')}    Activate a plugin
+  ${cyan('plugin deactivate')}  Deactivate a plugin
 
 ${bold('Options')}
   ${cyan('--help, -h')}         Show help

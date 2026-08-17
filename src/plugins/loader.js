@@ -24,24 +24,51 @@ import { plugins } from './index.js'
 const PLUGIN_EXTENSIONS = ['.js', '.mjs', '.ts', '.mts']
 
 /**
- * Load all plugins from a directory
+ * Load plugins, from an explicit list and/or a directory.
  *
- * @param {string} dir - Directory to scan (default: plugins)
+ * The two registration styles exist for different deployments. Scanning a
+ * directory is convenient in development — drop a file in `plugins/` and
+ * restart — but `readdirSync` plus a dynamic `import()` of a path computed at
+ * runtime is invisible to a bundler, so the files are simply not there on a
+ * host that ships a bundle rather than a working tree. Passing the plugin
+ * objects in is a static import: it bundles, it type-checks, and it needs no
+ * filesystem at all.
+ *
+ * Explicit plugins win. A name registered from the list is skipped during the
+ * scan, so importing `plugins/hello-world.js` *and* leaving it on disk
+ * registers it once rather than twice.
+ *
+ * A plugin's name lives inside its config, so the scan has to import a file
+ * before it can tell whether that name is already taken. A plugin listed here
+ * *and* present on disk is therefore evaluated twice — once as the bundled
+ * copy, once from the filesystem — and only the first is registered. That
+ * costs one module evaluation at boot and changes nothing else; matching on
+ * filename instead would be wrong for any plugin whose name is not its
+ * filename.
+ *
+ * @param {string|false} dir - Directory to scan, or false to scan nothing
  * @param {Object} [options] - Loading options
  * @param {string[]} [options.enabled] - Plugin names to auto-activate
  * @param {Object} [options.context] - Application context (db, router, etc.)
+ * @param {Array<Object>} [options.modules] - Already-imported plugin configs
  * @returns {Promise<{loaded: string[], activated: string[], errors: Array<{name: string, error: string}>}>}
  *
  * @example
- * // Load all plugins from 'plugins' directory
- * const result = await loadPlugins('plugins', {
- *   enabled: ['hello-world', 'seo-plugin'],
+ * // Statically imported — works anywhere, including bundled deployments
+ * import helloWorld from '../plugins/hello-world.js'
+ *
+ * await loadPlugins(false, {
+ *   modules: [helloWorld],
+ *   enabled: ['hello-world'],
  *   context: { db, router }
  * })
+ *
+ * @example
+ * // Scanned from disk — convenient in development
+ * await loadPlugins('plugins', { enabled: ['hello-world'], context: { db, router } })
  */
 export async function loadPlugins(dir = 'plugins', options = {}) {
-  const { enabled = [], context = {} } = options
-  const pluginsDir = resolve(process.cwd(), dir)
+  const { enabled = [], context = {}, modules = [] } = options
 
   const result = {
     loaded: [],
@@ -49,13 +76,58 @@ export async function loadPlugins(dir = 'plugins', options = {}) {
     errors: []
   }
 
+  // Set context for plugins
+  plugins.setContext(context)
+
+  /** Register one config and activate it if enabled, recording either outcome. */
+  const use = async (pluginConfig, label, source) => {
+    plugins.register(pluginConfig, { source })
+    result.loaded.push(pluginConfig.name)
+
+    // A plugin that fails to activate is recorded and skipped rather than
+    // taking the boot down with it — one broken plugin should not stop the
+    // site serving.
+    if (enabled.includes(pluginConfig.name)) {
+      try {
+        await plugins.activate(pluginConfig.name)
+        result.activated.push(pluginConfig.name)
+      } catch (err) {
+        result.errors.push({ name: pluginConfig.name, error: err.message })
+        console.error(`Plugin "${label}" was not activated:`, err.message)
+      }
+    }
+  }
+
+  for (const [index, mod] of modules.entries()) {
+    // A namespace object from `import * as p` carries the config on `default`.
+    const pluginConfig = mod?.default ?? mod
+    const label = pluginConfig?.name || `plugins[${index}]`
+
+    try {
+      if (!pluginConfig || typeof pluginConfig !== 'object') {
+        throw new Error(
+          `Expected a plugin object, got ${pluginConfig === null ? 'null' : typeof pluginConfig}`
+        )
+      }
+
+      await use(pluginConfig, label, 'config')
+    } catch (err) {
+      result.errors.push({ name: label, error: err.message })
+      console.error(`Error loading plugin "${label}":`, err.message)
+    }
+  }
+
+  if (dir === false) {
+    return result
+  }
+
+  const pluginsDir = resolve(process.cwd(), dir)
+
   if (!existsSync(pluginsDir)) {
     return result
   }
 
-  // Set context for plugins
-  plugins.setContext(context)
-
+  const registered = new Set(result.loaded)
   const entries = readdirSync(pluginsDir)
 
   for (const entry of entries) {
@@ -78,22 +150,8 @@ export async function loadPlugins(dir = 'plugins', options = {}) {
         pluginConfig = await loadFilePlugin(fullPath)
       }
 
-      if (pluginConfig) {
-        plugins.register(pluginConfig)
-        result.loaded.push(pluginConfig.name)
-
-        // Auto-activate if in enabled list. A plugin that fails to activate is
-        // recorded and skipped rather than taking the boot down with it — one
-        // broken plugin should not stop the site serving.
-        if (enabled.includes(pluginConfig.name)) {
-          try {
-            await plugins.activate(pluginConfig.name)
-            result.activated.push(pluginConfig.name)
-          } catch (err) {
-            result.errors.push({ name: pluginConfig.name, error: err.message })
-            console.error(`Plugin "${pluginConfig.name}" was not activated:`, err.message)
-          }
-        }
+      if (pluginConfig && !registered.has(pluginConfig.name)) {
+        await use(pluginConfig, pluginConfig.name, 'directory')
       }
     } catch (err) {
       result.errors.push({

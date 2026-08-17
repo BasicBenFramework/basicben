@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../helpers/api'
 import { useAuth, useNavigate, usePath } from '@basicbenframework/core/client'
-import UpdateBanner from '../components/admin/UpdateBanner'
 import AdminIcon from '../components/admin/AdminIcons'
 
 interface MenuItem {
@@ -60,7 +59,6 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     { path: '/admin/comments', label: 'Comments' },
     { path: '/admin/media', label: 'Media' },
     { path: '/admin/plugins', label: 'Plugins' },
-    { path: '/admin/updates', label: 'Updates' },
     { path: '/admin/settings', label: 'Settings' },
   ]
 
@@ -167,8 +165,6 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
             </button>
           </div>
         </header>
-
-        <UpdateBanner />
 
         <main className="admin-content">
           {children}

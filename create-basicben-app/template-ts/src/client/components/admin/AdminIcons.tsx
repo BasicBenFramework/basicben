@@ -56,12 +56,6 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M12 19v2" />
     </>
   ),
-  updates: (
-    <>
-      <path d="M12 20V4" />
-      <path d="M6 10l6-6 6 6" />
-    </>
-  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />
@@ -86,7 +80,6 @@ const byPath: Record<string, string> = {
   '/admin/comments': 'comments',
   '/admin/media': 'media',
   '/admin/plugins': 'plugins',
-  '/admin/updates': 'updates',
   '/admin/settings': 'settings'
 }
 

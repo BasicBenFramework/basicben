@@ -93,7 +93,14 @@ export async function createServer(options = {}) {
 
   // Load and register plugins
   if (mergedConfig.plugins !== false) {
-    const pluginDir = mergedConfig.pluginsDir || 'plugins'
+    // `plugins` is the master switch and, when it is an array, the plugins
+    // themselves. Passing them in is what makes a bundled deployment work: a
+    // static import is something a bundler can follow, where a directory scan
+    // is not. `pluginsDir: false` turns the scan off entirely for those builds.
+    const pluginModules = Array.isArray(mergedConfig.plugins) ? mergedConfig.plugins : []
+    const pluginDir = mergedConfig.pluginsDir === false
+      ? false
+      : mergedConfig.pluginsDir || 'plugins'
 
     // Which plugins are enabled comes from the database, because that is what
     // the admin UI writes to. Reading only `enabledPlugins` from config — which
@@ -114,8 +121,8 @@ export async function createServer(options = {}) {
 
     plugins.setContext(pluginContext)
 
-    // Load plugins from directory
     const pluginResult = await loadPlugins(pluginDir, {
+      modules: pluginModules,
       enabled: enabledPlugins,
       context: pluginContext
     })
@@ -386,11 +393,9 @@ export { loadRoutes, loadMiddleware, loadConfig } from './loader.js'
 export { hooks, HOOKS } from '../hooks/index.js'
 export { plugins } from '../plugins/index.js'
 export { loadPlugins } from '../plugins/loader.js'
-export { updates } from '../updates/index.js'
 export {
   getEnvironment,
   isCloud,
   isSelfHosted,
-  getVersion,
-  canManualUpdate
+  getVersion
 } from './environment.js'

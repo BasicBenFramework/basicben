@@ -1,51 +1,30 @@
 /**
  * CLI command: basicben plugin
  *
- * Manage plugins - install, update, remove, list.
+ * Inspect and toggle the plugins this project ships.
+ *
+ * There is deliberately no `install`. A plugin is source in your repository —
+ * either a file under `plugins/` or an object you import and pass to
+ * `createServer` — so it arrives the way the rest of your code does, through git
+ * and your package manager. Downloading one into a running server was the
+ * WordPress model, and it does not survive a redeploy on any host that rebuilds
+ * from an image.
  *
  * Usage:
- *   basicben plugin list                 List installed plugins
- *   basicben plugin search <query>       Search plugin registry
- *   basicben plugin install <slug>       Install a plugin
- *   basicben plugin update <slug>        Update a plugin
- *   basicben plugin update --all         Update all plugins
- *   basicben plugin remove <slug>        Remove a plugin
- *   basicben plugin activate <slug>      Activate a plugin
- *   basicben plugin deactivate <slug>    Deactivate a plugin
+ *   basicben plugin list                 List plugins and their status
+ *   basicben plugin activate <name>      Activate a plugin
+ *   basicben plugin deactivate <name>    Deactivate a plugin
  */
 
-import { bold, green, yellow, red, cyan, dim, gray } from '../cli/colors.js'
-import { UpdateManager } from '../updates/index.js'
-import { canInstallPlugins } from '../server/environment.js'
+import { bold, green, red, cyan, dim, gray } from '../cli/colors.js'
 
 export async function run(args, flags) {
   const subcommand = args[0] || 'list'
-  const updates = new UpdateManager()
 
   switch (subcommand) {
     case 'list':
     case 'ls':
-      await listPlugins(updates, flags)
-      break
-
-    case 'search':
-      await searchPlugins(updates, args.slice(1), flags)
-      break
-
-    case 'install':
-    case 'add':
-      await installPlugin(updates, args.slice(1), flags)
-      break
-
-    case 'update':
-    case 'upgrade':
-      await updatePlugin(updates, args.slice(1), flags)
-      break
-
-    case 'remove':
-    case 'uninstall':
-    case 'rm':
-      await removePlugin(updates, args.slice(1), flags)
+      await listPlugins(flags)
       break
 
     case 'activate':
@@ -66,279 +45,51 @@ export async function run(args, flags) {
 }
 
 /**
- * List installed plugins
+ * List plugins found in the plugins directory.
+ *
+ * Plugins registered by passing objects to `createServer` are not listed: they
+ * exist only inside the server process, and this command runs in its own.
  */
-async function listPlugins(updates, flags) {
-  console.log(`\n${bold('Installed Plugins')}\n`)
-
+async function listPlugins(flags) {
   try {
-    const installed = await updates.getInstalledPlugins()
+    const { loadPlugins } = await import('../plugins/loader.js')
+    const { plugins } = await import('../plugins/index.js')
 
-    if (installed.length === 0) {
-      console.log(`${dim('No plugins installed.')}\n`)
-      console.log(`Run ${cyan('basicben plugin search <query>')} to find plugins.`)
-      console.log(`Run ${cyan('basicben plugin install <slug>')} to install one.\n`)
-      return
-    }
+    await loadPlugins('plugins', { context: {} })
 
-    // Check for updates
-    const available = await updates.checkPluginUpdates()
-    const updateMap = new Map(available.map(p => [p.slug, p.latestVersion]))
-
-    // Table header
-    console.log(`${dim('┌' + '─'.repeat(60) + '┐')}`)
-    console.log(`${dim('│')} ${bold('Plugin'.padEnd(20))} ${bold('Version'.padEnd(12))} ${bold('Update'.padEnd(12))} ${dim('│')}`)
-    console.log(`${dim('├' + '─'.repeat(60) + '┤')}`)
-
-    for (const plugin of installed) {
-      const update = updateMap.get(plugin.slug)
-      const updateCol = update ? green(update) : dim('—')
-      console.log(`${dim('│')} ${plugin.name.padEnd(20)} ${dim(plugin.version.padEnd(12))} ${updateCol.padEnd(12)} ${dim('│')}`)
-    }
-
-    console.log(`${dim('└' + '─'.repeat(60) + '┘')}`)
-
-    if (available.length > 0) {
-      console.log(`\n${yellow('!')} ${available.length} update(s) available. Run ${cyan('basicben plugin update --all')} to update.`)
-    }
-
-    console.log('')
+    const enabled = await readEnabled()
+    const installed = plugins.list().map((plugin) => ({
+      ...plugin,
+      active: enabled.includes(plugin.name)
+    }))
 
     if (flags.json) {
       console.log(JSON.stringify(installed, null, 2))
-    }
-  } catch (error) {
-    console.error(`${red('Error:')} ${error.message}\n`)
-    process.exit(1)
-  }
-}
-
-/**
- * Search plugin registry
- */
-async function searchPlugins(updates, args, flags) {
-  const query = args.join(' ')
-
-  if (!query && !flags.category) {
-    console.error(`\n${red('Error:')} Please provide a search query.`)
-    console.error(`\nUsage: ${cyan('basicben plugin search <query>')}\n`)
-    process.exit(1)
-  }
-
-  console.log(`\n${bold('Searching plugins...')}\n`)
-
-  try {
-    const results = await updates.registry.searchPlugins({
-      search: query,
-      category: flags.category,
-      page: flags.page || 1,
-      limit: flags.limit || 10
-    })
-
-    if (results.plugins.length === 0) {
-      console.log(`${dim('No plugins found.')}\n`)
       return
     }
 
-    console.log(`Found ${bold(results.total)} plugin(s):\n`)
-
-    for (const plugin of results.plugins) {
-      const stars = '★'.repeat(Math.round(plugin.rating || 0)) + '☆'.repeat(5 - Math.round(plugin.rating || 0))
-      const premium = plugin.premium ? yellow(' [PRO]') : ''
-
-      console.log(`  ${bold(plugin.name)}${premium}`)
-      console.log(`  ${dim(plugin.slug)} · v${plugin.version} · ${gray(stars)}`)
-      console.log(`  ${plugin.description || dim('No description')}`)
-      console.log(`  ${cyan(`basicben plugin install ${plugin.slug}`)}\n`)
-    }
-
-    if (flags.json) {
-      console.log(JSON.stringify(results, null, 2))
-    }
-  } catch (error) {
-    console.error(`${red('Error:')} ${error.message}\n`)
-    process.exit(1)
-  }
-}
-
-/**
- * Install a plugin
- */
-async function installPlugin(updates, args, flags) {
-  const input = args[0]
-
-  if (!input) {
-    console.error(`\n${red('Error:')} Please specify a plugin to install.`)
-    console.error(`\nUsage: ${cyan('basicben plugin install <slug>')}\n`)
-    process.exit(1)
-  }
-
-  if (!canInstallPlugins()) {
-    console.error(`\n${red('Error:')} Plugin installation is not available on your plan.`)
-    console.error(`${dim('Upgrade to Pro or Business to install custom plugins.')}\n`)
-    process.exit(1)
-  }
-
-  // Parse slug@version format
-  const [slug, version] = input.split('@')
-
-  console.log(`\n${bold('Installing plugin:')} ${cyan(slug)}${version ? `@${version}` : ''}\n`)
-
-  try {
-    const result = await updates.installPlugin(slug, {
-      version: version || 'latest',
-      registry: flags.registry,
-      onProgress: ({ step, message, progress }) => {
-        if (step === 'download' && progress !== undefined) {
-          const percent = Math.round(progress * 100)
-          process.stdout.write(`\r  Downloading... ${percent}%`)
-          if (progress >= 1) console.log('')
-        } else {
-          console.log(`  ${message}`)
-        }
-      }
-    })
-
-    console.log(`\n${green('✓')} ${bold('Plugin installed successfully!')}`)
-    console.log(`  Name: ${result.slug}`)
-    console.log(`  Version: ${result.version}`)
-    console.log(`  Path: ${dim(result.path)}\n`)
-
-  } catch (error) {
-    console.error(`\n${red('✗')} ${bold('Installation failed')}`)
-    console.error(`  ${error.message}\n`)
-    process.exit(1)
-  }
-}
-
-/**
- * Update a plugin
- */
-async function updatePlugin(updates, args, flags) {
-  if (flags.all) {
-    await updateAllPlugins(updates, flags)
-    return
-  }
-
-  const slug = args[0]
-
-  if (!slug) {
-    console.error(`\n${red('Error:')} Please specify a plugin to update or use --all.`)
-    console.error(`\nUsage:`)
-    console.error(`  ${cyan('basicben plugin update <slug>')}`)
-    console.error(`  ${cyan('basicben plugin update --all')}\n`)
-    process.exit(1)
-  }
-
-  console.log(`\n${bold('Updating plugin:')} ${cyan(slug)}\n`)
-
-  try {
-    const result = await updates.updatePlugin(slug, {
-      onProgress: ({ step, message }) => {
-        console.log(`  ${message}`)
-      }
-    })
-
-    if (result.message) {
-      console.log(`\n${green('✓')} ${result.message}\n`)
-    } else {
-      console.log(`\n${green('✓')} ${bold('Plugin updated!')}`)
-      console.log(`  Version: ${result.version}\n`)
-    }
-  } catch (error) {
-    console.error(`\n${red('✗')} ${bold('Update failed')}`)
-    console.error(`  ${error.message}\n`)
-    process.exit(1)
-  }
-}
-
-/**
- * Update all plugins
- */
-async function updateAllPlugins(updates, flags) {
-  console.log(`\n${bold('Checking for plugin updates...')}\n`)
-
-  try {
-    const available = await updates.checkPluginUpdates()
-
-    if (available.length === 0) {
-      console.log(`${green('✓')} All plugins are up to date.\n`)
+    if (installed.length === 0) {
+      console.log(`\n${dim('No plugins found in plugins/.')}\n`)
+      console.log(`Add a ${cyan('plugins/my-plugin.js')} exporting a plugin object,`)
+      console.log(`or import one and pass it to ${cyan('createServer({ plugins: [...] })')}.\n`)
       return
     }
 
-    console.log(`Found ${bold(available.length)} update(s):\n`)
+    console.log(`\n${bold('Plugins')} ${gray(`(${installed.length})`)}\n`)
 
-    for (const plugin of available) {
-      console.log(`  ${plugin.name}: ${dim(plugin.currentVersion)} → ${green(plugin.latestVersion)}`)
-    }
+    for (const plugin of installed) {
+      const status = plugin.active ? green('active') : gray('inactive')
 
-    console.log('')
+      console.log(`  ${bold(plugin.name)} ${gray(`v${plugin.version}`)}  ${status}`)
 
-    // Update each plugin
-    let success = 0
-    let failed = 0
-
-    for (const plugin of available) {
-      process.stdout.write(`  Updating ${plugin.slug}...`)
-      try {
-        await updates.updatePlugin(plugin.slug)
-        console.log(` ${green('✓')}`)
-        success++
-      } catch (error) {
-        console.log(` ${red('✗')} ${dim(error.message)}`)
-        failed++
+      if (plugin.description) {
+        console.log(`    ${dim(plugin.description)}`)
       }
     }
 
-    console.log(`\n${green('✓')} Updated ${success} plugin(s)`)
-    if (failed > 0) {
-      console.log(`${red('✗')} Failed to update ${failed} plugin(s)`)
-    }
-    console.log('')
-
+    console.log()
   } catch (error) {
-    console.error(`${red('Error:')} ${error.message}\n`)
-    process.exit(1)
-  }
-}
-
-/**
- * Remove a plugin
- */
-async function removePlugin(updates, args, flags) {
-  const slug = args[0]
-
-  if (!slug) {
-    console.error(`\n${red('Error:')} Please specify a plugin to remove.`)
-    console.error(`\nUsage: ${cyan('basicben plugin remove <slug>')}\n`)
-    process.exit(1)
-  }
-
-  if (!flags.yes && !flags.y) {
-    const readline = await import('node:readline')
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    })
-
-    const answer = await new Promise(resolve => {
-      rl.question(`${yellow('?')} Remove plugin ${bold(slug)}? (y/N) `, resolve)
-    })
-    rl.close()
-
-    if (answer.toLowerCase() !== 'y' && answer.toLowerCase() !== 'yes') {
-      console.log(`\n${dim('Cancelled.')}\n`)
-      return
-    }
-  }
-
-  console.log(`\n${bold('Removing plugin:')} ${cyan(slug)}\n`)
-
-  try {
-    await updates.removePlugin(slug)
-    console.log(`${green('✓')} Plugin removed.\n`)
-  } catch (error) {
-    console.error(`${red('✗')} ${error.message}\n`)
+    console.error(`\n${red('✗')} ${error.message}\n`)
     process.exit(1)
   }
 }
@@ -347,11 +98,11 @@ async function removePlugin(updates, args, flags) {
  * Activate a plugin
  */
 async function activatePlugin(args, flags) {
-  const slug = args[0]
+  const name = args[0]
 
-  if (!slug) {
+  if (!name) {
     console.error(`\n${red('Error:')} Please specify a plugin to activate.`)
-    console.error(`\nUsage: ${cyan('basicben plugin activate <slug>')}\n`)
+    console.error(`\nUsage: ${cyan('basicben plugin activate <name>')}\n`)
     process.exit(1)
   }
 
@@ -366,17 +117,66 @@ async function activatePlugin(args, flags) {
     const { plugins } = await import('../plugins/index.js')
 
     await loadPlugins('plugins', { context: {} })
-    await plugins.activate(slug)
+    await plugins.activate(name)
 
     // Persist it, or the choice is forgotten the moment this process exits.
     // The server reads this list at boot; the admin UI writes the same key.
-    await persistEnabled(slug, true)
+    await persistEnabled(name, true)
 
-    console.log(`${green('✓')} Plugin ${bold(slug)} activated.`)
+    console.log(`${green('✓')} Plugin ${bold(name)} activated.`)
     console.log(`${dim('  Restart the server for its hooks and routes to take effect.')}\n`)
   } catch (error) {
     console.error(`${red('✗')} ${error.message}\n`)
     process.exit(1)
+  }
+}
+
+/**
+ * Deactivate a plugin
+ */
+async function deactivatePlugin(args, flags) {
+  const name = args[0]
+
+  if (!name) {
+    console.error(`\n${red('Error:')} Please specify a plugin to deactivate.`)
+    console.error(`\nUsage: ${cyan('basicben plugin deactivate <name>')}\n`)
+    process.exit(1)
+  }
+
+  console.log(`\n${dim('Deactivating plugin...')}\n`)
+
+  try {
+    // What matters here is the stored list, not this process. The plugin is not
+    // running in the CLI, so "deactivating" it means taking it off the list the
+    // server activates from at boot.
+    await persistEnabled(name, false)
+
+    console.log(`${green('✓')} Plugin ${bold(name)} deactivated.`)
+    console.log(`${dim('  Restart the server to unload it.')}\n`)
+  } catch (error) {
+    console.error(`${red('✗')} ${error.message}\n`)
+    process.exit(1)
+  }
+}
+
+/**
+ * The enabled list the server activates from at boot.
+ *
+ * Returns an empty list when there is no database rather than failing: a
+ * project can pin its plugins through `enabledPlugins` in basicben.config.js
+ * instead, and `list` should still show what is there.
+ *
+ * @returns {Promise<string[]>}
+ */
+async function readEnabled() {
+  try {
+    const { getDb } = await import('../db/index.js')
+    const db = await getDb()
+    const row = await db.get('SELECT value FROM settings WHERE key = ?', ['enabled_plugins'])
+
+    return row?.value ? JSON.parse(row.value) : []
+  } catch {
+    return []
   }
 }
 
@@ -387,50 +187,21 @@ async function activatePlugin(args, flags) {
  * this process, and a project without one is configured through
  * `enabledPlugins` in basicben.config.js instead.
  */
-async function persistEnabled(slug, enabled) {
+async function persistEnabled(name, enabled) {
   try {
     const { getDb } = await import('../db/index.js')
     const { saveEnabledPlugins } = await import('../plugins/loader.js')
     const db = await getDb()
 
-    const row = await db.get('SELECT value FROM settings WHERE key = ?', ['enabled_plugins'])
-    const current = row?.value ? JSON.parse(row.value) : []
+    const current = await readEnabled()
 
     const next = enabled
-      ? [...new Set([...current, slug])]
-      : current.filter((name) => name !== slug)
+      ? [...new Set([...current, name])]
+      : current.filter((plugin) => plugin !== name)
 
     await saveEnabledPlugins(db, next)
   } catch {
     console.log(`${dim('  (no database — add it to enabledPlugins in basicben.config.js to persist)')}`)
-  }
-}
-
-/**
- * Deactivate a plugin
- */
-async function deactivatePlugin(args, flags) {
-  const slug = args[0]
-
-  if (!slug) {
-    console.error(`\n${red('Error:')} Please specify a plugin to deactivate.`)
-    console.error(`\nUsage: ${cyan('basicben plugin deactivate <slug>')}\n`)
-    process.exit(1)
-  }
-
-  console.log(`\n${dim('Deactivating plugin...')}\n`)
-
-  try {
-    // What matters here is the stored list, not this process. The plugin is not
-    // running in the CLI, so "deactivating" it means taking it off the list the
-    // server activates from at boot.
-    await persistEnabled(slug, false)
-
-    console.log(`${green('✓')} Plugin ${bold(slug)} deactivated.`)
-    console.log(`${dim('  Restart the server to unload it.')}\n`)
-  } catch (error) {
-    console.error(`${red('✗')} ${error.message}\n`)
-    process.exit(1)
   }
 }
 
@@ -440,16 +211,9 @@ async function deactivatePlugin(args, flags) {
 function showHelp() {
   console.log(`\nUsage: ${cyan('basicben plugin <command> [options]')}`)
   console.log(`\nCommands:`)
-  console.log(`  ${bold('list')}                    List installed plugins`)
-  console.log(`  ${bold('search')} <query>          Search plugin registry`)
-  console.log(`  ${bold('install')} <slug>          Install a plugin`)
-  console.log(`  ${bold('update')} <slug>           Update a plugin`)
-  console.log(`  ${bold('update')} --all            Update all plugins`)
-  console.log(`  ${bold('remove')} <slug>           Remove a plugin`)
-  console.log(`  ${bold('activate')} <slug>         Activate a plugin`)
-  console.log(`  ${bold('deactivate')} <slug>       Deactivate a plugin`)
+  console.log(`  ${bold('list')}                    List plugins and whether each is active`)
+  console.log(`  ${bold('activate')} <name>         Activate a plugin`)
+  console.log(`  ${bold('deactivate')} <name>       Deactivate a plugin`)
   console.log(`\nOptions:`)
-  console.log(`  ${bold('--registry')} <url>        Use specific registry`)
-  console.log(`  ${bold('--json')}                  Output as JSON`)
-  console.log(`  ${bold('-y, --yes')}               Skip confirmation prompts\n`)
+  console.log(`  ${bold('--json')}                  Output as JSON\n`)
 }

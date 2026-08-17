@@ -164,32 +164,36 @@ Navigate to `/admin` to access:
 
 ## Plugins
 
-Plugins extend the CMS without forking it.
+Plugins extend the CMS without forking it. A plugin is source in your
+repository — not a download — so it arrives the way the rest of your code does,
+through git and your package manager.
 
-### Installing Plugins
+### Registering plugins
 
-```bash
-# Search for plugins
-basicben plugin search seo
+Two ways, and the difference only matters at deploy time.
 
-# Install a plugin
-basicben plugin install seo-tools
+```js
+import helloWorld from '../../plugins/hello-world'
 
-# Update all plugins
-basicben plugin update --all
+const app = await createServer({
+  // Statically imported, so the plugin is bundled with the app and survives a
+  // production build. This is the one that works on every host.
+  plugins: [helloWorld],
+
+  // Also scanned, which is convenient while you work: drop a file into
+  // plugins/ and restart. Set to false to load only what is listed above.
+  pluginsDir: 'plugins'
+})
 ```
 
-### Custom Registries
+A directory scan reads the source tree at runtime, and a host that ships a
+bundle rather than a working tree has no source tree to read — so passing
+plugins in is what makes them portable. A plugin named in both is registered
+once, from the list. `plugins: false` turns the system off entirely.
 
-Add private or enterprise plugin registries:
-
-```bash
-# Add a custom registry
-basicben registry add https://plugins.mycompany.com
-
-# List configured registries
-basicben registry list
-```
+There is no install command and no plugin registry. Downloading a plugin into a
+running server is the WordPress model, and it does not survive a redeploy on any
+host that rebuilds from an image.
 
 ### How plugins hook in
 
@@ -315,25 +319,10 @@ basicben content:rerender          # Rebuild stored HTML from the Markdown sourc
 basicben content:rerender posts    # Just one table
 basicben content:rerender --dry-run
 
-# Updates
-basicben updates check             # Check for available updates
-basicben updates apply             # Apply core framework update
-basicben updates changelog         # View changelog for latest version
-
 # Plugins
-basicben plugin list               # List installed plugins
-basicben plugin search <query>     # Search plugin registry
-basicben plugin install <slug>     # Install a plugin
-basicben plugin update <slug>      # Update a plugin
-basicben plugin update --all       # Update all plugins
-basicben plugin remove <slug>      # Remove a plugin
-
-# Registry & License
-basicben registry list             # List configured registries
-basicben registry add <url>        # Add a custom registry
-basicben registry ping             # Test registry connections
-basicben license set <key>         # Set license key
-basicben license status            # Show license status
+basicben plugin list               # List plugins and whether each is active
+basicben plugin activate <name>    # Activate a plugin
+basicben plugin deactivate <name>  # Deactivate a plugin
 
 # Help
 basicben help                      # Show all commands
@@ -1234,7 +1223,7 @@ after defaults to `subscriber`.
 
 | Role | Can |
 |------|-----|
-| `admin` | Everything, including settings, plugins, and updates |
+| `admin` | Everything, including settings and plugins |
 | `editor` | Create, edit, publish, and delete any content; moderate comments |
 | `author` | Create and publish their own posts; upload media |
 | `contributor` | Write their own drafts; cannot publish or upload |
@@ -1423,44 +1412,18 @@ Errors thrown inside a callback are caught and logged — they do not abort the 
 
 ---
 
-## Updates
+## Updating
 
-BasicBen includes an automatic update system:
+Through your package manager, like any other dependency:
 
-```js
-import { updates } from '@basicbenframework/core'
-
-// Check for updates
-const { core, plugins } = await updates.checkAll()
-
-if (core.available) {
-  console.log(`Update available: ${core.current} → ${core.latest}`)
-}
-
-// Apply update (self-hosted only)
-await updates.updateCore()
-
-// Backup management
-await updates.createBackup()
-const backups = await updates.listBackups()
-await updates.restoreBackup(backupId)
+```bash
+npm install @basicbenframework/core@latest
 ```
 
-### Cloud vs Self-Hosted
-
-BasicBen supports both deployment models:
-
-```js
-import { isCloud, isSelfHosted } from '@basicbenframework/core'
-
-if (isCloud()) {
-  // Running on BasicBen Cloud - updates are automatic
-}
-
-if (isSelfHosted()) {
-  // Self-hosted - you control updates
-}
-```
+Then redeploy. There is no in-app updater and no self-update command: on any
+host that rebuilds from an image — Docker, Fly, Railway, Render, a serverless
+platform — a server that rewrote its own files would lose the change on the next
+deploy. Your lockfile is the record of which version you run.
 
 ---
 

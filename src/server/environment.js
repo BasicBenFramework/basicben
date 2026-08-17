@@ -88,66 +88,6 @@ export function getVersion() {
 }
 
 /**
- * Check if manual updates are allowed
- * @returns {boolean}
- */
-export function canManualUpdate() {
-  // Cloud instances are updated automatically
-  if (isCloud()) {
-    return false
-  }
-
-  // Check if updates are disabled via env
-  if (process.env.BASICBEN_DISABLE_UPDATES === 'true') {
-    return false
-  }
-
-  return true
-}
-
-/**
- * Check if plugin installation is allowed
- * @returns {boolean}
- */
-export function canInstallPlugins() {
-  // Cloud may restrict plugins based on plan
-  if (isCloud()) {
-    const plan = process.env.BASICBEN_PLAN || 'starter'
-    // Starter plan has restricted plugins
-    return plan !== 'starter'
-  }
-
-  return true
-}
-
-
-/**
- * Get the update channel
- * @returns {string} 'stable', 'beta', or 'dev'
- */
-export function getUpdateChannel() {
-  return process.env.BASICBEN_UPDATE_CHANNEL || 'stable'
-}
-
-/**
- * Get license key
- * @returns {string|null}
- */
-export function getLicenseKey() {
-  return process.env.BASICBEN_LICENSE || null
-}
-
-/**
- * Assert that running in self-hosted mode
- * @throws {Error} If running in cloud mode
- */
-export function assertSelfHosted() {
-  if (isCloud()) {
-    throw new Error('This operation is not available on BasicBen Cloud. Updates are managed automatically.')
-  }
-}
-
-/**
  * Assert that running in cloud mode
  * @throws {Error} If running in self-hosted mode
  */

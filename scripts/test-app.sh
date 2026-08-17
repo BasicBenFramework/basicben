@@ -210,7 +210,7 @@ DEV_PID=$!
 
 # Wait for servers to be ready
 log_info "Waiting for servers..."
-if ! wait_for_server "http://localhost:3001/api/feed" 30; then
+if ! wait_for_server "http://localhost:3001/feed.json" 30; then
   log_error "API server failed to start"
   cat /tmp/basicben-dev.log
   exit 1
@@ -229,10 +229,6 @@ log_info "Testing API endpoints..."
 
 # Generate unique email for this test run
 TEST_EMAIL="test-$(date +%s)@example.com"
-
-# Public feed endpoint
-test_endpoint "GET /api/feed returns array" \
-  "GET" "http://localhost:3001/api/feed" "" "\["
 
 # Auth register
 REGISTER_RESPONSE=$(curl -s -X POST http://localhost:3001/api/auth/register \
@@ -452,35 +448,6 @@ if [ -n "$AUTH_TOKEN" ]; then
     ((TESTS_FAILED++))
   fi
 
-  # ---- Themes API ----
-  echo ""
-  log_info "Testing Themes API..."
-
-  # Get themes
-  THEMES_RESPONSE=$(curl -s http://localhost:3001/api/themes \
-    -H "Authorization: Bearer $AUTH_TOKEN")
-
-  if echo "$THEMES_RESPONSE" | grep -q "\["; then
-    log_success "GET /api/themes returns array"
-    ((TESTS_PASSED++))
-  else
-    log_error "GET /api/themes failed"
-    ((TESTS_FAILED++))
-  fi
-
-  # Get active theme
-  ACTIVE_THEME=$(curl -s http://localhost:3001/api/themes/active \
-    -H "Authorization: Bearer $AUTH_TOKEN")
-
-  if echo "$ACTIVE_THEME" | grep -q "theme\|name\|default"; then
-    log_success "GET /api/themes/active returns theme info"
-    ((TESTS_PASSED++))
-  else
-    log_error "GET /api/themes/active failed"
-    echo -e "  ${DIM}Response: $ACTIVE_THEME${NC}"
-    ((TESTS_FAILED++))
-  fi
-
   # ---- Plugins API ----
   echo ""
   log_info "Testing Plugins API..."
@@ -497,58 +464,6 @@ if [ -n "$AUTH_TOKEN" ]; then
     ((TESTS_FAILED++))
   fi
 
-  # ---- Updates API ----
-  echo ""
-  log_info "Testing Updates API..."
-
-  # Check for updates
-  UPDATES_RESPONSE=$(curl -s http://localhost:3001/api/updates/check \
-    -H "Authorization: Bearer $AUTH_TOKEN")
-
-  if echo "$UPDATES_RESPONSE" | grep -q "core\|plugins\|themes"; then
-    log_success "GET /api/updates/check returns update info"
-    ((TESTS_PASSED++))
-  else
-    log_error "GET /api/updates/check failed"
-    echo -e "  ${DIM}Response: $UPDATES_RESPONSE${NC}"
-    ((TESTS_FAILED++))
-  fi
-
-  # Browse registry plugins
-  REGISTRY_PLUGINS=$(curl -s http://localhost:3001/api/registry/plugins \
-    -H "Authorization: Bearer $AUTH_TOKEN")
-
-  if echo "$REGISTRY_PLUGINS" | grep -q "plugins\|\[\]"; then
-    log_success "GET /api/registry/plugins returns plugins list"
-    ((TESTS_PASSED++))
-  else
-    log_error "GET /api/registry/plugins failed"
-    ((TESTS_FAILED++))
-  fi
-
-  # Browse registry themes
-  REGISTRY_THEMES=$(curl -s http://localhost:3001/api/registry/themes \
-    -H "Authorization: Bearer $AUTH_TOKEN")
-
-  if echo "$REGISTRY_THEMES" | grep -q "themes\|\[\]"; then
-    log_success "GET /api/registry/themes returns themes list"
-    ((TESTS_PASSED++))
-  else
-    log_error "GET /api/registry/themes failed"
-    ((TESTS_FAILED++))
-  fi
-
-  # List backups
-  BACKUPS_RESPONSE=$(curl -s http://localhost:3001/api/backups \
-    -H "Authorization: Bearer $AUTH_TOKEN")
-
-  if echo "$BACKUPS_RESPONSE" | grep -q "backups\|\[\]"; then
-    log_success "GET /api/backups returns backups list"
-    ((TESTS_PASSED++))
-  else
-    log_error "GET /api/backups failed"
-    ((TESTS_FAILED++))
-  fi
 fi
 
 # ---- Feed Endpoints (Public) ----
@@ -680,9 +595,9 @@ else
   ((TESTS_PASSED++))
 
   # Test production endpoints
-  PROD_FEED=$(curl -s http://localhost:3003/api/feed)
+  PROD_FEED=$(curl -s http://localhost:3003/feed.json)
   if echo "$PROD_FEED" | grep -q "\["; then
-    log_success "Production API responds (/api/feed)"
+    log_success "Production API responds (/feed.json)"
     ((TESTS_PASSED++))
   else
     log_error "Production API not responding"

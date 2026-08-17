@@ -15,12 +15,10 @@ npm run test:cli
 npm run test:scaffolding
 
 # Run integration tests (creates test app)
-npm run test:app        # JavaScript template
-npm run test:app:ts     # TypeScript template
+npm run test:app
 
 # End-to-end: pack, scaffold, build, boot and typecheck a real app
 ./scripts/smoke-test.sh
-./scripts/smoke-test.sh --ts
 ```
 
 ---
@@ -124,8 +122,7 @@ Tests for:
 ### Integration Tests (`scripts/test-app.sh`)
 
 ```bash
-npm run test:app      # JavaScript template
-npm run test:app:ts   # TypeScript template
+npm run test:app
 ```
 
 Full end-to-end tests that:
@@ -150,13 +147,7 @@ Full end-to-end tests that:
 | `GET/POST /api/posts/:id/comments` | Comments |
 | `GET /api/media` | Media library |
 | `GET /api/settings` | Site settings |
-| `GET /api/themes` | Theme management |
-| `GET /api/themes/active` | Active theme |
 | `GET /api/plugins` | Plugin management |
-| `GET /api/updates/check` | Check for updates |
-| `GET /api/registry/plugins` | Browse plugin registry |
-| `GET /api/registry/themes` | Browse theme registry |
-| `GET /api/backups` | List backups |
 | `GET /feed.xml` | RSS feed |
 | `GET /feed.json` | JSON feed |
 | `GET /sitemap.xml` | Sitemap |
@@ -198,11 +189,7 @@ Create a local test app to test the full framework integration, including the bl
 ### Quick setup (recommended)
 
 ```bash
-# JavaScript template
 npm run test:app
-
-# TypeScript template
-npm run test:app:ts
 ```
 
 Then start the dev server:
@@ -220,20 +207,15 @@ npm run dev
 - **Categories & Tags**: Organize content at `/admin/categories` and `/admin/tags`
 - **Comments**: Moderate comments at `/admin/comments`
 - **Media Library**: Upload files at `/admin/media`
-- **Themes**: Switch themes at `/admin/themes`
 - **Plugins**: Enable/disable plugins at `/admin/plugins`
-- **Updates**: Check for updates at `/admin/updates`
 - **Settings**: Site configuration at `/admin/settings`
 - **Feeds**: Check `/feed.xml`, `/feed.json`, `/sitemap.xml`
 
 ### Manual setup
 
 ```bash
-# Create test app with local framework link (JavaScript)
+# Create test app with local framework link
 node create-basicben-app/index.js my-test-app --local
-
-# Create test app with local framework link (TypeScript)
-node create-basicben-app/index.js my-test-app --local --typescript
 
 cd my-test-app
 npm install
