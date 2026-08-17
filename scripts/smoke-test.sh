@@ -683,6 +683,79 @@ case "$RERENDER" in
   *) echo "$RERENDER"; fail "content:rerender should have reported the posts table" ;;
 esac
 
+# --- Headless API --------------------------------------------------------------
+#
+# The point of this surface is that a program somewhere else can read the site's
+# content with a credential that is not somebody's login. Everything here is
+# checked against the running server rather than the module, because the parts
+# that break are the seams: which middleware runs, what a scope refuses, and
+# whether a second request actually gets a 304.
+
+code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/api/v1/posts")"
+[ "$code" = "401" ] || fail "anonymous /api/v1/posts got $code, expected 401"
+pass "the content API refuses anonymous reads by default"
+
+ISSUED="$(curl -s -X POST "http://localhost:$PORT/api/tokens" \
+  -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"name":"smoke","scopes":["content:read"]}')"
+
+API_TOKEN="$(printf '%s' "$ISSUED" | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).token || ''" 2>/dev/null)"
+
+case "$API_TOKEN" in
+  bb_*) pass "an API token is issued with a bb_ prefix" ;;
+  *) echo "$ISSUED"; fail "no API token came back" ;;
+esac
+
+# The plaintext exists only in that response. If it were recoverable the
+# hash-only storage would be decorative.
+LISTED="$(curl -s "http://localhost:$PORT/api/tokens" -H "Authorization: Bearer $OWNER_TOKEN")"
+case "$LISTED" in
+  *"$API_TOKEN"*) fail "the token plaintext is readable from the listing" ;;
+  *) pass "the plaintext is never returned again" ;;
+esac
+
+token_status() {
+  curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $API_TOKEN" "http://localhost:$PORT$1"
+}
+
+[ "$(token_status /api/v1/posts)" = "200" ] || fail "a content:read token was refused /api/v1/posts"
+pass "a scoped token reads the content API"
+
+# content:read must not reach media. A scope that grants everything is not a
+# scope, and this is the assertion that would catch it becoming one.
+[ "$(token_status /api/v1/media/1)" = "401" ] \
+  || fail "a content:read token reached /api/v1/media, which needs media:read"
+pass "a token is refused outside its scopes"
+
+# Minting tokens from a token would make scopes meaningless: a leaked read-only
+# credential could issue itself a write-scoped one.
+[ "$(token_status /api/tokens)" = "403" ] \
+  || fail "an API token was allowed to manage tokens"
+pass "an API token cannot mint another"
+
+V1_BODY="$(curl -s "http://localhost:$PORT/api/v1/posts" -H "Authorization: Bearer $API_TOKEN")"
+case "$V1_BODY" in
+  *'"author"'*) pass "the content API returns author names" ;;
+  *) echo "$V1_BODY"; fail "no author field in the v1 response" ;;
+esac
+
+# The admin API joins users; the public one must not carry an address through.
+case "$V1_BODY" in
+  *'owner@example.com'*) fail "an author email leaked into the public API" ;;
+  *) pass "no author email reaches the public API" ;;
+esac
+
+V1_ETAG="$(curl -s -D - -o /dev/null "http://localhost:$PORT/api/v1/posts" \
+  -H "Authorization: Bearer $API_TOKEN" | grep -i '^etag:' | tr -d '\r' | cut -d' ' -f2)"
+
+[ -n "$V1_ETAG" ] || fail "the content API sent no ETag"
+
+REVALIDATED="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/api/v1/posts" \
+  -H "Authorization: Bearer $API_TOKEN" -H "If-None-Match: $V1_ETAG")"
+
+[ "$REVALIDATED" = "304" ] || fail "revalidating with the ETag got $REVALIDATED, expected 304"
+pass "the content API answers a conditional request with 304"
+
 # --- Media uploads -------------------------------------------------------------
 #
 # The previous upload path could not work: the global body parser drained every

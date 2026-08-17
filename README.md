@@ -1275,6 +1275,86 @@ matters.
 
 ---
 
+## Headless API
+
+A read-only content API at `/api/v1`, authenticated with tokens rather than
+logins, alongside the bundled admin and SPA rather than instead of them. A blog
+can be served by the built-in frontend today and by a static site generator
+later without a rewrite.
+
+### Tokens
+
+Issue one at `/admin/tokens`. The plaintext is shown once and never again — only
+a SHA-256 hash is stored, so a copy of the database does not hand over working
+credentials.
+
+```bash
+curl https://example.com/api/v1/posts \
+  -H "Authorization: Bearer bb_..."
+```
+
+The `bb_` prefix is what lets one `Authorization: Bearer` header carry either a
+token or a user session: middleware picks the verifier from the prefix rather
+than trying both.
+
+Scopes are `content:read`, `content:write`, `media:read` and `media:write`. A
+write scope grants the matching read. A token cannot manage tokens — otherwise a
+leaked read-only credential could mint itself a write-scoped one.
+
+### Endpoints
+
+```
+GET /api/v1/posts?page=&per_page=&category=&tag=&search=&format=
+GET /api/v1/posts/:slug
+GET /api/v1/pages
+GET /api/v1/pages/:slug
+GET /api/v1/categories
+GET /api/v1/tags
+GET /api/v1/media/:id
+```
+
+Only published content is returned. `:slug` also accepts a numeric id, since
+slugs are nullable on posts. `per_page` is clamped to 100. Responses are
+`{ data, meta }`.
+
+`?format=markdown` returns the source instead of rendered HTML. Every item
+reports the `format` it actually carries: a post written before HTML rendering
+existed has no cached HTML, and the API falls back to Markdown and says so
+rather than labelling Markdown as HTML. `basicben content:rerender` fills the
+cache.
+
+Comments are deliberately absent — that table stores `author_email` for
+unauthenticated commenters.
+
+### Public reads
+
+Off by default. Set `public_api` to `true` in settings to serve content
+anonymously, which is what lets a browser-side consumer read it without shipping
+a token to the browser.
+
+### Caching
+
+Every read carries an `ETag` and `Cache-Control`, and `If-None-Match` gets a
+`304` with no body. Static files get the same, plus `Accept-Ranges` and real
+`206` responses so media can be seeked and resumed.
+
+### CORS
+
+```js
+export default {
+  cors: {
+    origin: ['https://blog.example.com'],
+    credentials: true
+  }
+}
+```
+
+`origin` takes a string, an array, or a function. `'*'` together with
+`credentials: true` is refused with a warning rather than honoured — browsers
+reject that pairing, so it would break every credentialed request silently.
+
+---
+
 ## Testing
 
 BasicBen uses Vitest for application tests:

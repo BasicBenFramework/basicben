@@ -59,6 +59,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     { path: '/admin/comments', label: 'Comments' },
     { path: '/admin/media', label: 'Media' },
     { path: '/admin/plugins', label: 'Plugins' },
+    { path: '/admin/tokens', label: 'API tokens' },
     { path: '/admin/settings', label: 'Settings' },
   ]
 

@@ -23,6 +23,8 @@ import settingsRoutes from '../routes/api/settings'
 import feedRoutes from '../routes/api/feed'
 import pluginsRoutes from '../routes/api/plugins'
 import adminRoutes from '../routes/api/admin'
+import tokensRoutes from '../routes/api/tokens'
+import v1Routes from '../routes/api/v1'
 
 // Plugins are imported for the same reason routes are: a static import is
 // something the bundler can follow, so the plugin is still there after a
@@ -68,6 +70,10 @@ settingsRoutes(router)
 feedRoutes(router)
 pluginsRoutes(router)
 adminRoutes(router)
+tokensRoutes(router)
+// The public content API. Versioned because its consumers are outside this
+// repository, and read-only because the admin API already owns the writes.
+v1Routes(router)
 router.applyTo(app)
 
 const port = process.env.PORT || 3001

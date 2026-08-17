@@ -29,6 +29,10 @@
       "types": "./types/server/rate-limit.d.ts",
       "default": "./src/server/rate-limit.js"
     },
+    "./etag": {
+      "types": "./types/server/etag.d.ts",
+      "default": "./src/server/etag.js"
+    },
     "./client": {
       "types": "./types/client/index.d.ts",
       "default": "./src/client/index.js"
@@ -48,6 +52,10 @@
     "./auth/tokens": {
       "types": "./types/auth/tokens.d.ts",
       "default": "./src/auth/tokens.js"
+    },
+    "./auth/api-tokens": {
+      "types": "./types/auth/api-tokens.d.ts",
+      "default": "./src/auth/api-tokens.js"
     },
     "./auth/totp": {
       "types": "./types/auth/totp.d.ts",

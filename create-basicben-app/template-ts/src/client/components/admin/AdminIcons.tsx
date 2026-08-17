@@ -56,6 +56,12 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M12 19v2" />
     </>
   ),
+  tokens: (
+    <>
+      <circle cx="8" cy="12" r="4" />
+      <path d="M12 12h9M17 12v3M21 12v2" />
+    </>
+  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />
@@ -80,6 +86,7 @@ const byPath: Record<string, string> = {
   '/admin/comments': 'comments',
   '/admin/media': 'media',
   '/admin/plugins': 'plugins',
+  '/admin/tokens': 'tokens',
   '/admin/settings': 'settings'
 }
 

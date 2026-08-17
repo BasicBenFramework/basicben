@@ -143,6 +143,12 @@ export interface Request {
   user?: AuthUser
   /** Set by requireCapability when a loadResource option is supplied */
   resource?: Record<string, unknown>
+  /**
+   * Set by requireScope when the credential was an API token rather than a
+   * session. Its presence is what distinguishes a program from a person —
+   * a token has scopes but no role, so capability checks do not apply to it.
+   */
+  apiToken?: { id: number; name: string; scopes: string[] }
 }
 
 export interface Response {

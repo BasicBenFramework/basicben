@@ -30,6 +30,7 @@ const DEFAULT_MENU = [
   { path: '/admin/comments', label: 'Comments', icon: '💬' },
   { path: '/admin/media', label: 'Media', icon: '🖼️' },
   { path: '/admin/plugins', label: 'Plugins', icon: '🔌' },
+  { path: '/admin/tokens', label: 'API tokens', icon: '🔑' },
   { path: '/admin/settings', label: 'Settings', icon: '⚙️' }
 ]
 

@@ -128,3 +128,93 @@ describe('spaFallback', () => {
     assert.strictEqual(fellThrough, true)
   })
 })
+
+describe('serveStatic conditional requests and ranges', () => {
+  const BODY = 'abcdefghijklmnopqrstuvwxyz'
+
+  let root
+  let previousCwd
+  let handler
+
+  before(async () => {
+    previousCwd = process.cwd()
+    root = mkdtempSync(join(tmpdir(), 'basicben-static-'))
+    mkdirSync(join(root, 'public'), { recursive: true })
+    writeFileSync(join(root, 'public', 'file.txt'), BODY)
+    process.chdir(root)
+
+    const { serveStatic } = await import('./static.js')
+    handler = serveStatic({ dir: 'public' })
+  })
+
+  after(() => {
+    process.chdir(previousCwd)
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  const get = (headers = {}, method = 'GET') =>
+    run(handler, { method, path: '/file.txt', url: '/file.txt', headers })
+
+  test('sends an ETag and advertises range support', async () => {
+    const res = await get()
+
+    assert.ok(res.headers.etag, 'no ETag was sent')
+    assert.strictEqual(res.headers['accept-ranges'], 'bytes')
+    assert.strictEqual(res.body, BODY)
+  })
+
+  test('returns 304 for a matching ETag', async () => {
+    // This is what was broken: Last-Modified was sent and the conditional
+    // request that came back was answered with the whole file.
+    const first = await get()
+    const second = await get({ 'if-none-match': first.headers.etag })
+
+    assert.strictEqual(second.statusCode, 304)
+    assert.strictEqual(second.body, '')
+  })
+
+  test('returns 304 for If-Modified-Since', async () => {
+    const first = await get()
+    const res = await get({ 'if-modified-since': first.headers['last-modified'] })
+
+    assert.strictEqual(res.statusCode, 304)
+    assert.strictEqual(res.body, '')
+  })
+
+  test('a stale validator still gets the body', async () => {
+    const res = await get({ 'if-none-match': '"not-the-tag"' })
+
+    assert.strictEqual(res.statusCode, 200)
+    assert.strictEqual(res.body, BODY)
+  })
+
+  test('serves a byte range as 206', async () => {
+    const res = await get({ range: 'bytes=0-4' })
+
+    assert.strictEqual(res.statusCode, 206)
+    assert.strictEqual(res.body, 'abcde')
+    assert.strictEqual(res.headers['content-range'], `bytes 0-4/${BODY.length}`)
+    assert.strictEqual(res.headers['content-length'], 5)
+  })
+
+  test('serves a suffix range', async () => {
+    const res = await get({ range: 'bytes=-3' })
+
+    assert.strictEqual(res.statusCode, 206)
+    assert.strictEqual(res.body, 'xyz')
+  })
+
+  test('an unsatisfiable range is 416', async () => {
+    const res = await get({ range: `bytes=${BODY.length + 10}-` })
+
+    assert.strictEqual(res.statusCode, 416)
+    assert.strictEqual(res.headers['content-range'], `bytes */${BODY.length}`)
+  })
+
+  test('a HEAD request sends headers and no body', async () => {
+    const res = await get({}, 'HEAD')
+
+    assert.strictEqual(res.body, '')
+    assert.strictEqual(res.headers['content-length'], BODY.length)
+  })
+})

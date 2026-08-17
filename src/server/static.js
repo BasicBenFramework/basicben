@@ -5,6 +5,7 @@
 
 import { createReadStream, statSync } from 'node:fs'
 import { join, extname, resolve } from 'node:path'
+import { conditional, weakEtag, parseRange } from './etag.js'
 
 const mimeTypes = {
   '.html': 'text/html',
@@ -118,9 +119,40 @@ export function serveStatic(options = {}) {
 
     // Set headers
     res.setHeader('Content-Type', mime)
-    res.setHeader('Content-Length', stat.size)
-    res.setHeader('Cache-Control', `public, max-age=${config.maxAge}`)
-    res.setHeader('Last-Modified', stat.mtime.toUTCString())
+    res.setHeader('Accept-Ranges', 'bytes')
+
+    // The validators go on before anything else, and a client whose copy is
+    // still good gets a 304 here rather than the file. Last-Modified was
+    // already being sent; what was missing was ever reading the
+    // If-Modified-Since that came back, so every conditional request was
+    // answered with the whole body.
+    const answered = conditional(req, res, {
+      etag: weakEtag(stat),
+      lastModified: stat.mtime,
+      cacheControl: `public, max-age=${config.maxAge}`
+    })
+
+    if (answered) return
+
+    const range = parseRange(req.headers.range, stat.size)
+
+    if (range?.unsatisfiable) {
+      res.statusCode = 416
+      res.setHeader('Content-Range', `bytes */${stat.size}`)
+      res.end()
+      return
+    }
+
+    const start = range ? range.start : 0
+    const end = range ? range.end : stat.size - 1
+    const length = end - start + 1
+
+    if (range) {
+      res.statusCode = 206
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`)
+    }
+
+    res.setHeader('Content-Length', length)
 
     // Handle HEAD request
     if (req.method === 'HEAD') {
@@ -129,7 +161,7 @@ export function serveStatic(options = {}) {
     }
 
     // Stream file
-    const stream = createReadStream(fullPath)
+    const stream = createReadStream(fullPath, range ? { start, end } : undefined)
     stream.pipe(res)
     stream.on('error', (err) => {
       console.error('Static file error:', err)

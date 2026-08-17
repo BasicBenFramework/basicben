@@ -32,27 +32,39 @@ export function cors(options = {}) {
   return (req, res, next) => {
     const origin = req.headers.origin
 
+    // Whether this particular request's origin was allowed. An allowlist that
+    // does not match sets no header at all, which is what makes the browser
+    // refuse it.
+    let allowedOrigin = false
+
     // Set origin header
     if (config.origin === '*') {
       res.setHeader('Access-Control-Allow-Origin', '*')
+      allowedOrigin = true
     } else if (typeof config.origin === 'string') {
       res.setHeader('Access-Control-Allow-Origin', config.origin)
       res.setHeader('Vary', 'Origin')
+      allowedOrigin = true
     } else if (Array.isArray(config.origin)) {
       if (origin && config.origin.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin)
         res.setHeader('Vary', 'Origin')
+        allowedOrigin = true
       }
     } else if (typeof config.origin === 'function') {
       const allowed = config.origin(origin, req)
       if (allowed) {
         res.setHeader('Access-Control-Allow-Origin', typeof allowed === 'string' ? allowed : origin)
         res.setHeader('Vary', 'Origin')
+        allowedOrigin = true
       }
     }
 
-    // Credentials
-    if (config.credentials) {
+    // Credentials, but only alongside an origin that was actually allowed.
+    // `Access-Control-Allow-Credentials: true` with no accompanying
+    // `Access-Control-Allow-Origin` means nothing to a browser and reads, to
+    // anyone debugging a refused request, as though the server said yes.
+    if (config.credentials && allowedOrigin) {
       res.setHeader('Access-Control-Allow-Credentials', 'true')
     }
 
