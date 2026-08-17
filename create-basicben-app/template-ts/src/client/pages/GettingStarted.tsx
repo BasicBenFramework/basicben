@@ -133,7 +133,7 @@ export function GettingStarted() {
           </div>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            The generators write <code>.js</code> files and refuse to overwrite a file that already exists.
+            The generators write TypeScript and refuse to overwrite a file that already exists. Migrations and seeders are <code>.ts</code> too — Node strips the types, so they run with no build step.
           </p>
         </Card>
 

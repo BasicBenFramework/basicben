@@ -1,6 +1,6 @@
 /**
  * make:controller command
- * Generates a controller file in src/controllers/
+ * Generates a controller file in src/controllers/ as TypeScript
  */
 
 import { generate, transformName } from '../scaffolding/index.js'
@@ -16,11 +16,11 @@ export async function run(args, flags) {
   }
 
   const names = transformName(name)
-  const fileName = `${names.pascal}Controller.js`
+  const fileName = `${names.pascal}Controller.ts`
   const targetPath = `src/controllers/${fileName}`
 
   try {
-    const fullPath = generate('controller', targetPath, {
+    const fullPath = generate('controller.ts', targetPath, {
       Name: names.pascal,
       name: names.camel,
       lower: names.lower,

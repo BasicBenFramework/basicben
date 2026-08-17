@@ -1,6 +1,6 @@
 /**
  * make:model command
- * Generates a model file in src/models/
+ * Generates a model file in src/models/ as TypeScript
  */
 
 import { generate, transformName } from '../scaffolding/index.js'
@@ -16,11 +16,11 @@ export async function run(args, flags) {
   }
 
   const names = transformName(name)
-  const fileName = `${names.pascal}.js`
+  const fileName = `${names.pascal}.ts`
   const targetPath = `src/models/${fileName}`
 
   try {
-    const fullPath = generate('model', targetPath, {
+    const fullPath = generate('model.ts', targetPath, {
       Name: names.pascal,
       name: names.camel,
       lower: names.lower,

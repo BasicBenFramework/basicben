@@ -1,0 +1,25 @@
+/**
+ * Migration: {{description}}
+ *
+ * The runner passes the connected adapter. Only what a migration uses is
+ * declared here — the framework's `getDb()` is typed as `any`, so importing a
+ * `Database` type is not an option, and a narrow local shape documents the
+ * contract better than `any` would.
+ */
+interface MigrationDb {
+  exec: (sql: string) => Promise<void>
+}
+
+export const up = async (db: MigrationDb) => {
+  await db.exec(`
+    CREATE TABLE {{tableName}} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+}
+
+export const down = async (db: MigrationDb) => {
+  await db.exec('DROP TABLE IF EXISTS {{tableName}}')
+}

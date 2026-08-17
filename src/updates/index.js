@@ -6,6 +6,7 @@
  * - Plugins
  */
 
+import { pathToFileURL } from 'node:url'
 import { RegistryClient } from './registry.js'
 import {
   parseVersion,
@@ -597,33 +598,57 @@ export class UpdateManager {
    * Get installed plugins
    * @returns {Promise<object[]>}
    */
+  /**
+   * Every installed plugin, with the metadata the update checks need.
+   *
+   * Discovery is delegated to the loader rather than reimplemented. The second
+   * implementation this replaces only looked at directories containing a
+   * `plugin.json`, so single-file plugins — which the loader has always
+   * supported, and which the shipped `hello-world.js` is one of — were invisible
+   * to every update check.
+   *
+   * @returns {Promise<Array<{slug: string, name: string, version: string, description?: string}>>}
+   */
   async getInstalledPlugins() {
-    const pluginsDir = join(process.cwd(), this.config.pluginsDir)
-
-    if (!await pathExists(pluginsDir)) {
-      return []
-    }
-
-    const { readdir } = await import('node:fs/promises')
-    const entries = await readdir(pluginsDir, { withFileTypes: true })
+    const { scanPlugins } = await import('../plugins/loader.js')
+    const found = scanPlugins(this.config.pluginsDir)
     const plugins = []
 
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const pluginJsonPath = join(pluginsDir, entry.name, 'plugin.json')
-        if (await pathExists(pluginJsonPath)) {
-          try {
-            const config = JSON.parse(await readFile(pluginJsonPath, 'utf-8'))
-            plugins.push({
-              slug: entry.name,
-              name: config.name,
-              version: config.version,
-              description: config.description
-            })
-          } catch {
-            // Skip invalid plugins
-          }
+    for (const entry of found) {
+      const manifest = join(entry.path, 'plugin.json')
+
+      // A directory plugin's manifest is metadata without side effects, so it
+      // is preferred when present.
+      if (entry.type === 'directory' && await pathExists(manifest)) {
+        try {
+          const config = JSON.parse(await readFile(manifest, 'utf-8'))
+          plugins.push({
+            slug: entry.name,
+            name: config.name || entry.name,
+            version: config.version || '0.0.0',
+            description: config.description
+          })
+          continue
+        } catch {
+          // Fall through to the module below rather than dropping the plugin.
         }
+      }
+
+      // Otherwise the version lives on the default export, which means
+      // importing the module — the same thing the loader does at boot. A plugin
+      // that throws on import is listed at an unknown version rather than
+      // taking the whole listing down with it.
+      try {
+        const module = await import(pathToFileURL(entry.path).href)
+        const plugin = module.default || {}
+        plugins.push({
+          slug: entry.name,
+          name: plugin.name || entry.name,
+          version: plugin.version || '0.0.0',
+          description: plugin.description
+        })
+      } catch {
+        plugins.push({ slug: entry.name, name: entry.name, version: '0.0.0' })
       }
     }
 

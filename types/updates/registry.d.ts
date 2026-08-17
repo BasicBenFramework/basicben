@@ -22,6 +22,8 @@ export class RegistryClient {
     timeout: number;
     cache: Map<any, any>;
     cacheTimeout: any;
+    unreachable: Map<any, any>;
+    unreachableFor: any;
     /**
      * Make an HTTP request
      * @param {string} url - Full URL to request
@@ -135,5 +137,6 @@ export class RegistryClient {
      * @returns {Promise<boolean>} True if reachable
      */
     pingRegistry(url: string): Promise<boolean>;
+    #private;
 }
 export const registry: RegistryClient;

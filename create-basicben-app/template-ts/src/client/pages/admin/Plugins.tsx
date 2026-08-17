@@ -26,6 +26,15 @@ interface RegistryPlugin {
   installed?: boolean
 }
 
+/**
+ * Whether the plugin registry is reachable.
+ *
+ * `registry.basicben.com` has not been built, so browse and install search a
+ * host that does not resolve. Flip this to true when a registry exists — the
+ * browse code, the API routes and the CLI commands are all still here.
+ */
+const REGISTRY_ENABLED = false
+
 type Tab = 'installed' | 'browse'
 
 export default function AdminPlugins() {
@@ -162,21 +171,29 @@ export default function AdminPlugins() {
     <AdminLayout title="Plugins">
       <style>{pluginStyles}</style>
 
-      {/* Tabs */}
-      <div className="plugin-tabs">
-        <button
-          className={`plugin-tab ${tab === 'installed' ? 'active' : ''}`}
-          onClick={() => setTab('installed')}
-        >
-          Installed ({plugins.length})
-        </button>
-        <button
-          className={`plugin-tab ${tab === 'browse' ? 'active' : ''}`}
-          onClick={() => setTab('browse')}
-        >
-          Browse Plugins
-        </button>
-      </div>
+      {/*
+        Browsing is hidden until a registry exists. The default registry host
+        does not resolve, so the tab searched a dead address and reported an
+        error — which reads as a broken feature rather than an absent one. The
+        code behind it is untouched; set REGISTRY_ENABLED once there is
+        something to talk to.
+      */}
+      {REGISTRY_ENABLED && (
+        <div className="plugin-tabs">
+          <button
+            className={`plugin-tab ${tab === 'installed' ? 'active' : ''}`}
+            onClick={() => setTab('installed')}
+          >
+            Installed ({plugins.length})
+          </button>
+          <button
+            className={`plugin-tab ${tab === 'browse' ? 'active' : ''}`}
+            onClick={() => setTab('browse')}
+          >
+            Browse Plugins
+          </button>
+        </div>
+      )}
 
       {/* Installed Plugins Tab */}
       {tab === 'installed' && (
@@ -188,12 +205,23 @@ export default function AdminPlugins() {
           {plugins.length === 0 ? (
             <div className="plugin-empty">
               <p>No plugins installed.</p>
-              <button
-                onClick={() => setTab('browse')}
-                className="admin-btn admin-btn-primary"
-              >
-                Browse Plugins
-              </button>
+              {REGISTRY_ENABLED ? (
+                <button
+                  onClick={() => setTab('browse')}
+                  className="admin-btn admin-btn-primary"
+                >
+                  Browse Plugins
+                </button>
+              ) : (
+                /* Pointing at the browse tab while it is hidden would be one
+                   dead end replacing another. This is how plugins are actually
+                   installed today. */
+                <p style={{ color: 'var(--fg-muted)' }}>
+                  Add one by putting a <code>.js</code> or <code>.ts</code> file in{' '}
+                  <code>plugins/</code>, then run{' '}
+                  <code>basicben plugin activate &lt;name&gt;</code> and restart.
+                </p>
+              )}
             </div>
           ) : (
             <table className="admin-table">

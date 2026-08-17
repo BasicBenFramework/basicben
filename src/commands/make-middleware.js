@@ -1,6 +1,6 @@
 /**
  * make:middleware command
- * Generates a middleware file in src/middleware/
+ * Generates a middleware file in src/middleware/ as TypeScript
  */
 
 import { generate, transformName } from '../scaffolding/index.js'
@@ -16,11 +16,13 @@ export async function run(args, flags) {
   }
 
   const names = transformName(name)
-  const fileName = `${names.lower}.js`
+  const fileName = `${names.lower}.ts`
   const targetPath = `src/middleware/${fileName}`
 
-  // Use auth stub for 'auth' middleware, otherwise use generic stub
-  const stubName = names.lower === 'auth' ? 'middleware-auth' : 'middleware'
+  // Use auth stub for 'auth' middleware, otherwise use generic stub.
+  // The auth stub is a complete implementation rather than a skeleton — the
+  // same one the template ships — so a project that removed it gets it back.
+  const stubName = names.lower === 'auth' ? 'middleware-auth.ts' : 'middleware.ts'
 
   try {
     const fullPath = generate(stubName, targetPath, {

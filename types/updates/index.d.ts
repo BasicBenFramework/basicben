@@ -197,7 +197,23 @@ export class UpdateManager {
      * Get installed plugins
      * @returns {Promise<object[]>}
      */
-    getInstalledPlugins(): Promise<object[]>;
+    /**
+     * Every installed plugin, with the metadata the update checks need.
+     *
+     * Discovery is delegated to the loader rather than reimplemented. The second
+     * implementation this replaces only looked at directories containing a
+     * `plugin.json`, so single-file plugins — which the loader has always
+     * supported, and which the shipped `hello-world.js` is one of — were invisible
+     * to every update check.
+     *
+     * @returns {Promise<Array<{slug: string, name: string, version: string, description?: string}>>}
+     */
+    getInstalledPlugins(): Promise<Array<{
+        slug: string;
+        name: string;
+        version: string;
+        description?: string;
+    }>>;
     /**
      * Update package.json with new framework version
      * @param {string} version - Target version

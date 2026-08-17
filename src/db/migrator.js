@@ -10,6 +10,7 @@ import { getDb } from './index.js'
 import { refuseLegacyLayout } from './layout.js'
 import { Grammar } from './Grammar.js'
 import { QueryBuilder } from './QueryBuilder.js'
+import { isModuleFile, stripModuleExtension } from '../modules.js'
 
 const MIGRATIONS_TABLE = '_migrations'
 
@@ -197,10 +198,10 @@ function getMigrationFiles(dir) {
   }
 
   return readdirSync(dir)
-    .filter(f => f.endsWith('.js') && !f.endsWith('.test.js'))
+    .filter(isModuleFile)
     .sort()
     .map(f => ({
-      name: f.replace('.js', ''),
+      name: stripModuleExtension(f),
       path: join(dir, f)
     }))
 }

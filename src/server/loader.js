@@ -7,6 +7,7 @@ import { readdirSync, existsSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Router } from './router.js'
+import { isModuleFile } from '../modules.js'
 
 /**
  * Load all route files from a directory.
@@ -89,7 +90,7 @@ function getJsFiles(dir, files = []) {
 
     if (stat.isDirectory()) {
       getJsFiles(fullPath, files)
-    } else if (entry.endsWith('.js') && !entry.endsWith('.test.js')) {
+    } else if (isModuleFile(entry)) {
       files.push(fullPath)
     }
   }

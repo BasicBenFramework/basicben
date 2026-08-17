@@ -129,6 +129,40 @@ if ! npx tsc --noEmit > "$WORK_DIR/tsc.log" 2>&1; then
 fi
 pass "scaffolded app typechecks with no errors"
 
+# The generators emit TypeScript, so what they write has to typecheck inside a
+# real app — not just resolve its imports. A stub referring to a type that does
+# not exist, or leaving a parameter implicitly any under `strict`, produces a
+# file that the app it was generated into cannot compile.
+npx basicben make:controller widget > /dev/null 2>&1 || fail "make:controller failed"
+npx basicben make:model widget > /dev/null 2>&1 || fail "make:model failed"
+npx basicben make:route widget > /dev/null 2>&1 || fail "make:route failed"
+npx basicben make:middleware logger > /dev/null 2>&1 || fail "make:middleware failed"
+npx basicben make:migration create_widgets > /dev/null 2>&1 || fail "make:migration failed"
+npx basicben make:seed widgets > /dev/null 2>&1 || fail "make:seed failed"
+
+for expected in src/controllers/WidgetController.ts src/models/Widget.ts \
+                src/routes/api/widget.ts src/middleware/logger.ts db/seeds/widgets.ts; do
+  [ -f "$expected" ] || fail "generators did not write $expected"
+done
+ls db/migrations/*_create_widgets.ts > /dev/null 2>&1 \
+  || fail "make:migration did not write a .ts migration"
+pass "generators emit TypeScript"
+
+if ! npx tsc --noEmit > "$WORK_DIR/tsc-generated.log" 2>&1; then
+  echo "--- tsc --noEmit after generating ---"
+  head -40 "$WORK_DIR/tsc-generated.log"
+  fail "generated files do not typecheck"
+fi
+pass "generated files typecheck"
+
+# And the generated migration must actually be found — the migrator, the seeder
+# and the route loader all filtered for .js, so TypeScript output would have been
+# discovered by nothing and silently never run.
+npx basicben migrate > "$WORK_DIR/migrate-ts.log" 2>&1 || fail "migrating the generated .ts migration failed"
+grep -qi "create_widgets" "$WORK_DIR/migrate-ts.log" \
+  || { cat "$WORK_DIR/migrate-ts.log"; fail "the generated .ts migration was not discovered"; }
+pass "a generated .ts migration runs"
+
 # The committed declarations are generated from the JSDoc, so an edit to a
 # signature that skips `npm run build:types` ships types that describe the
 # previous version. Only checkable where the framework's own tsc is

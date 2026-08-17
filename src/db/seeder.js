@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { getDb } from './index.js'
 import { refuseLegacyLayout } from './layout.js'
+import { isModuleFile, stripModuleExtension } from '../modules.js'
 
 /**
  * Create seeder instance
@@ -108,10 +109,10 @@ function getSeedFiles(dir) {
   }
 
   return readdirSync(dir)
-    .filter(f => f.endsWith('.js') && !f.endsWith('.test.js'))
+    .filter(isModuleFile)
     .sort()
     .map(f => ({
-      name: f.replace('.js', ''),
+      name: stripModuleExtension(f),
       path: join(dir, f)
     }))
 }

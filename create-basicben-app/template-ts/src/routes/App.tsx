@@ -29,6 +29,7 @@ import AdminTags from '../client/pages/admin/Tags'
 import AdminComments from '../client/pages/admin/Comments'
 import AdminMedia from '../client/pages/admin/Media'
 import AdminPlugins from '../client/pages/admin/Plugins'
+import AdminUpdates from '../client/pages/admin/Updates'
 import AdminSettings from '../client/pages/admin/Settings'
 
 // Admin layout wrapper (no default layout)
@@ -69,6 +70,7 @@ export default createClientApp({
     '/admin/comments': { component: AdminComments, layout: NoLayout, auth: true },
     '/admin/media': { component: AdminMedia, layout: NoLayout, auth: true },
     '/admin/plugins': { component: AdminPlugins, layout: NoLayout, auth: true },
+    '/admin/updates': { component: AdminUpdates, layout: NoLayout, auth: true },
     '/admin/settings': { component: AdminSettings, layout: NoLayout, auth: true },
   }
 })

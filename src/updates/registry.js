@@ -27,6 +27,31 @@ export class RegistryClient {
     this.timeout = options.timeout || 30000
     this.cache = new Map()
     this.cacheTimeout = options.cacheTimeout || 300000 // 5 minutes
+
+    /*
+      Hosts that could not be reached, so the next call does not wait on them
+      again.
+
+      Without this a registry that does not resolve costs the full timeout on
+      every request, multiplied by the number of configured registries, and the
+      admin UI simply hangs. A name that does not resolve is not a slow server:
+      it will not start resolving within the same page view, so asking again
+      immediately buys nothing.
+    */
+    this.unreachable = new Map()
+    this.unreachableFor = options.unreachableFor ?? 60000
+  }
+
+  /** Whether a host failed to resolve recently enough to skip. */
+  #recentlyUnreachable(url) {
+    const host = new URL(url).host
+    const failedAt = this.unreachable.get(host)
+
+    if (failedAt === undefined) return false
+    if (Date.now() - failedAt < this.unreachableFor) return true
+
+    this.unreachable.delete(host)
+    return false
   }
 
   /**
@@ -36,6 +61,10 @@ export class RegistryClient {
    * @returns {Promise<object>} Response data
    */
   async request(url, options = {}) {
+    if (this.#recentlyUnreachable(url)) {
+      throw new Error(`Registry ${new URL(url).host} is unreachable`)
+    }
+
     return new Promise((resolve, reject) => {
       const parsedUrl = new URL(url)
       const client = parsedUrl.protocol === 'https:' ? https : http
@@ -80,9 +109,22 @@ export class RegistryClient {
         })
       })
 
-      req.on('error', reject)
+      // A name that does not resolve, a refused connection or a full timeout
+      // all mean the same thing for the next call: do not wait on this host
+      // again. Anything else — an HTTP error, bad JSON — leaves it alone,
+      // because the host answered.
+      const markUnreachable = () => this.unreachable.set(parsedUrl.host, Date.now())
+
+      req.on('error', (error) => {
+        if (['ENOTFOUND', 'ECONNREFUSED', 'EAI_AGAIN', 'ETIMEDOUT'].includes(error.code)) {
+          markUnreachable()
+        }
+        reject(error)
+      })
+
       req.on('timeout', () => {
         req.destroy()
+        markUnreachable()
         reject(new Error('Request timeout'))
       })
 

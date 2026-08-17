@@ -1,6 +1,6 @@
 /**
  * make:route command
- * Generates a route file in src/routes/api/
+ * Generates a route file in src/routes/api/ as TypeScript
  */
 
 import { generate, transformName } from '../scaffolding/index.js'
@@ -16,11 +16,11 @@ export async function run(args, flags) {
   }
 
   const names = transformName(name)
-  const fileName = `${names.lower}.js`
+  const fileName = `${names.lower}.ts`
   const targetPath = `src/routes/api/${fileName}`
 
   try {
-    const fullPath = generate('route', targetPath, {
+    const fullPath = generate('route.ts', targetPath, {
       Name: names.pascal,
       name: names.camel,
       lower: names.lower,

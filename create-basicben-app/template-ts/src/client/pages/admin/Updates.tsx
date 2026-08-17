@@ -11,11 +11,17 @@ interface CoreUpdate {
   releaseDate?: string
 }
 
+/*
+  The field names differ from CoreUpdate above, and deliberately so: the core
+  check returns `current`/`latest` while `RegistryClient.checkPluginUpdates`
+  returns `currentVersion`/`latestVersion`. This interface previously copied the
+  core's names, so both version columns rendered empty for every plugin.
+*/
 interface PluginUpdate {
   name: string
   slug: string
-  current: string
-  latest: string
+  currentVersion: string
+  latestVersion: string
   changelog?: string
 }
 
@@ -263,9 +269,9 @@ export default function AdminUpdates() {
                   <td>
                     <strong>{plugin.name}</strong>
                   </td>
-                  <td>{plugin.current}</td>
+                  <td>{plugin.currentVersion}</td>
                   <td>
-                    <span className="admin-badge admin-badge-info">{plugin.latest}</span>
+                    <span className="admin-badge admin-badge-info">{plugin.latestVersion}</span>
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>

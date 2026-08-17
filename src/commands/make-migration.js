@@ -1,6 +1,6 @@
 /**
  * make:migration command
- * Generates a migration file in db/migrations/
+ * Generates a TypeScript migration in db/migrations/
  */
 
 import { generate, transformName, timestamp } from '../scaffolding/index.js'
@@ -33,11 +33,11 @@ export async function run(args, flags) {
     tableName = tableName.split('_from_').pop()
   }
 
-  const fileName = `${ts}_${names.snake}.js`
+  const fileName = `${ts}_${names.snake}.ts`
   const targetPath = `db/migrations/${fileName}`
 
   try {
-    const fullPath = generate('migration', targetPath, {
+    const fullPath = generate('migration.ts', targetPath, {
       description: name.replace(/_/g, ' '),
       tableName: tableName
     })

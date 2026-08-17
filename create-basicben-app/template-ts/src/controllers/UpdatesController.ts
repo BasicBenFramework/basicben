@@ -93,9 +93,13 @@ export const UpdatesController = {
       const { version, backup = true } = req.body
 
       const result = await updates.updateCore(version, {
-        backup,
-        onProgress: (step: string) => {
-          console.log(`[Core Update] ${step}`)
+        // UpdateManager reads `skipBackup`, so passing `backup` was silently
+        // ignored — a caller asking to skip the backup was given one anyway.
+        skipBackup: backup === false,
+        // onProgress is called with { step, message }; typing it as a string
+        // logged "[object Object]" for every step of every update.
+        onProgress: ({ step, message }: { step: string; message: string }) => {
+          console.log(`[Core Update] ${step}: ${message}`)
         }
       })
 
@@ -126,8 +130,8 @@ export const UpdatesController = {
 
       const result = await updates.updatePlugin(slug, {
         version,
-        onProgress: (step: string) => {
-          console.log(`[Plugin Update: ${slug}] ${step}`)
+        onProgress: ({ step, message }: { step: string; message: string }) => {
+          console.log(`[Plugin Update: ${slug}] ${step}: ${message}`)
         }
       })
 
@@ -202,8 +206,8 @@ export const UpdatesController = {
 
       const result = await updates.installPlugin(slug, {
         version,
-        onProgress: (step: string) => {
-          console.log(`[Plugin Install: ${slug}] ${step}`)
+        onProgress: ({ step, message }: { step: string; message: string }) => {
+          console.log(`[Plugin Install: ${slug}] ${step}: ${message}`)
         }
       })
 

@@ -64,26 +64,37 @@ function stripComments(source) {
     .replace(/^\s*\/\/.*$/gm, '')
 }
 
-/** Relative specifiers from real import/export statements. */
+/**
+ * Relative specifiers from real import/export statements.
+ *
+ * `import type` is excluded because it is erased before the file ever runs, so
+ * it cannot produce the runtime failure this file exists to catch. The generated
+ * controller imports its Request/Response types from the app's src/types, which
+ * a real scaffold has and this temp project does not — those are verified
+ * instead by the smoke test, which typechecks generator output inside a real app.
+ */
 function relativeImports(source) {
-  return [...stripComments(source).matchAll(/(?:^|[\s{}])(?:from|import)\s+'([^']+)'/g)]
+  const withoutTypeImports = stripComments(source)
+    .replace(/^\s*(import|export)\s+type\s+[^\n]*$/gm, '')
+
+  return [...withoutTypeImports.matchAll(/(?:^|[\s{}])(?:from|import)\s+'([^']+)'/g)]
     .map((match) => match[1])
     .filter((specifier) => specifier.startsWith('.'))
 }
 
-/** Every .js file the commands wrote into the project. */
+/** Every module file the commands wrote into the project. */
 function generatedFiles(dir = project) {
   return readdirSync(dir).flatMap((entry) => {
     const full = join(dir, entry)
     if (statSync(full).isDirectory()) return generatedFiles(full)
-    return full.endsWith('.js') ? [full] : []
+    return /\.(m?[jt]s)$/.test(full) ? [full] : []
   })
 }
 
 describe('generated route imports', () => {
   test('imports the controller at a path that exists', () => {
-    const routeFile = join(project, 'src/routes/api/post.js')
-    assert.ok(existsSync(routeFile), 'make:route should write src/routes/api/post.js')
+    const routeFile = join(project, 'src/routes/api/post.ts')
+    assert.ok(existsSync(routeFile), 'make:route should write src/routes/api/post.ts')
 
     const imports = relativeImports(readFileSync(routeFile, 'utf8'))
 
@@ -95,7 +106,7 @@ describe('generated route imports', () => {
       existsSync(resolved),
       `route imports '${imports[0]}', which resolves to ${relative(project, resolved)} — no such file`
     )
-    assert.strictEqual(resolved, join(project, 'src/controllers/PostController.js'))
+    assert.strictEqual(resolved, join(project, 'src/controllers/PostController.ts'))
   })
 
   test('loads through loadRoutes instead of being skipped', async () => {
