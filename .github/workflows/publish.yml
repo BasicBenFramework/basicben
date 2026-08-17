@@ -28,13 +28,8 @@ jobs:
       - name: Install dev dependencies
         run: npm ci
 
-      - name: Smoke test (JavaScript template)
+      - name: Scaffold, build and boot a real app
         run: ./scripts/smoke-test.sh
-
-      - name: Smoke test (TypeScript template)
-        run: ./scripts/smoke-test.sh --ts
-        env:
-          SMOKE_PORT: 3986
 
   publish:
     needs: verify

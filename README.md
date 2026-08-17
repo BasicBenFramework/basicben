@@ -41,7 +41,14 @@ npx basicben migrate
 npx basicben dev
 ```
 
-Your app is running at `http://localhost:3000` with a fully functional blog app — user auth, posts, and profiles included.
+Your app is running at `http://localhost:3000` — a working CMS, not a starter
+skeleton: authentication with two-factor and passkeys, posts and pages,
+categories, tags, comments, a media library, themes, plugins, and an admin
+panel to manage them.
+
+Apps are TypeScript. Nothing forces you to annotate anything — Vite compiles
+the app either way — but the types are there when you want them, and the admin
+panel is written against them.
 
 ### Local Development
 

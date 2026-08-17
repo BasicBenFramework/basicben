@@ -54,7 +54,9 @@ export function GettingStarted() {
             <div>npm run dev</div>
           </div>
           <p className={`text-sm ${t.muted} mt-4`}>
-            The generator scaffolds a JavaScript project by default. Pass <code>--typescript</code> for the TypeScript template. BasicBen requires Node 24 or later.
+            Apps are TypeScript. Nothing forces you to annotate anything — Vite compiles the app
+            either way — but the types are there when you want them, and the admin panel is
+            written against them. BasicBen requires Node 24 or later.
           </p>
         </Card>
 
@@ -67,25 +69,30 @@ export function GettingStarted() {
 │   │   ├── components/   # Reusable components
 │   │   ├── contexts/     # React context providers
 │   │   ├── layouts/      # Page layouts
-│   │   └── pages/        # Page components
+│   │   └── pages/        # Page components, including admin/
 │   ├── routes/
-│   │   ├── App.jsx       # Client routes
+│   │   ├── App.tsx       # Client routes
 │   │   └── api/          # API route files
 │   ├── controllers/      # Request handlers
 │   ├── models/           # Database models
 │   ├── middleware/       # Request middleware
 │   ├── helpers/          # Shared utilities
+│   ├── types/            # Shared type definitions
 │   ├── server/           # Server entry point
-│   └── main.jsx          # Client entry point
+│   └── main.tsx          # Client entry point
+├── themes/               # Installed themes
+├── plugins/              # Installed plugins
+├── mail/                 # Email templates
 ├── migrations/           # Database migrations
 ├── seeds/                # Database seeders
 ├── public/               # Static assets
 ├── index.html            # HTML shell
-├── vite.config.js        # Vite config
+├── tsconfig.json         # TypeScript config
+├── vite.config.ts        # Vite config
 └── basicben.config.js    # Framework config`}</pre>
           </div>
           <p className={`text-sm ${t.muted} mt-4`}>
-            Both halves of the app live under <code>src/routes/</code>. <code>App.jsx</code> defines the routes the browser renders, and everything in <code>api/</code> defines the routes the server answers. Files in <code>api/</code> are loaded automatically at startup, so a new file becomes live routes without being registered anywhere.
+            Both halves of the app live under <code>src/routes/</code>. <code>App.tsx</code> defines the routes the browser renders, and everything in <code>api/</code> defines the routes the server answers. Files in <code>api/</code> are loaded automatically at startup, so a new file becomes live routes without being registered anywhere.
           </p>
         </Card>
 

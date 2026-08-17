@@ -10,7 +10,10 @@
 #   - a generated server entry that cannot start (0.1.10)
 #   - client routes returning a JSON 404 in production
 #
-# Usage: ./scripts/smoke-test.sh [--ts]
+# Usage: ./scripts/smoke-test.sh
+#
+# TypeScript is the only template, so there is nothing to select. `--ts` is
+# still accepted and ignored, so older invocations keep working.
 
 set -euo pipefail
 
@@ -19,13 +22,7 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 WORK_DIR="$(mktemp -d)"
 PORT="${SMOKE_PORT:-3987}"
 SERVER_PID=""
-TS_FLAG=""
-APP_NAME="smoke-js"
-
-if [ "${1:-}" = "--ts" ]; then
-  TS_FLAG="--typescript"
-  APP_NAME="smoke-ts"
-fi
+APP_NAME="smoke-app"
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -66,7 +63,7 @@ pass "create tarball ships templates ($TEMPLATE_COUNT files)"
 
 cd "$WORK_DIR"
 tar -xzf "$CREATE_TGZ"
-node package/index.js "$APP_NAME" $TS_FLAG > /dev/null
+node package/index.js "$APP_NAME" > /dev/null
 
 # A plugin that exercises the extension points, installed before the build so
 # it is discovered at boot like a real one.
@@ -117,49 +114,47 @@ pass "installed dependencies"
 # every framework import an implicit any, which typechecks silently: 64 TS7016
 # errors that no other check in this repo could see.
 
-if [ "$APP_NAME" = "smoke-ts" ]; then
-  # The package must actually carry its declarations, whatever the export map
-  # claims. A tarball built without them still installs and still builds.
-  DTS_COUNT="$(tar -tzf "$WORK_DIR/$CORE_TGZ" | grep -c 'package/types/.*\.d\.ts$' || true)"
-  if [ "$DTS_COUNT" -lt 50 ]; then
-    fail "core tarball ships only $DTS_COUNT declaration files — types/ is missing or stale"
-  fi
-  pass "core tarball ships declarations ($DTS_COUNT files)"
+# The package must actually carry its declarations, whatever the export map
+# claims. A tarball built without them still installs and still builds.
+DTS_COUNT="$(tar -tzf "$WORK_DIR/$CORE_TGZ" | grep -c 'package/types/.*\.d\.ts$' || true)"
+if [ "$DTS_COUNT" -lt 50 ]; then
+  fail "core tarball ships only $DTS_COUNT declaration files — types/ is missing or stale"
+fi
+pass "core tarball ships declarations ($DTS_COUNT files)"
 
-  if ! npx tsc --noEmit > "$WORK_DIR/tsc.log" 2>&1; then
-    echo "--- tsc --noEmit ---"
-    head -40 "$WORK_DIR/tsc.log"
-    fail "the scaffolded TypeScript app does not typecheck"
-  fi
-  pass "scaffolded app typechecks with no errors"
+if ! npx tsc --noEmit > "$WORK_DIR/tsc.log" 2>&1; then
+  echo "--- tsc --noEmit ---"
+  head -40 "$WORK_DIR/tsc.log"
+  fail "the scaffolded TypeScript app does not typecheck"
+fi
+pass "scaffolded app typechecks with no errors"
 
-  # The committed declarations are generated from the JSDoc, so an edit to a
-  # signature that skips `npm run build:types` ships types that describe the
-  # previous version. Only checkable where the framework's own tsc is
-  # installed, which is the machine where that edit is being made.
-  if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
-    "$ROOT_DIR/node_modules/.bin/tsc" -p "$ROOT_DIR/tsconfig.types.json" \
-      --outDir "$WORK_DIR/types-fresh" > /dev/null 2>&1
-    if ! diff -rq "$ROOT_DIR/types" "$WORK_DIR/types-fresh" > "$WORK_DIR/types.diff" 2>&1; then
-      echo "--- stale declarations ---"
-      head -20 "$WORK_DIR/types.diff"
-      fail "types/ is out of date — run 'npm run build:types' and commit the result"
-    fi
-    pass "committed declarations match the JSDoc"
-
-    # Apps compile with skipLibCheck, so a declaration can be malformed and
-    # still let every app typecheck. JSDoc that emits an optional parameter
-    # before a required one produced exactly that: an invalid .d.ts nobody saw.
-    if ! (cd "$ROOT_DIR" && ./node_modules/.bin/tsc --noEmit --skipLibCheck false \
-           --strict false --moduleResolution bundler --module esnext \
-           --target es2022 --lib es2022,dom,dom.iterable \
-           $(find types -name '*.d.ts')) > "$WORK_DIR/dts.log" 2>&1; then
-      echo "--- declarations do not check on their own ---"
-      head -20 "$WORK_DIR/dts.log"
-      fail "generated declarations are not self-consistent"
-    fi
-    pass "declarations check on their own, without skipLibCheck"
+# The committed declarations are generated from the JSDoc, so an edit to a
+# signature that skips `npm run build:types` ships types that describe the
+# previous version. Only checkable where the framework's own tsc is
+# installed, which is the machine where that edit is being made.
+if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
+  "$ROOT_DIR/node_modules/.bin/tsc" -p "$ROOT_DIR/tsconfig.types.json" \
+    --outDir "$WORK_DIR/types-fresh" > /dev/null 2>&1
+  if ! diff -rq "$ROOT_DIR/types" "$WORK_DIR/types-fresh" > "$WORK_DIR/types.diff" 2>&1; then
+    echo "--- stale declarations ---"
+    head -20 "$WORK_DIR/types.diff"
+    fail "types/ is out of date — run 'npm run build:types' and commit the result"
   fi
+  pass "committed declarations match the JSDoc"
+
+  # Apps compile with skipLibCheck, so a declaration can be malformed and
+  # still let every app typecheck. JSDoc that emits an optional parameter
+  # before a required one produced exactly that: an invalid .d.ts nobody saw.
+  if ! (cd "$ROOT_DIR" && ./node_modules/.bin/tsc --noEmit --skipLibCheck false \
+         --strict false --moduleResolution bundler --module esnext \
+         --target es2022 --lib es2022,dom,dom.iterable \
+         $(find types -name '*.d.ts')) > "$WORK_DIR/dts.log" 2>&1; then
+    echo "--- declarations do not check on their own ---"
+    head -20 "$WORK_DIR/dts.log"
+    fail "generated declarations are not self-consistent"
+  fi
+  pass "declarations check on their own, without skipLibCheck"
 fi
 
 npx basicben build > /dev/null 2>&1 || fail "build failed"
@@ -213,24 +208,22 @@ pass "server.started fires"
 
 # Only the TypeScript template ships a themes/ directory; loadThemes() returns
 # early when there is none, which is correct rather than a failure.
-if [ "$APP_NAME" = "smoke-ts" ]; then
-  grep -qi "Loaded themes" "$WORK_DIR/server.log" \
-    || fail "loadThemes() is not being called"
-  pass "themes load at boot"
+grep -qi "Loaded themes" "$WORK_DIR/server.log" \
+  || fail "loadThemes() is not being called"
+pass "themes load at boot"
 
-  # Two themes, so switching and the partial-implementation fallback have
-  # something real to exercise. `minimal` implements two layouts and inherits
-  # the rest from `default`.
-  grep -qi "Loaded themes.*minimal" "$WORK_DIR/server.log" \
-    || fail "the second theme was not discovered"
-  pass "more than one theme is installed"
+# Two themes, so switching and the partial-implementation fallback have
+# something real to exercise. `minimal` implements two layouts and inherits
+# the rest from `default`.
+grep -qi "Loaded themes.*minimal" "$WORK_DIR/server.log" \
+  || fail "the second theme was not discovered"
+pass "more than one theme is installed"
 
-  # Each theme's layouts must be separate chunks, or lazy loading buys nothing.
-  ARCHIVE_CHUNKS="$(find dist/client/assets -name 'ArchiveLayout-*.js' 2>/dev/null | wc -l | tr -d ' ')"
-  [ "$ARCHIVE_CHUNKS" = "2" ] \
-    || fail "expected one ArchiveLayout chunk per theme, found $ARCHIVE_CHUNKS"
-  pass "each theme's layouts are code-split separately"
-fi
+# Each theme's layouts must be separate chunks, or lazy loading buys nothing.
+ARCHIVE_CHUNKS="$(find dist/client/assets -name 'ArchiveLayout-*.js' 2>/dev/null | wc -l | tr -d ' ')"
+[ "$ARCHIVE_CHUNKS" = "2" ] \
+  || fail "expected one ArchiveLayout chunk per theme, found $ARCHIVE_CHUNKS"
+pass "each theme's layouts are code-split separately"
 
 status() { curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT$1"; }
 
@@ -281,21 +274,19 @@ VISITOR_TOKEN="$(token_of "$VISITOR_JSON")"
 pass "later users default to subscriber"
 
 # The admin API only exists in the TypeScript template.
-if [ "$APP_NAME" = "smoke-ts" ]; then
-  auth_status() {
-    curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" "http://localhost:$PORT$2"
-  }
+auth_status() {
+  curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" "http://localhost:$PORT$2"
+}
 
-  for path in /api/settings /api/plugins /api/themes; do
-    code="$(auth_status "$VISITOR_TOKEN" "$path")"
-    [ "$code" = "403" ] || fail "subscriber got $code on $path, expected 403"
-  done
-  pass "subscribers are refused the admin API"
+for path in /api/settings /api/plugins /api/themes; do
+  code="$(auth_status "$VISITOR_TOKEN" "$path")"
+  [ "$code" = "403" ] || fail "subscriber got $code on $path, expected 403"
+done
+pass "subscribers are refused the admin API"
 
-  code="$(auth_status "$OWNER_TOKEN" /api/settings)"
-  [ "$code" = "200" ] || fail "admin got $code on /api/settings, expected 200"
-  pass "admin still reaches the admin API"
-fi
+code="$(auth_status "$OWNER_TOKEN" /api/settings)"
+[ "$code" = "200" ] || fail "admin got $code on /api/settings, expected 200"
+pass "admin still reaches the admin API"
 
 # --- Email verification -------------------------------------------------------
 #
@@ -345,91 +336,89 @@ esac
 # Only the TypeScript template ships the 2FA endpoints. The point of doing this
 # end to end is that a correct password must stop being enough.
 
-if [ "$APP_NAME" = "smoke-ts" ]; then
-  tfa() {
-    curl -s -X "$1" "http://localhost:$PORT$2" \
-      -H 'Content-Type: application/json' \
-      -H "Authorization: Bearer $OWNER_TOKEN" \
-      -d "${3:-\{\}}"
-  }
-
-  SETUP="$(tfa POST /api/auth/2fa/totp/setup '{"password":"password123"}')"
-  SECRET="$(echo "$SETUP" | sed -n 's/.*"secret":"\([^"]*\)".*/\1/p')"
-  [ -n "$SECRET" ] || { echo "$SETUP"; fail "could not start TOTP enrolment"; }
-  pass "TOTP setup returns a secret"
-
-  case "$SETUP" in
-    *'otpauth://totp/'*) pass "and an otpauth URI for the authenticator" ;;
-    *) fail "no otpauth URI in the setup response" ;;
-  esac
-
-  # Enrolment must not be active until a working code proves the app was set up.
-  LOGIN="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+tfa() {
+  curl -s -X "$1" "http://localhost:$PORT$2" \
     -H 'Content-Type: application/json' \
-    -d '{"email":"owner@example.com","password":"password123"}')"
-  case "$LOGIN" in
-    *'"token"'*) pass "an unconfirmed secret does not lock the account" ;;
-    *) echo "$LOGIN"; fail "login should still work before confirmation" ;;
-  esac
+    -H "Authorization: Bearer $OWNER_TOKEN" \
+    -d "${3:-\{\}}"
+}
 
-  # Compute a live code the way an authenticator app would. The shell is
-  # already inside the scaffolded app, so the package subpath resolves.
-  totp_code() {
-    node --input-type=module -e \
-      "import { totp } from '@basicbenframework/core/auth/totp'; console.log(totp(process.argv[1]))" \
-      "$1"
-  }
+SETUP="$(tfa POST /api/auth/2fa/totp/setup '{"password":"password123"}')"
+SECRET="$(echo "$SETUP" | sed -n 's/.*"secret":"\([^"]*\)".*/\1/p')"
+[ -n "$SECRET" ] || { echo "$SETUP"; fail "could not start TOTP enrolment"; }
+pass "TOTP setup returns a secret"
 
-  CODE="$(totp_code "$SECRET")"
-  [ -n "$CODE" ] || fail "could not compute a TOTP code"
+case "$SETUP" in
+  *'otpauth://totp/'*) pass "and an otpauth URI for the authenticator" ;;
+  *) fail "no otpauth URI in the setup response" ;;
+esac
 
-  CONFIRM="$(tfa POST /api/auth/2fa/totp/confirm "{\"code\":\"$CODE\"}")"
-  case "$CONFIRM" in
-    *'"enabled":true'*) pass "a valid code enables the factor" ;;
-    *) echo "$CONFIRM"; fail "confirmation failed" ;;
-  esac
+# Enrolment must not be active until a working code proves the app was set up.
+LOGIN="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"owner@example.com","password":"password123"}')"
+case "$LOGIN" in
+  *'"token"'*) pass "an unconfirmed secret does not lock the account" ;;
+  *) echo "$LOGIN"; fail "login should still work before confirmation" ;;
+esac
 
-  RECOVERY="$(echo "$CONFIRM" | sed -n 's/.*"recoveryCodes":\["\([^"]*\)".*/\1/p')"
-  [ -n "$RECOVERY" ] || fail "no recovery codes were issued"
-  pass "recovery codes are issued once"
+# Compute a live code the way an authenticator app would. The shell is
+# already inside the scaffolded app, so the package subpath resolves.
+totp_code() {
+  node --input-type=module -e \
+    "import { totp } from '@basicbenframework/core/auth/totp'; console.log(totp(process.argv[1]))" \
+    "$1"
+}
 
-  # The whole point: the password alone must no longer be a session.
-  LOGIN2="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
-    -H 'Content-Type: application/json' \
-    -d '{"email":"owner@example.com","password":"password123"}')"
-  case "$LOGIN2" in
-    *'"twoFactorRequired":true'*) pass "the password alone stops being enough" ;;
-    *) echo "$LOGIN2"; fail "login should now require a second factor" ;;
-  esac
-  case "$LOGIN2" in
-    *'"token"'*) fail "login must not return a session token alongside a challenge" ;;
-    *) pass "and no session token is leaked with the challenge" ;;
-  esac
+CODE="$(totp_code "$SECRET")"
+[ -n "$CODE" ] || fail "could not compute a TOTP code"
 
-  CHALLENGE="$(echo "$LOGIN2" | sed -n 's/.*"challenge":"\([^"]*\)".*/\1/p')"
+CONFIRM="$(tfa POST /api/auth/2fa/totp/confirm "{\"code\":\"$CODE\"}")"
+case "$CONFIRM" in
+  *'"enabled":true'*) pass "a valid code enables the factor" ;;
+  *) echo "$CONFIRM"; fail "confirmation failed" ;;
+esac
 
-  BAD="$(curl -s -X POST "http://localhost:$PORT/api/auth/2fa/verify" \
-    -H 'Content-Type: application/json' \
-    -d "{\"challenge\":\"$CHALLENGE\",\"code\":\"000000\"}")"
-  case "$BAD" in
-    *'"error"'*) pass "a wrong code is refused" ;;
-    *) fail "a wrong code should not succeed" ;;
-  esac
+RECOVERY="$(echo "$CONFIRM" | sed -n 's/.*"recoveryCodes":\["\([^"]*\)".*/\1/p')"
+[ -n "$RECOVERY" ] || fail "no recovery codes were issued"
+pass "recovery codes are issued once"
 
-  # A recovery code is a full second factor.
-  LOGIN3="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
-    -H 'Content-Type: application/json' \
-    -d '{"email":"owner@example.com","password":"password123"}')"
-  CHALLENGE3="$(echo "$LOGIN3" | sed -n 's/.*"challenge":"\([^"]*\)".*/\1/p')"
+# The whole point: the password alone must no longer be a session.
+LOGIN2="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"owner@example.com","password":"password123"}')"
+case "$LOGIN2" in
+  *'"twoFactorRequired":true'*) pass "the password alone stops being enough" ;;
+  *) echo "$LOGIN2"; fail "login should now require a second factor" ;;
+esac
+case "$LOGIN2" in
+  *'"token"'*) fail "login must not return a session token alongside a challenge" ;;
+  *) pass "and no session token is leaked with the challenge" ;;
+esac
 
-  RECOVERED="$(curl -s -X POST "http://localhost:$PORT/api/auth/2fa/verify" \
-    -H 'Content-Type: application/json' \
-    -d "{\"challenge\":\"$CHALLENGE3\",\"code\":\"$RECOVERY\"}")"
-  case "$RECOVERED" in
-    *'"recoveryCodeUsed":true'*) pass "a recovery code completes a sign-in" ;;
-    *) echo "$RECOVERED"; fail "the recovery code should have worked" ;;
-  esac
-fi
+CHALLENGE="$(echo "$LOGIN2" | sed -n 's/.*"challenge":"\([^"]*\)".*/\1/p')"
+
+BAD="$(curl -s -X POST "http://localhost:$PORT/api/auth/2fa/verify" \
+  -H 'Content-Type: application/json' \
+  -d "{\"challenge\":\"$CHALLENGE\",\"code\":\"000000\"}")"
+case "$BAD" in
+  *'"error"'*) pass "a wrong code is refused" ;;
+  *) fail "a wrong code should not succeed" ;;
+esac
+
+# A recovery code is a full second factor.
+LOGIN3="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"owner@example.com","password":"password123"}')"
+CHALLENGE3="$(echo "$LOGIN3" | sed -n 's/.*"challenge":"\([^"]*\)".*/\1/p')"
+
+RECOVERED="$(curl -s -X POST "http://localhost:$PORT/api/auth/2fa/verify" \
+  -H 'Content-Type: application/json' \
+  -d "{\"challenge\":\"$CHALLENGE3\",\"code\":\"$RECOVERY\"}")"
+case "$RECOVERED" in
+  *'"recoveryCodeUsed":true'*) pass "a recovery code completes a sign-in" ;;
+  *) echo "$RECOVERED"; fail "the recovery code should have worked" ;;
+esac
 
 # --- Passkeys -----------------------------------------------------------------
 #
@@ -437,19 +426,17 @@ fi
 # the wiring — challenge storage, credential lookup, the login handoff — rather
 # than just the ceremony logic the unit tests cover.
 
-if [ "$APP_NAME" = "smoke-ts" ]; then
-  # A fresh account, so the TOTP factor enrolled above does not interfere.
-  PK_JSON="$(register Passkeyer passkey@example.com)"
-  PK_TOKEN="$(token_of "$PK_JSON")"
-  [ -n "$PK_TOKEN" ] || { echo "$PK_JSON"; fail "could not register the passkey user"; }
+# A fresh account, so the TOTP factor enrolled above does not interfere.
+PK_JSON="$(register Passkeyer passkey@example.com)"
+PK_TOKEN="$(token_of "$PK_JSON")"
+[ -n "$PK_TOKEN" ] || { echo "$PK_JSON"; fail "could not register the passkey user"; }
 
-  if node "$ROOT_DIR/scripts/passkey-smoke.mjs" \
-       "http://localhost:$PORT" "$PK_TOKEN" passkey@example.com password123 2>&1 \
-       | sed 's/^ok /'"$(printf '\033[0;32m')"'✓'"$(printf '\033[0m')"' /'; then
-    pass "passkey enrolment and sign-in work end to end"
-  else
-    fail "the passkey flow failed"
-  fi
+if node "$ROOT_DIR/scripts/passkey-smoke.mjs" \
+     "http://localhost:$PORT" "$PK_TOKEN" passkey@example.com password123 2>&1 \
+     | sed 's/^ok /'"$(printf '\033[0;32m')"'✓'"$(printf '\033[0m')"' /'; then
+  pass "passkey enrolment and sign-in work end to end"
+else
+  fail "the passkey flow failed"
 fi
 
 # --- Rate limiting -------------------------------------------------------------
@@ -458,41 +445,39 @@ fi
 # A fresh address is used so the successful sign-ins above do not interfere —
 # a correct password clears the counter, which is the intended behaviour.
 
-if [ "$APP_NAME" = "smoke-ts" ]; then
-  guess() {
-    curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$PORT/api/auth/login" \
-      -H 'Content-Type: application/json' \
-      -d '{"email":"owner@example.com","password":"definitely-wrong"}'
-  }
-
-  LIMITED=""
-  for _ in $(seq 1 8); do
-    code="$(guess)"
-    if [ "$code" = "429" ]; then LIMITED="yes"; break; fi
-  done
-
-  [ -n "$LIMITED" ] || fail "password guessing was never throttled"
-  pass "repeated wrong passwords are throttled"
-
-  # The refusal has to tell the caller when to come back.
-  BODY="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+guess() {
+  curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$PORT/api/auth/login" \
     -H 'Content-Type: application/json' \
-    -d '{"email":"owner@example.com","password":"definitely-wrong"}')"
-  case "$BODY" in
-    *'"retryAfter"'*) pass "and the refusal says when to retry" ;;
-    *) echo "$BODY"; fail "a 429 should carry retryAfter" ;;
-  esac
+    -d '{"email":"owner@example.com","password":"definitely-wrong"}'
+}
 
-  # Another account must still be able to sign in — the limit is per account,
-  # not a global switch that one attacker can flip for everyone.
-  OTHER="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
-    -H 'Content-Type: application/json' \
-    -d '{"email":"visitor@example.com","password":"password123"}')"
-  case "$OTHER" in
-    *'"token"'*) pass "one locked account does not lock out another" ;;
-    *) echo "$OTHER"; fail "an unrelated account should still sign in" ;;
-  esac
-fi
+LIMITED=""
+for _ in $(seq 1 8); do
+  code="$(guess)"
+  if [ "$code" = "429" ]; then LIMITED="yes"; break; fi
+done
+
+[ -n "$LIMITED" ] || fail "password guessing was never throttled"
+pass "repeated wrong passwords are throttled"
+
+# The refusal has to tell the caller when to come back.
+BODY="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"owner@example.com","password":"definitely-wrong"}')"
+case "$BODY" in
+  *'"retryAfter"'*) pass "and the refusal says when to retry" ;;
+  *) echo "$BODY"; fail "a 429 should carry retryAfter" ;;
+esac
+
+# Another account must still be able to sign in — the limit is per account,
+# not a global switch that one attacker can flip for everyone.
+OTHER="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"visitor@example.com","password":"password123"}')"
+case "$OTHER" in
+  *'"token"'*) pass "one locked account does not lock out another" ;;
+  *) echo "$OTHER"; fail "an unrelated account should still sign in" ;;
+esac
 
 # --- Markdown content ----------------------------------------------------------
 #
@@ -553,17 +538,15 @@ case "$PROBE_ROUTE" in
 esac
 
 # The admin API only exists in the TypeScript template.
-if [ "$APP_NAME" = "smoke-ts" ]; then
-  MENU="$(curl -s "http://localhost:$PORT/api/admin/menu" -H "Authorization: Bearer $OWNER_TOKEN")"
-  case "$MENU" in
-    *'/admin/probe'*) pass "a plugin can extend the admin menu" ;;
-    *) echo "$MENU"; fail "admin.menu did not reach the UI" ;;
-  esac
-  case "$MENU" in
-    *'/admin/posts'*) pass "and the built-in menu items survive" ;;
-    *) fail "the plugin replaced the menu instead of extending it" ;;
-  esac
-fi
+MENU="$(curl -s "http://localhost:$PORT/api/admin/menu" -H "Authorization: Bearer $OWNER_TOKEN")"
+case "$MENU" in
+  *'/admin/probe'*) pass "a plugin can extend the admin menu" ;;
+  *) echo "$MENU"; fail "admin.menu did not reach the UI" ;;
+esac
+case "$MENU" in
+  *'/admin/posts'*) pass "and the built-in menu items survive" ;;
+  *) fail "the plugin replaced the menu instead of extending it" ;;
+esac
 
 case "$STORED" in
   *'<h1'*) pass "markdown is rendered on save" ;;
@@ -636,14 +619,12 @@ esac
 # its listeners to an already-ended stream. Uploads now go straight from the
 # browser to storage, and this drives that flow against the booted app.
 
-if [ "$APP_NAME" = "smoke-ts" ]; then
-  # The owner's token: uploading needs the media.upload capability, which a
-  # subscriber does not have. It was minted at registration, so the login
-  # lockout above does not affect it — a lockout stops new sign-ins, not tokens
-  # already issued.
-  node "$ROOT_DIR/scripts/storage-smoke.mjs" "http://localhost:$PORT" "$OWNER_TOKEN" \
-    || fail "storage smoke test failed"
-fi
+# The owner's token: uploading needs the media.upload capability, which a
+# subscriber does not have. It was minted at registration, so the login
+# lockout above does not affect it — a lockout stops new sign-ins, not tokens
+# already issued.
+node "$ROOT_DIR/scripts/storage-smoke.mjs" "http://localhost:$PORT" "$OWNER_TOKEN" \
+  || fail "storage smoke test failed"
 
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"

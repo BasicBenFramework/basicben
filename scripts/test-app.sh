@@ -4,9 +4,10 @@
 # Creates a test app, runs dev server, tests endpoints/frontend, builds, and tests production
 #
 # Usage:
-#   ./scripts/test-app.sh              # JavaScript template
-#   ./scripts/test-app.sh --typescript # TypeScript template
+#   ./scripts/test-app.sh              # Scaffold and test an app
 #   ./scripts/test-app.sh --skip-setup # Skip app creation (use existing my-test-app)
+#
+# There is one template (TypeScript); --typescript/--ts are accepted and ignored.
 
 set -e
 
@@ -28,12 +29,11 @@ TESTS_PASSED=0
 TESTS_FAILED=0
 
 # Parse flags
-USE_TYPESCRIPT=""
 SKIP_SETUP=""
 for arg in "$@"; do
   case $arg in
     --typescript|--ts)
-      USE_TYPESCRIPT="--typescript"
+      # Accepted and ignored — TypeScript is the only template.
       ;;
     --skip-setup)
       SKIP_SETUP="true"
@@ -161,11 +161,7 @@ trap cleanup EXIT
 # ============================================================
 
 if [ "$SKIP_SETUP" != "true" ]; then
-  if [ -n "$USE_TYPESCRIPT" ]; then
-    log_section "BasicBen Integration Tests (TypeScript)"
-  else
-    log_section "BasicBen Integration Tests (JavaScript)"
-  fi
+  log_section "BasicBen Integration Tests"
 
   # Delete existing my-test-app
   if [ -d "$APP_DIR" ]; then
@@ -176,7 +172,7 @@ if [ "$SKIP_SETUP" != "true" ]; then
   # Create new test app
   log_info "Creating test app..."
   cd "$ROOT_DIR"
-  node create-basicben-app/index.js my-test-app --local $USE_TYPESCRIPT
+  node create-basicben-app/index.js my-test-app --local
 
   # Configure .env
   log_info "Configuring .env..."

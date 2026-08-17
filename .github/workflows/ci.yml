@@ -22,10 +22,6 @@ jobs:
 
   smoke:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        template: [javascript, typescript]
     steps:
       - uses: actions/checkout@v7
 
@@ -41,9 +37,4 @@ jobs:
         run: npm ci
 
       - name: Scaffold, build and boot a real app
-        run: |
-          if [ "${{ matrix.template }}" = "typescript" ]; then
-            ./scripts/smoke-test.sh --ts
-          else
-            ./scripts/smoke-test.sh
-          fi
+        run: ./scripts/smoke-test.sh

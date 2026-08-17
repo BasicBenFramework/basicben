@@ -56,8 +56,16 @@ async function main() {
   // Check for --local flag
   const useLocal = args.includes('--local')
 
-  // Check for --typescript flag
-  const useTypeScript = args.includes('--typescript') || args.includes('--ts')
+  // --typescript/--ts are accepted and ignored: TypeScript is the only
+  // template now, so existing scripts that pass the flag keep working.
+  if (args.includes('--js') || args.includes('--javascript')) {
+    console.log(
+      `\n${yellow('Note:')} the JavaScript template has been removed — every app is TypeScript now.`
+    )
+    console.log(
+      `${dim('Nothing forces you to write annotations; Vite compiles the app either way.')}\n`
+    )
+  }
 
   const projectDir = resolve(process.cwd(), projectName)
 
@@ -75,12 +83,8 @@ async function main() {
   mkdirSync(projectDir, { recursive: true })
 
   // Copy template files
-  const templateDir = join(__dirname, useTypeScript ? 'template-ts' : 'template-js')
+  const templateDir = join(__dirname, 'template-ts')
   copyDir(templateDir, projectDir)
-
-  if (useTypeScript) {
-    console.log(`${cyan('Using TypeScript template')}\n`)
-  }
 
   // Determine basicben dependency
   let basicbenDep = 'latest'
@@ -99,10 +103,8 @@ async function main() {
     scripts: {
       dev: 'basicben dev',
       build: 'basicben build',
-      ...(useTypeScript && {
-        'build:client': 'vite build',
-        'build:server': 'vite build --ssr src/server/index.ts --outDir dist/server'
-      }),
+      'build:client': 'vite build',
+      'build:server': 'vite build --ssr src/server/index.ts --outDir dist/server',
       start: 'basicben start',
       test: 'basicben test',
       migrate: 'basicben migrate',
@@ -122,12 +124,10 @@ async function main() {
       '@vitejs/plugin-react': '^6.0.5',
       vite: '^8.2.1',
       vitest: '^4.0.0',
-      ...(useTypeScript && {
-        'typescript': '^5.8',
-        '@types/node': '^24',
-        '@types/react': '^19',
-        '@types/react-dom': '^19'
-      })
+      'typescript': '^5.8',
+      '@types/node': '^24',
+      '@types/react': '^19',
+      '@types/react-dom': '^19'
     }
   }
 
@@ -173,14 +173,14 @@ ${bold('Usage:')}
   npx @basicbenframework/create ${dim('<project-name>')} [options]
 
 ${bold('Options:')}
-  --typescript, --ts   Use TypeScript template
   --local              Use local framework (for development)
   -h, --help           Show this help message
 
 ${bold('Examples:')}
   npx @basicbenframework/create my-app
-  npx @basicbenframework/create my-app --typescript   ${dim('# Use TypeScript')}
   npx @basicbenframework/create my-app --local        ${dim('# Use local framework')}
+
+${dim('Apps are TypeScript. --typescript/--ts still work, and do nothing.')}
 `)
 }
 
