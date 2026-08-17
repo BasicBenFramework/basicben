@@ -7,6 +7,7 @@ import { readdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { getDb } from './index.js'
+import { refuseLegacyLayout } from './layout.js'
 import { Grammar } from './Grammar.js'
 import { QueryBuilder } from './QueryBuilder.js'
 
@@ -38,9 +39,11 @@ function migrationsTable(db) {
  *   connection. Tests pass one in to exercise the Postgres dialect, which is
  *   where the bookkeeping SQL differs, without a Postgres server.
  */
-export async function createMigrator(migrationsDir = 'migrations', connection = null) {
+export async function createMigrator(migrationsDir = 'db/migrations', connection = null) {
   const db = connection || await getDb()
   const dir = resolve(process.cwd(), migrationsDir)
+
+  refuseLegacyLayout(dir, 'migrations', 'db/migrations')
 
   // Ensure migrations table exists
   await ensureMigrationsTable(db)

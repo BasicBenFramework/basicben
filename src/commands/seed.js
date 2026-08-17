@@ -29,7 +29,7 @@ export async function run(args, flags) {
       // Show hint if no seeds directory
       const available = seeder.list()
       if (available.length === 0) {
-        console.log(`${dim('Create seed files in seeds/ directory.')}`)
+        console.log(`${dim('Create seed files in db/seeds/ directory.')}`)
         console.log(`${dim('Run: basicben make:seed <name>')}\n`)
       }
       return

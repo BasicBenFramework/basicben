@@ -1,7 +1,7 @@
 /**
  * Create seeder instance
  *
- * @param {string} seedsDir - Path to seeds directory (default: 'seeds')
+ * @param {string} seedsDir - Path to seeds directory (default: 'db/seeds')
  */
 export function createSeeder(seedsDir?: string): Promise<{
     /**

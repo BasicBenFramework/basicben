@@ -70,45 +70,29 @@ A new BasicBen project looks like this:
 my-app/
 ├── index.html               # Vite entry point
 ├── src/
-│   ├── main.jsx             # React entry point
+│   ├── main.tsx             # React entry point
 │   ├── routes/
-│   │   ├── App.jsx          # Client routes
+│   │   ├── App.tsx          # Client routes
 │   │   └── api/             # Auto-loaded API routes
-│   │       ├── auth.js
-│   │       ├── posts.js
-│   │       └── profile.js
 │   ├── controllers/         # Business logic
-│   │   ├── AuthController.js
-│   │   ├── PostController.js
-│   │   └── ProfileController.js
 │   ├── models/              # DB query wrappers
-│   │   ├── User.js
-│   │   └── Post.js
 │   ├── middleware/          # Route middleware
-│   │   └── auth.js
 │   ├── helpers/             # Utility functions
-│   │   └── api.js           # Fetch wrapper with auth
+│   ├── types/               # Shared type definitions
+│   ├── server/              # Server entry point
 │   └── client/              # React frontend
 │       ├── layouts/         # Layout components
-│       │   ├── AppLayout.jsx
-│       │   ├── AuthLayout.jsx
-│       │   └── DocsLayout.jsx
-│       ├── pages/           # Page components
-│       │   ├── Home.jsx
-│       │   ├── Auth.jsx
-│       │   ├── Feed.jsx
-│       │   ├── Posts.jsx
-│       │   ├── Profile.jsx
-│       │   └── ...
+│       ├── pages/           # Page components, including admin/
 │       └── components/      # Reusable UI components
-│           ├── Button.jsx
-│           ├── Card.jsx
-│           ├── Input.jsx
-│           └── ...
-├── migrations/
-│   ├── 001_create_users.js
-│   └── 002_create_posts.js
-├── public/
+├── db/
+│   ├── migrations/          # Database migrations
+│   └── seeds/               # Database seeders
+├── themes/                  # Installed themes
+├── plugins/                 # Installed plugins
+├── mail/                    # Email templates
+├── public/                  # Static assets
+├── tsconfig.json
+├── vite.config.ts
 └── basicben.config.js
 ```
 
@@ -623,10 +607,10 @@ Generate a migration with:
 basicben make:migration create_users
 ```
 
-This creates a timestamped file in `migrations/`:
+This creates a timestamped file in `db/migrations/`:
 
 ```js
-// migrations/001_create_users.js
+// db/migrations/001_create_users.js
 export const up = (db) => {
   db.run(`
     CREATE TABLE users (

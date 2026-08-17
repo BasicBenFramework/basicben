@@ -135,7 +135,7 @@ export function Database() {
         <Card>
           <h2 className="text-lg font-semibold mb-2">Migrations</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            A migration is a file in <code>migrations/</code> that exports <code>up</code> and
+            A migration is a file in <code>db/migrations/</code> that exports <code>up</code> and
             <code>down</code>. Both receive the database adapter and run raw SQL through
             <code>db.exec()</code>. There is no schema builder — you write the SQL your
             database understands.
@@ -143,10 +143,10 @@ export function Database() {
 
           <CodeBlock title="Generate a migration">
 {`npm run make:migration create_posts
-# Creates: migrations/<timestamp>_create_posts.js`}
+# Creates: db/migrations/<timestamp>_create_posts.js`}
           </CodeBlock>
 
-          <CodeBlock title="migrations/001_create_posts.js">
+          <CodeBlock title="db/migrations/001_create_posts.js">
 {`export const up = async (db) => {
   await db.exec(\`
     CREATE TABLE posts (
@@ -204,12 +204,12 @@ export const down = async (db) => {
         <Card>
           <h2 className="text-lg font-semibold mb-2">Seeding</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            Seeds populate a database with starting data. Each file in <code>seeds/</code>
+            Seeds populate a database with starting data. Each file in <code>db/seeds/</code>
             exports a <code>seed</code> function (a default export also works), and files run in
             filename order, which is why they are usually numbered.
           </p>
 
-          <CodeBlock title="seeds/01_users.js">
+          <CodeBlock title="db/seeds/01_users.js">
 {`import { db } from '@basicbenframework/core/db'
 import { hashPassword } from '@basicbenframework/core/auth'
 import { ROLES } from '@basicbenframework/core/auth/permissions'
@@ -236,7 +236,7 @@ export async function seed() {
             that cannot reach anything the admin area gates.
           </p>
 
-          <CodeBlock title="seeds/02_posts.js">
+          <CodeBlock title="db/seeds/02_posts.js">
 {`import { db } from '@basicbenframework/core/db'
 
 export async function seed() {
@@ -262,7 +262,7 @@ export async function seed() {
             </div>
             <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
               <code className="text-sm font-semibold">npx basicben make:seed users</code>
-              <p className={`text-xs mt-1 ${t.muted}`}>Generate seeds/users.js</p>
+              <p className={`text-xs mt-1 ${t.muted}`}>Generate db/seeds/users.js</p>
             </div>
             <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
               <code className="text-sm font-semibold">npx basicben db:seed</code>

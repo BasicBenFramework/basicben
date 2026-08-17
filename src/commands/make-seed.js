@@ -1,6 +1,6 @@
 /**
  * make:seed command
- * Generates a seed file in seeds/
+ * Generates a seed file in db/seeds/
  */
 
 import { generate, transformName } from '../scaffolding/index.js'
@@ -20,7 +20,7 @@ export async function run(args, flags) {
 
   const names = transformName(name)
   const fileName = `${names.snake}.js`
-  const targetPath = `seeds/${fileName}`
+  const targetPath = `db/seeds/${fileName}`
 
   try {
     generate('seed', targetPath, {

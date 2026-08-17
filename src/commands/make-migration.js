@@ -1,6 +1,6 @@
 /**
  * make:migration command
- * Generates a migration file in migrations/
+ * Generates a migration file in db/migrations/
  */
 
 import { generate, transformName, timestamp } from '../scaffolding/index.js'
@@ -34,7 +34,7 @@ export async function run(args, flags) {
   }
 
   const fileName = `${ts}_${names.snake}.js`
-  const targetPath = `migrations/${fileName}`
+  const targetPath = `db/migrations/${fileName}`
 
   try {
     const fullPath = generate('migration', targetPath, {

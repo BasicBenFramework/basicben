@@ -7,15 +7,18 @@ import { readdirSync, existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { getDb } from './index.js'
+import { refuseLegacyLayout } from './layout.js'
 
 /**
  * Create seeder instance
  *
- * @param {string} seedsDir - Path to seeds directory (default: 'seeds')
+ * @param {string} seedsDir - Path to seeds directory (default: 'db/seeds')
  */
-export async function createSeeder(seedsDir = 'seeds') {
+export async function createSeeder(seedsDir = 'db/seeds') {
   const db = await getDb()
   const dir = resolve(process.cwd(), seedsDir)
+
+  refuseLegacyLayout(dir, 'seeds', 'db/seeds')
 
   return {
     /**

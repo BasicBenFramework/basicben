@@ -849,7 +849,7 @@ export class UpdateManager {
         })
 
         // Copy migrations to user's project
-        const migrationsDir = join(process.cwd(), 'migrations')
+        const migrationsDir = join(process.cwd(), 'db', 'migrations')
         const newMigrations = join(tempDir, 'migrations')
 
         if (await pathExists(newMigrations)) {

@@ -80,11 +80,12 @@ export function GettingStarted() {
 │   ├── types/            # Shared type definitions
 │   ├── server/           # Server entry point
 │   └── main.tsx          # Client entry point
+├── db/
+│   ├── migrations/       # Database migrations
+│   └── seeds/            # Database seeders
 ├── themes/               # Installed themes
 ├── plugins/              # Installed plugins
 ├── mail/                 # Email templates
-├── migrations/           # Database migrations
-├── seeds/                # Database seeders
 ├── public/               # Static assets
 ├── index.html            # HTML shell
 ├── tsconfig.json         # TypeScript config
