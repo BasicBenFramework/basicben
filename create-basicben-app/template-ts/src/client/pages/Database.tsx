@@ -173,6 +173,23 @@ export const down = async (db) => {
             five.
           </p>
 
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Each file runs in its own transaction, together with the row recording that it ran —
+            both commit or neither does. A migration that creates two tables and throws between
+            them used to leave the first one behind with nothing recorded, so the next{' '}
+            <code>migrate</code> failed on <em>table already exists</em> and there was nothing to
+            roll back. The database is now either before the migration or after it.
+          </p>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Two statements cannot run inside a transaction, and neither appears in what this
+            framework ships: Postgres refuses <code>CREATE INDEX CONCURRENTLY</code> and{' '}
+            <code>VACUUM</code>, and SQLite ignores <code>PRAGMA foreign_keys</code> there — the
+            table-rebuild pattern that turns constraints off has to do it outside. A migration
+            that opens its own <code>db.transaction()</code> is fine: it joins the one already
+            open rather than starting a second, which both drivers refuse.
+          </p>
+
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div className={`rounded-lg p-3 ${t.card} border ${t.border}`}>
               <code className="text-sm font-semibold">npm run migrate</code>

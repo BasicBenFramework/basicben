@@ -244,6 +244,53 @@ else
   pass "ran migrations"
 fi
 
+# --- Transactional migrations --------------------------------------------------
+#
+# A migration that throws halfway used to leave whatever it had already done
+# behind, with nothing recorded as having run — so the next `migrate` died on
+# "table already exists" and there was nothing to roll back. That was hit for
+# real while making Postgres work.
+#
+# The probe is indirect on purpose: rather than asking the database whether
+# `tx_probe` exists, which needs a query tool per driver, a second migration
+# creates the same table. If the failed one left residue, that one cannot run.
+# The check therefore works identically on SQLite and Postgres.
+
+cat > db/migrations/9999_01_01_000000_tx_probe_fails.js <<'PROBE'
+export const up = async (db) => {
+  await db.exec('CREATE TABLE tx_probe (id INTEGER)')
+  throw new Error('deliberate failure, after creating a table')
+}
+export const down = async () => {}
+PROBE
+
+if npx basicben migrate > "$WORK_DIR/tx-probe.log" 2>&1; then
+  fail "a migration that throws should have failed the command"
+fi
+pass "a failing migration fails the command"
+
+rm db/migrations/9999_01_01_000000_tx_probe_fails.js
+
+cat > db/migrations/9999_01_02_000000_tx_probe_works.js <<'PROBE'
+export const up = async (db) => {
+  await db.exec('CREATE TABLE tx_probe (id INTEGER)')
+}
+export const down = async (db) => {
+  await db.exec('DROP TABLE tx_probe')
+}
+PROBE
+
+npx basicben migrate > "$WORK_DIR/tx-probe2.log" 2>&1 \
+  || { cat "$WORK_DIR/tx-probe2.log"; fail "the failed migration left its table behind — it was not rolled back"; }
+pass "a failed migration leaves no half-applied schema"
+
+# And rolling that batch back leaves the database as it was, which is the other
+# half of the same guarantee.
+npx basicben migrate:rollback > "$WORK_DIR/tx-rollback.log" 2>&1 \
+  || { cat "$WORK_DIR/tx-rollback.log"; fail "rolling back the probe failed"; }
+rm db/migrations/9999_01_02_000000_tx_probe_works.js
+pass "and the batch rolls back cleanly"
+
 # --- Boot --------------------------------------------------------------------
 
 # --env-file matches how `basicben start` runs this, so APP_KEY is available

@@ -35,6 +35,14 @@ export function createSqliteAdapter(url: string, options?: any): Promise<{
      * which passes a transaction-scoped adapter. The result is awaited: an async
      * callback would otherwise commit before its work finished, and a rejection
      * would escape the rollback.
+     *
+     * A nested call joins the transaction already open instead of starting
+     * another, which SQLite refuses outright ("cannot start a transaction
+     * within a transaction"). Only the outermost call commits or rolls back, so
+     * an inner failure still unwinds the whole thing — there are no savepoints
+     * here and a partial rollback would be worse than none. The depth counter
+     * is safe because this connection is synchronous: nothing else can be
+     * mid-transaction on it.
      */
     transaction(fn: any): Promise<any>;
     /**

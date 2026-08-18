@@ -24,6 +24,9 @@ export async function createSqliteAdapter(url, options = {}) {
     db.exec('PRAGMA journal_mode = WAL')
   }
 
+  // Transaction nesting depth. Only the outermost BEGIN/COMMIT is issued.
+  let depth = 0
+
   const adapter = {
     /**
      * Driver name for query builder
@@ -73,9 +76,28 @@ export async function createSqliteAdapter(url, options = {}) {
      * which passes a transaction-scoped adapter. The result is awaited: an async
      * callback would otherwise commit before its work finished, and a rejection
      * would escape the rollback.
+     *
+     * A nested call joins the transaction already open instead of starting
+     * another, which SQLite refuses outright ("cannot start a transaction
+     * within a transaction"). Only the outermost call commits or rolls back, so
+     * an inner failure still unwinds the whole thing — there are no savepoints
+     * here and a partial rollback would be worse than none. The depth counter
+     * is safe because this connection is synchronous: nothing else can be
+     * mid-transaction on it.
      */
     async transaction(fn) {
+      if (depth > 0) {
+        depth++
+        try {
+          return await fn(adapter)
+        } finally {
+          depth--
+        }
+      }
+
       db.exec('BEGIN TRANSACTION')
+      depth = 1
+
       try {
         const result = await fn(adapter)
         db.exec('COMMIT')
@@ -83,6 +105,8 @@ export async function createSqliteAdapter(url, options = {}) {
       } catch (error) {
         db.exec('ROLLBACK')
         throw error
+      } finally {
+        depth = 0
       }
     },
 

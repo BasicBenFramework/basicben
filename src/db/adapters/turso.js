@@ -180,7 +180,31 @@ export async function createTursoAdapter(url, options = {}) {
         return results[0].response.result
       }
 
-      const tx = surface(sendInTx)
+      // `surface` covers run/get/all. The other two live on the connection
+      // object, so a transaction-scoped adapter built from `surface` alone is
+      // missing them — which went unnoticed until migrations started running
+      // inside a transaction and every `db.exec` in one threw
+      // "db.exec is not a function".
+      const tx = {
+        ...surface(sendInTx),
+
+        /**
+         * Multi-statement script, on this transaction's stream.
+         *
+         * The connection-level `exec` sends a `close` alongside the sequence;
+         * doing that here would end the stream the transaction lives on, and
+         * the COMMIT would have nowhere to go.
+         */
+        async exec(sql) {
+          const { baton: next } = await pipeline([{ type: 'sequence', sql }], baton)
+          baton = next
+        },
+
+        /** Joins the open transaction rather than starting a second one. */
+        async transaction(inner) {
+          return inner(tx)
+        }
+      }
 
       try {
         const result = await fn(tx)

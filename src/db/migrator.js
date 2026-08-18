@@ -77,8 +77,16 @@ export async function createMigrator(migrationsDir = 'db/migrations', connection
         const module = await loadMigration(migration.path)
 
         try {
-          await module.up(db, grammar)
-          await recordMigration(db, migration.name, batch)
+          // The migration and the row saying it ran commit together, or neither
+          // does. A migration that creates two tables and throws between them
+          // used to leave the first one behind and no record of it, so the next
+          // `migrate` failed on "table already exists" — with nothing to roll
+          // back, because the bookkeeping never happened.
+          await atomically(db, async (tx) => {
+            await module.up(tx, grammar)
+            await recordMigration(tx, migration.name, batch)
+          })
+
           ran.push(migration.name)
         } catch (err) {
           throw new Error(`Migration failed: ${migration.name}\n${err.message}`)
@@ -113,8 +121,11 @@ export async function createMigrator(migrationsDir = 'db/migrations', connection
         const module = await loadMigration(filePath)
 
         try {
-          await module.down(db, grammar)
-          await removeMigration(db, migration.migration)
+          await atomically(db, async (tx) => {
+            await module.down(tx, grammar)
+            await removeMigration(tx, migration.migration)
+          })
+
           rolledBack.push(migration.migration)
         } catch (err) {
           throw new Error(`Rollback failed: ${migration.migration}\n${err.message}`)
@@ -182,6 +193,38 @@ export async function createMigrator(migrationsDir = 'db/migrations', connection
       }))
     }
   }
+}
+
+/**
+ * Run one migration's work and its bookkeeping as a single unit.
+ *
+ * Both drivers do transactional DDL, so a migration that throws halfway leaves
+ * the schema as it was rather than half-changed. That failure was not
+ * hypothetical: a rollback that died between two `down` steps left a database
+ * where the next `migrate` failed with "column slug already exists", and the
+ * only way out was editing `_migrations` by hand.
+ *
+ * The callback gets the transaction-scoped adapter and everything must go
+ * through it. On Postgres the outer `db` is a *pool*, so a statement sent to it
+ * from inside here would take a different connection and land outside the
+ * transaction — committed while the rest rolled back.
+ *
+ * An adapter with no `transaction` runs unwrapped. That is what a custom
+ * adapter had before this existed; it is not a guarantee being dropped
+ * quietly, it is one that was never available.
+ *
+ * Two caveats worth knowing, neither reachable from the migrations this
+ * framework ships: Postgres refuses `CREATE INDEX CONCURRENTLY` and `VACUUM`
+ * inside a transaction, and SQLite ignores `PRAGMA foreign_keys` there — the
+ * table-rebuild pattern that relies on turning it off has to do so outside.
+ *
+ * @param {Object} db
+ * @param {(tx: Object) => Promise<void>} work
+ */
+async function atomically(db, work) {
+  if (typeof db.transaction !== 'function') return work(db)
+
+  return db.transaction(work)
 }
 
 /**

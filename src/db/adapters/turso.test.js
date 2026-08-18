@@ -511,6 +511,80 @@ describe('transactions', () => {
 
     assert.strictEqual(hrana.openStreams(), 0)
   })
+
+  // `surface` builds run/get/all. `exec` and `transaction` live on the
+  // connection object, so a transaction-scoped adapter built from `surface`
+  // alone was missing both — which nothing noticed until migrations started
+  // running inside a transaction and every `db.exec` in one threw
+  // "db.exec is not a function".
+  test('exposes exec, which migrations use for DDL', async () => {
+    await db.transaction(async (tx) => {
+      assert.strictEqual(typeof tx.exec, 'function')
+      await tx.exec('CREATE TABLE widgets (id INTEGER PRIMARY KEY)')
+      await tx.run('INSERT INTO widgets (id) VALUES (?)', [1])
+    })
+
+    assert.strictEqual((await db.all('SELECT * FROM widgets')).length, 1)
+  })
+
+  test('exec inside a transaction stays on its stream', async () => {
+    const before = hrana.log.requests.length
+
+    await db.transaction(async (tx) => {
+      await tx.exec('CREATE TABLE gadgets (id INTEGER PRIMARY KEY)')
+    })
+
+    // The connection-level `exec` sends a `close` alongside its sequence. Doing
+    // that here would end the stream the transaction lives on and the COMMIT
+    // would have nowhere to go, so every request must still carry the baton and
+    // the stream must survive until the commit closes it.
+    for (const request of hrana.log.requests.slice(before + 1)) {
+      assert.ok(request.baton, 'exec must reuse the transaction baton')
+    }
+
+    assert.strictEqual(hrana.openStreams(), 0, 'and the commit closes it exactly once')
+  })
+
+  test('DDL rolls back with everything else', async () => {
+    await assert.rejects(
+      () => db.transaction(async (tx) => {
+        await tx.exec('CREATE TABLE doomed (id INTEGER PRIMARY KEY)')
+        throw new Error('Simulated failure')
+      }),
+      /Simulated failure/
+    )
+
+    await assert.rejects(() => db.all('SELECT * FROM doomed'), /doomed/)
+  })
+
+  test('a nested transaction joins the open one rather than starting a second', async () => {
+    // Migrations run inside a transaction now, and a migration wrapping its own
+    // work in `db.transaction()` was legal before that. A second BEGIN on the
+    // same stream is refused, so the inner call has to hand back the adapter it
+    // already has.
+    await db.transaction(async (tx) => {
+      const returned = await tx.transaction(async (inner) => {
+        await inner.run('INSERT INTO users (name) VALUES (?)', ['Ada'])
+        return 'inner'
+      })
+
+      assert.strictEqual(returned, 'inner')
+    })
+
+    assert.strictEqual((await db.all('SELECT * FROM users')).length, 1)
+  })
+
+  test('and a failure inside the nested call unwinds the whole thing', async () => {
+    await assert.rejects(
+      () => db.transaction(async (tx) => {
+        await tx.run('INSERT INTO users (name) VALUES (?)', ['Ada'])
+        await tx.transaction(async () => { throw new Error('inner failure') })
+      }),
+      /inner failure/
+    )
+
+    assert.strictEqual((await db.all('SELECT * FROM users')).length, 0)
+  })
 })
 
 describe('streams', () => {

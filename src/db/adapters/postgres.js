@@ -194,6 +194,21 @@ export async function createPostgresAdapter(url, options = {}) {
 
         // Create a transaction-scoped adapter
         const txAdapter = {
+          // Carried through deliberately. Anything building SQL from the
+          // adapter reads this to pick a dialect — QueryBuilder defaults to
+          // SQLite without it, so a query builder used inside a transaction
+          // would emit `?` placeholders against Postgres and fail. The migrator
+          // does exactly that for its own bookkeeping.
+          driver: 'postgres',
+
+          // Joins the transaction already open rather than starting another,
+          // which Postgres refuses. Migrations run inside one now, and a
+          // migration that wraps its own work in `db.transaction()` was legal
+          // before that change; this keeps it legal.
+          async transaction(inner) {
+            return inner(txAdapter)
+          },
+
           async run(sql, params = []) {
             const result = await client.query(toNumberedPlaceholders(sql), normalizeParams(params))
             let lastInsertRowid = null
