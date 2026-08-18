@@ -12,16 +12,23 @@
  *
  *   --dry-run     report what would change, write nothing
  *   --limit N     only the N most recent posts, for a quick look
+ *   --skip-media  leave the media library alone
  *   --url URL     override WORDPRESS_URL
  *
  * ## What is and is not carried across
  *
- * Media files are *not* re-uploaded. A featured image is recorded as the object
- * key it already has, and served through `storage.publicUrl` — so images
- * resolve when the storage driver points at the host already serving them
- * (S3_PUBLIC_URL). If your WordPress media sits on the WordPress host itself
- * rather than on object storage, migrate the files first or those URLs will not
- * resolve.
+ * Media is catalogued, not copied. The whole library comes across as rows
+ * recording the object key each file already has, served through
+ * `storage.publicUrl` — so images resolve when the storage driver points at the
+ * host already serving them (S3_PUBLIC_URL). If your WordPress media sits on
+ * the WordPress host itself rather than on object storage, migrate the files
+ * first or those URLs will not resolve.
+ *
+ * Importing only the images posts *point at* is not enough, and was the first
+ * version of this. Pictures inside post bodies keep displaying either way,
+ * because the stored HTML carries absolute URLs — but the library holds only
+ * what was imported, so anything missed cannot be browsed or reused when
+ * writing. `--skip-media` opts out.
  *
  * WordPress lets a post carry many categories and this schema allows one. The
  * first is kept as the category; the rest become tags, which are many-to-many
@@ -45,6 +52,7 @@ const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
 const limitFlag = args.indexOf('--limit')
 const limit = limitFlag === -1 ? null : Number(args[limitFlag + 1])
+const skipMedia = args.includes('--skip-media')
 const urlFlag = args.indexOf('--url')
 const WORDPRESS_URL = (
   urlFlag === -1 ? process.env.WORDPRESS_URL : args[urlFlag + 1]
@@ -113,23 +121,29 @@ function objectKey(url) {
   }
 }
 
-async function fetchAllPosts() {
-  const posts = []
+/**
+ * Every item from a WordPress collection, following its paging.
+ *
+ * WordPress answers 400 rather than an empty array once you ask past the last
+ * page, which is why that is a break and not an error.
+ */
+async function fetchAll(resource, query = '') {
+  const items = []
   let page = 1
 
   while (true) {
     const endpoint =
-      `${WORDPRESS_URL}/wp-json/wp/v2/posts?per_page=100&page=${page}&_embed`
+      `${WORDPRESS_URL}/wp-json/wp/v2/${resource}?per_page=100&page=${page}${query}`
     const response = await fetch(endpoint)
 
     if (response.status === 400 && page > 1) break // past the last page
-    if (!response.ok) throw new Error(`WordPress returned ${response.status} for page ${page}`)
+    if (!response.ok) throw new Error(`WordPress returned ${response.status} for ${resource} page ${page}`)
 
     const batch = await response.json()
 
     if (!Array.isArray(batch) || batch.length === 0) break
 
-    posts.push(...batch)
+    items.push(...batch)
 
     const totalPages = Number(response.headers.get('x-wp-totalpages') || '1')
 
@@ -138,7 +152,70 @@ async function fetchAllPosts() {
     page++
   }
 
-  return posts
+  return items
+}
+
+const fetchAllPosts = () => fetchAll('posts', '&_embed')
+const fetchAllMedia = () => fetchAll('media')
+
+/**
+ * Bring the whole media library across, not only the images posts point at.
+ *
+ * Importing featured images alone left the library holding four rows out of
+ * seventy-two: the pictures inside post bodies still displayed, because the
+ * stored HTML carries absolute URLs, but nothing in the admin knew they
+ * existed, so they could not be browsed or reused.
+ *
+ * As with featured images, nothing is uploaded. Each row records the object
+ * key the file already has, so `publicUrl` rebuilds the URL it came from.
+ * Keyed on that key, so re-running updates rather than duplicates — and the
+ * rows are more complete than the featured-image path produces, since the
+ * media endpoint reports a real byte count and a real upload date.
+ */
+async function importMedia(db, userId, { dryRun }) {
+  const library = await fetchAllMedia()
+
+  let created = 0
+  let updated = 0
+  let skipped = 0
+
+  for (const item of library) {
+    const key = objectKey(item.source_url)
+
+    if (!key) {
+      skipped++
+      continue
+    }
+
+    if (dryRun) {
+      const existing = await db.get('SELECT id FROM media WHERE path = ?', [key])
+      console.log(`${existing ? 'update' : 'create'}  ${key}`)
+      continue
+    }
+
+    const filename = key.split('/').pop()
+    const altText = decode(item.alt_text || '') || null
+    // The media endpoint reports this; the featured-image embed does not.
+    const size = Number(item.media_details?.filesize) || null
+    const existing = await db.get('SELECT id FROM media WHERE path = ?', [key])
+
+    if (existing) {
+      await db.run(
+        'UPDATE media SET mime_type = ?, size = ?, alt_text = ? WHERE id = ?',
+        [item.mime_type || null, size, altText, existing.id]
+      )
+      updated++
+    } else {
+      await db.run(
+        `INSERT INTO media (user_id, filename, original_name, path, mime_type, size, alt_text, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [userId, filename, filename, key, item.mime_type || null, size, altText, timestamp(item)]
+      )
+      created++
+    }
+  }
+
+  return { total: library.length, created, updated, skipped }
 }
 
 /** Insert-or-return-existing, keyed on slug. */
@@ -218,6 +295,19 @@ async function main() {
   console.log(`Importing from ${WORDPRESS_URL}`)
   console.log(`Author: ${author.name} <${author.email}>`)
   if (dryRun) console.log('Dry run — nothing will be written.\n')
+
+  // The library first, so a post's featured image links to a complete row
+  // rather than the sparse one the embed can produce.
+  if (!skipMedia) {
+    const media = await importMedia(db, author.id, { dryRun })
+
+    if (!dryRun) {
+      console.log(
+        `Media library: ${media.total} item(s) — ${media.created} created, ` +
+          `${media.updated} updated${media.skipped ? `, ${media.skipped} skipped` : ''}.`
+      )
+    }
+  }
 
   let posts = await fetchAllPosts()
   posts.sort((a, b) => new Date(a.date_gmt || a.date) - new Date(b.date_gmt || b.date))
