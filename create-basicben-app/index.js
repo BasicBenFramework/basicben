@@ -151,6 +151,12 @@ APP_KEY=${appKey}
 PORT=3001              # API server
 VITE_PORT=3000         # Frontend dev server
 
+# The origin this site is reached at. Passkeys are bound to it, and the content
+# API resolves media URLs against it — with the local storage driver those are
+# app-relative, and a headless consumer on another host cannot resolve them.
+# In production this is your domain.
+APP_URL=http://localhost:3000
+
 # Database (uncomment one)
 # DATABASE_URL=./data.db
 # DATABASE_URL=postgres://user:pass@localhost:5432/mydb

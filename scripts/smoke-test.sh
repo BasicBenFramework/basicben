@@ -177,6 +177,18 @@ if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
     fail "types/ is out of date — run 'npm run build:types' and commit the result"
   fi
   pass "committed declarations match the JSDoc"
+fi
+
+# The docs page renders a generated module rather than a hand-written table, so
+# an edit to PublicContent.ts that skips the generator ships a reference
+# describing the previous shape. Same failure as stale declarations, same check.
+if ! node "$ROOT_DIR/scripts/generate-api-reference.js" --check > "$WORK_DIR/reference.log" 2>&1; then
+  cat "$WORK_DIR/reference.log"
+  fail "api-reference.ts is stale — run 'node scripts/generate-api-reference.js' and commit it"
+fi
+pass "the API reference matches the interfaces it documents"
+
+if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
 
   # Apps compile with skipLibCheck, so a declaration can be malformed and
   # still let every app typecheck. JSDoc that emits an optional parameter
@@ -196,6 +208,13 @@ npx basicben build > /dev/null 2>&1 || fail "build failed"
 [ -f dist/client/index.html ] || fail "dist/client/index.html missing after build"
 [ -f dist/server/index.js ] || fail "dist/server/index.js missing after build"
 pass "built client and server"
+
+# The app under test is a production build serving its own uploads on $PORT, so
+# that is the origin the content API must resolve media URLs against. A
+# scaffolded project gets APP_URL pointing at the dev server instead; overriding
+# it here is what makes "fetch the URL that was handed out" a real check rather
+# than a request to whatever happens to be on port 3000.
+printf '\nAPP_URL=http://localhost:%s\n' "$PORT" >> .env
 
 # --- Database ----------------------------------------------------------------
 #
@@ -329,7 +348,9 @@ esac
 
 # Give the console transport a moment to flush to the log.
 sleep 1
-VERIFY_URL="$(grep -o 'http://localhost:3000/verify/[A-Za-z0-9_-]*' "$WORK_DIR/server.log" | tail -1)"
+# The port is whatever APP_URL says, not a literal: this pattern was pinned to
+# 3000 and broke the moment APP_URL stopped being the default.
+VERIFY_URL="$(grep -oE 'https?://[^ ]*/verify/[A-Za-z0-9_-]+' "$WORK_DIR/server.log" | tail -1)"
 [ -n "$VERIFY_URL" ] || { tail -20 "$WORK_DIR/server.log"; fail "no verification link was sent"; }
 pass "registration sends a verification link"
 
@@ -452,7 +473,11 @@ PK_JSON="$(register Passkeyer passkey@example.com)"
 PK_TOKEN="$(token_of "$PK_JSON")"
 [ -n "$PK_TOKEN" ] || { echo "$PK_JSON"; fail "could not register the passkey user"; }
 
-if node "$ROOT_DIR/scripts/passkey-smoke.mjs" \
+# The origin has to match what the server derives from APP_URL, or the
+# assertion is rejected for the right reason and the test fails for the wrong
+# one. Both sides used to fall back to the same hardcoded default and agreed by
+# luck; now they are told.
+if APP_URL="http://localhost:$PORT" node "$ROOT_DIR/scripts/passkey-smoke.mjs" \
      "http://localhost:$PORT" "$PK_TOKEN" passkey@example.com password123 2>&1 \
      | sed 's/^ok /'"$(printf '\033[0;32m')"'✓'"$(printf '\033[0m')"' /'; then
   pass "passkey enrolment and sign-in work end to end"
@@ -627,6 +652,25 @@ case "$RERENDER" in
   *) echo "$RERENDER"; fail "content:rerender should have reported the posts table" ;;
 esac
 
+# --- Media uploads -------------------------------------------------------------
+#
+# The previous upload path could not work: the global body parser drained every
+# non-GET request before the controller ran, so the multipart parser attached
+# its listeners to an already-ended stream. Uploads now go straight from the
+# browser to storage, and this drives that flow against the booted app.
+#
+# It also drives `/api/v1/media/:id`, which is why it runs here rather than at
+# the end: the headless section below floods the content API until it 429s, and
+# that limit is keyed on the address, so anything touching /api/v1 afterwards
+# would be refused for the rest of the minute.
+
+# The owner's token: uploading needs the media.upload capability, which a
+# subscriber does not have. It was minted at registration, so the login
+# lockout above does not affect it — a lockout stops new sign-ins, not tokens
+# already issued.
+node "$ROOT_DIR/scripts/storage-smoke.mjs" "http://localhost:$PORT" "$OWNER_TOKEN" \
+  || fail "storage smoke test failed"
+
 # --- Headless API --------------------------------------------------------------
 #
 # The point of this surface is that a program somewhere else can read the site's
@@ -699,6 +743,16 @@ REVALIDATED="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/ap
 
 [ "$REVALIDATED" = "304" ] || fail "revalidating with the ETag got $REVALIDATED, expected 304"
 pass "the content API answers a conditional request with 304"
+
+# What the docs promise is what the server sends.
+#
+# The reference is generated from the interfaces, so it cannot drift from the
+# types — but an interface can promise a field the shaping code never sets, and
+# the cast in between hides it. This compares the documented field list to the
+# keys of a real response. It runs before the flood below, which exhausts the
+# limiter for this address.
+node "$ROOT_DIR/scripts/api-reference-smoke.mjs" "http://localhost:$PORT" "$OWNER_TOKEN" \
+  || fail "the API reference does not match what the API returns"
 
 # The public API is the one surface that can be served to anyone, and it had no
 # limit at all. The limiter keys on the address and runs ahead of the scope
@@ -802,19 +856,6 @@ curl -s -X PUT "http://localhost:$PORT/api/settings" \
   -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' \
   -d '{"settings":{"webhook_urls":""}}' -o /dev/null
 
-# --- Media uploads -------------------------------------------------------------
-#
-# The previous upload path could not work: the global body parser drained every
-# non-GET request before the controller ran, so the multipart parser attached
-# its listeners to an already-ended stream. Uploads now go straight from the
-# browser to storage, and this drives that flow against the booted app.
-
-# The owner's token: uploading needs the media.upload capability, which a
-# subscriber does not have. It was minted at registration, so the login
-# lockout above does not affect it — a lockout stops new sign-ins, not tokens
-# already issued.
-node "$ROOT_DIR/scripts/storage-smoke.mjs" "http://localhost:$PORT" "$OWNER_TOKEN" \
-  || fail "storage smoke test failed"
 
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"

@@ -175,6 +175,36 @@ export function sanitizeFilename(filename) {
   return cleaned || 'file'
 }
 
+/**
+ * Resolve a storage URL into one a consumer somewhere else can fetch.
+ *
+ * The local driver serves from the app's own origin, so `publicUrl()` hands
+ * back `/uploads/...`. That is right for the bundled frontend and useless to a
+ * headless consumer: a static build running on another host has nothing to
+ * resolve it against, and the markup it emits would point at its own server.
+ * The S3 driver already returns an absolute URL, and an absolute URL passes
+ * through untouched.
+ *
+ * The input comes back unchanged when there is no base to resolve against, or
+ * when the base is unusable. A relative URL is worse than an absolute one and
+ * far better than throwing from inside a read endpoint.
+ *
+ * @param {string} url - a URL from `publicUrl()`, absolute or app-relative
+ * @param {string} [base] - origin to resolve against; defaults to APP_URL
+ * @returns {string}
+ */
+export function absoluteUrl(url, base = process.env.APP_URL) {
+  if (!url || !base) return url
+
+  try {
+    return new URL(url, base).href
+  } catch {
+    // An unparseable APP_URL is the operator's problem to fix, not a reason for
+    // every media read to 500.
+    return url
+  }
+}
+
 export { createS3Adapter } from './adapters/s3.js'
 export { createLocalAdapter } from './adapters/local.js'
 export {

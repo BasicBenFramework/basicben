@@ -61,6 +61,20 @@ export async function createServer(options = {}) {
       secret: storageConfig.secret,
       maxSize: storageConfig.maxSize
     }))
+
+    // And the files it accepts have to be readable again.
+    //
+    // In development the app's static root is `public`, so `/uploads/...`
+    // resolved by accident. A production build serves `dist/client`, which is
+    // written at build time — so every file uploaded after the build 404'd,
+    // in the admin media library and on the content API alike. Mounted ahead
+    // of the app's own static middleware so the upload directory answers for
+    // its own prefix rather than depending on where the app happens to serve
+    // from.
+    app.use(serveStatic({
+      dir: storageConfig.dir || 'public/uploads',
+      prefix: storageConfig.baseUrl || '/uploads'
+    }))
   }
 
   if (mergedConfig.bodyParser !== false) {

@@ -13,6 +13,8 @@
  * Usage: node scripts/storage-smoke.mjs <baseUrl> <token>
  */
 
+import { compareShape } from './api-reference-shapes.mjs'
+
 const BASE = process.argv[2] || 'http://localhost:3987'
 const TOKEN = process.argv[3]
 
@@ -161,6 +163,62 @@ const ghostConfirm = await api('/api/media/confirm', {
 
 if (ghostConfirm.status === 201) fail('confirming a file that was never uploaded is refused')
 else pass('confirming a file that was never uploaded is refused')
+
+// --- And the public content API can serve it ---------------------------------
+//
+// This is the only place the v1 media endpoint is actually driven. The smoke
+// test used to check nothing beyond "a content:read token is refused
+// /api/v1/media", which returns from the scope check before the controller
+// runs — so `PublicContent.media()` calling `storage.url()`, a method neither
+// adapter has ever defined, shipped in 0.5.0 and threw on every request.
+
+const MEDIA_ID = confirmed.body.media.id
+const publicMedia = await api(`/api/v1/media/${MEDIA_ID}`)
+
+if (publicMedia.status !== 200) {
+  fail('the content API serves a media item', `${publicMedia.status} ${JSON.stringify(publicMedia.body)}`)
+} else {
+  pass('the content API serves a media item')
+}
+
+const mediaUrl = publicMedia.body?.data?.url
+
+// A consumer renders this on another origin. `/uploads/x.png` there points at
+// the consumer's own server, which is a broken image rather than an error.
+if (!/^https?:\/\//.test(mediaUrl || '')) {
+  fail('the media URL is absolute', String(mediaUrl))
+} else {
+  pass('the media URL is absolute')
+}
+
+// Absolute is not the same as correct — this fetches the URL that was handed
+// out and checks the bytes come back.
+if (mediaUrl) {
+  const fetched = await fetch(mediaUrl)
+  const bytes = fetched.ok ? Buffer.from(await fetched.arrayBuffer()) : null
+
+  if (!fetched.ok || bytes.length !== PNG.length) {
+    fail('the media URL resolves to the uploaded bytes', `${fetched.status}, ${bytes?.length} bytes`)
+  } else {
+    pass('the media URL resolves to the uploaded bytes')
+  }
+}
+
+// The published reference says what a media item contains. This is the only
+// place a real one exists, so it is the only place that claim can be checked
+// against a response rather than against the interface it was generated from.
+const shaped = compareShape('PublicMedia', publicMedia.body?.data)
+
+if (shaped.ok) pass('PublicMedia matches what /api/v1/media/:id returns')
+else fail('PublicMedia matches what /api/v1/media/:id returns', shaped.detail)
+
+const missing = await api('/api/v1/media/999999')
+
+if (missing.status !== 404) {
+  fail('an unknown media id is a 404', `${missing.status} ${JSON.stringify(missing.body)}`)
+} else {
+  pass('an unknown media id is a 404')
+}
 
 // --- The library lists it ----------------------------------------------------
 

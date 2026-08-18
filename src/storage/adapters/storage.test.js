@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createLocalAdapter } from './local.js'
 import { createS3Adapter } from './s3.js'
-import { buildKey, sanitizeFilename, resolveConfig } from '../index.js'
+import { buildKey, sanitizeFilename, resolveConfig, absoluteUrl } from '../index.js'
 
 const MINIO = {
   endpoint: process.env.MINIO_ENDPOINT || 'http://localhost:9010',
@@ -509,5 +509,76 @@ describe('endpoint handling', () => {
   test('missing credentials fail at construction, not at first use', () => {
     assert.throws(() => createS3Adapter({ bucket: 'b' }), /accessKeyId/)
     assert.throws(() => createS3Adapter({ accessKeyId: 'k', secretAccessKey: 's' }), /bucket/)
+  })
+})
+
+/**
+ * The public content API hands these URLs to consumers on other origins, so a
+ * relative one is a broken image on someone else's site rather than a cosmetic
+ * problem. That surface shipped calling `storage.url()`, which neither adapter
+ * has ever defined — every media read threw a TypeError — so the contract these
+ * tests pin down is the one that was missing, not one that changed.
+ */
+describe('absoluteUrl', () => {
+  test('resolves a local driver URL against the app origin', () => {
+    assert.strictEqual(
+      absoluteUrl('/uploads/media/a.png', 'https://example.com'),
+      'https://example.com/uploads/media/a.png'
+    )
+  })
+
+  test('leaves an already absolute URL alone', () => {
+    // The S3 driver returns one of these, and rebasing it onto the app origin
+    // would take a working CDN URL and point it at a path the app does not serve.
+    const cdn = 'https://cdn.example.com/media/a.png'
+    assert.strictEqual(absoluteUrl(cdn, 'https://example.com'), cdn)
+  })
+
+  test('a base with a path still resolves a root-relative URL to the root', () => {
+    assert.strictEqual(
+      absoluteUrl('/uploads/a.png', 'https://example.com/blog'),
+      'https://example.com/uploads/a.png'
+    )
+  })
+
+  test('keeps the port', () => {
+    assert.strictEqual(
+      absoluteUrl('/uploads/a.png', 'http://localhost:3000'),
+      'http://localhost:3000/uploads/a.png'
+    )
+  })
+
+  test('preserves a query string, so signed URLs survive', () => {
+    assert.strictEqual(
+      absoluteUrl('/uploads/a.png?expires=1&signature=ab', 'https://example.com'),
+      'https://example.com/uploads/a.png?expires=1&signature=ab'
+    )
+  })
+
+  test('returns the input unchanged when there is no base', () => {
+    assert.strictEqual(absoluteUrl('/uploads/a.png', undefined), '/uploads/a.png')
+    assert.strictEqual(absoluteUrl('/uploads/a.png', ''), '/uploads/a.png')
+  })
+
+  test('an unparseable base returns the input rather than throwing', () => {
+    // APP_URL=example.com, with no scheme, is a plausible typo. It must not
+    // turn every media read into a 500.
+    assert.strictEqual(absoluteUrl('/uploads/a.png', 'example.com'), '/uploads/a.png')
+  })
+
+  test('falls back to APP_URL', () => {
+    const previous = process.env.APP_URL
+    process.env.APP_URL = 'https://from-env.example'
+
+    try {
+      assert.strictEqual(absoluteUrl('/uploads/a.png'), 'https://from-env.example/uploads/a.png')
+    } finally {
+      if (previous === undefined) delete process.env.APP_URL
+      else process.env.APP_URL = previous
+    }
+  })
+
+  test('handles an empty URL', () => {
+    assert.strictEqual(absoluteUrl('', 'https://example.com'), '')
   })
 })

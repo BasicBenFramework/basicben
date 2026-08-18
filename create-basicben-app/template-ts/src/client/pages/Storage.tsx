@@ -79,6 +79,16 @@ storage.publicUrl('media/a.png')`}
           <p className={`text-sm ${t.muted} mt-4`}>
             Configure nothing and the <code>local</code> driver writes to{' '}
             <code>public/uploads</code>, so a new project works before anyone has a cloud account.
+            The app serves that directory itself, in development and in production — for a while it
+            only did so in development, because a production build serves <code>dist/client</code>,
+            which is written before any upload exists.
+          </p>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            <code>publicUrl()</code> returns an app-relative path on that driver and an absolute
+            one on S3. The content API resolves both against <code>APP_URL</code> before handing
+            them to a consumer, since a headless reader on another host has nothing to resolve a
+            relative path against. Set <code>APP_URL</code> to the origin the site is reached at.
           </p>
         </Card>
 

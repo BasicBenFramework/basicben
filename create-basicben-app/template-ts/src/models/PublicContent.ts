@@ -13,24 +13,47 @@
  */
 
 import { getDb } from '@basicbenframework/core/db'
-import { getStorage } from '@basicbenframework/core/storage'
+import { getStorage, absoluteUrl } from '@basicbenframework/core/storage'
 
 export type ContentFormat = 'html' | 'markdown'
 
+/**
+ * A post as the content API returns it.
+ *
+ * The field comments here are the API reference: `scripts/generate-api-reference.js`
+ * reads this file and emits the table the docs render, so the description a
+ * consumer sees is the one sitting next to the field. Writing that table by
+ * hand would make it a second place for the shape to drift, and prose drifts
+ * silently.
+ */
 export interface PublicPost {
+  /** Stable identifier. Accepted anywhere a slug is. */
   id: number
+  /** URL segment. Null on posts written before slugs existed. */
   slug: string | null
+  /** Plain text, never markup. */
   title: string
+  /** Short summary, if the author wrote one. */
   excerpt: string | null
+  /** The body, in whichever `format` this item reports. */
   content: string
+  /** What `content` actually is — not what you asked for. See `?format=`. */
   format: ContentFormat
+  /** Absolute URL of the featured image, or null. */
   featured_image_url: string | null
+  /** The author's display name. Never their address. */
   author: string | null
+  /** The single category, or null when uncategorised. */
   category: { id: number; name: string; slug: string } | null
+  /** Every tag on the post. Empty when untagged. */
   tags: Array<{ id: number; name: string; slug: string }>
+  /** SEO title override, if set. */
   meta_title: string | null
+  /** SEO description override, if set. */
   meta_description: string | null
+  /** When it was created, ISO 8601. Posts are ordered by this, newest first. */
   published_at: string
+  /** When it last changed, ISO 8601. */
   updated_at: string
 }
 
@@ -217,25 +240,33 @@ export const PublicContent = {
     return row ? shapePage(row, format) : null
   },
 
-  /** Categories that have at least one published post, with their counts. */
-  async categories() {
+  /**
+   * Every category, with how many published posts sit in it.
+   *
+   * Categories with no published posts are still listed, with a count of zero.
+   * A consumer building navigation wants the empty ones visible rather than
+   * having to discover them by fetching posts.
+   */
+  async categories(): Promise<PublicCategory[]> {
     const db = await getDb()
 
-    return db.all(`
+    const rows = (await db.all(`
       SELECT c.id, c.name, c.slug, c.description,
              COUNT(p.id) AS post_count
       FROM categories c
       LEFT JOIN posts p ON p.category_id = c.id AND p.published = 1
       GROUP BY c.id, c.name, c.slug, c.description
       ORDER BY c.name ASC
-    `)
+    `)) as Array<Omit<PublicCategory, 'post_count'> & { post_count: number | string }>
+
+    return rows.map((row) => ({ ...row, post_count: Number(row.post_count) || 0 }))
   },
 
   /** Tags with their published-post counts. */
-  async tags() {
+  async tags(): Promise<PublicTag[]> {
     const db = await getDb()
 
-    return db.all(`
+    const rows = (await db.all(`
       SELECT t.id, t.name, t.slug,
              COUNT(p.id) AS post_count
       FROM tags t
@@ -243,16 +274,13 @@ export const PublicContent = {
       LEFT JOIN posts p ON p.id = pt.post_id AND p.published = 1
       GROUP BY t.id, t.name, t.slug
       ORDER BY t.name ASC
-    `)
+    `)) as Array<Omit<PublicTag, 'post_count'> & { post_count: number | string }>
+
+    return rows.map((row) => ({ ...row, post_count: Number(row.post_count) || 0 }))
   },
 
-  /**
-   * One media item.
-   *
-   * `uploaded_by` and the original filename stay internal — a consumer needs
-   * the URL, the dimensions and the alt text, not who uploaded it.
-   */
-  async media(id: number) {
+  /** One media item. */
+  async media(id: number): Promise<PublicMedia | null> {
     const db = await getDb()
 
     const row = (await db.get(
@@ -269,7 +297,7 @@ export const PublicContent = {
 
     return {
       id: row.id,
-      url: storage.url(row.path),
+      url: mediaUrl(storage, row.path),
       mime_type: row.mime_type,
       size: row.size,
       alt_text: row.alt_text,
@@ -278,16 +306,73 @@ export const PublicContent = {
   }
 }
 
+/** A page as the content API returns it. A post without the blog machinery. */
 export interface PublicPage {
+  /** Stable identifier. Accepted anywhere a slug is. */
   id: number
+  /** URL segment. Required on pages, unlike posts. */
   slug: string
+  /** Plain text, never markup. */
   title: string
+  /** The body, in whichever `format` this item reports. */
   content: string
+  /** What `content` actually is — not what you asked for. See `?format=`. */
   format: ContentFormat
+  /** SEO title override, if set. */
   meta_title: string | null
+  /** SEO description override, if set. */
   meta_description: string | null
+  /** When it was created, ISO 8601. */
   published_at: string
+  /** When it last changed, ISO 8601. */
   updated_at: string
+}
+
+/** A category, with how many published posts sit in it. */
+export interface PublicCategory {
+  /** Stable identifier. */
+  id: number
+  /** Display name. */
+  name: string
+  /** URL segment. Accepted by `?category=`. */
+  slug: string
+  /** Longer description, if one was written. */
+  description: string | null
+  /** Published posts in this category. Zero is returned, not omitted. */
+  post_count: number
+}
+
+/** A tag, with how many published posts carry it. */
+export interface PublicTag {
+  /** Stable identifier. */
+  id: number
+  /** Display name. */
+  name: string
+  /** URL segment. Accepted by `?tag=`. */
+  slug: string
+  /** Published posts carrying this tag. */
+  post_count: number
+}
+
+/**
+ * A media item.
+ *
+ * `uploaded_by` and the original filename stay internal — a consumer needs the
+ * URL, the type and the alt text, not who uploaded it.
+ */
+export interface PublicMedia {
+  /** Stable identifier. */
+  id: number
+  /** Absolute URL of the file. */
+  url: string
+  /** MIME type as recorded at upload. */
+  mime_type: string
+  /** Size in bytes. */
+  size: number
+  /** Alt text, if an editor supplied one. */
+  alt_text: string | null
+  /** When it was uploaded, ISO 8601. */
+  created_at: string
 }
 
 interface PageRow {
@@ -300,6 +385,39 @@ interface PageRow {
   meta_description: string | null
   created_at: string
   updated_at: string
+}
+
+/** Warned about once per process; a per-request warning would be a log flood. */
+let warnedAboutRelativeMedia = false
+
+/**
+ * A media URL a consumer somewhere else can actually fetch.
+ *
+ * The adapter method is `publicUrl`. This surface called `storage.url`, which
+ * neither adapter has ever defined, so every media read and every post carrying
+ * a featured image threw a TypeError. It went unnoticed because the smoke test
+ * only ever checked that a `content:read` token is refused `/api/v1/media` —
+ * a scope failure returns before the controller runs.
+ *
+ * The URL is then resolved against `APP_URL`, because the local driver serves
+ * from the app's own origin and returns `/uploads/...`. That is correct for the
+ * bundled frontend and meaningless to a static build on another host. Refusing
+ * to serve media at all under the local driver was the other option; it makes
+ * the same-origin case worse and tells the consumer nothing, where an absolute
+ * URL at least works whenever the app is reachable.
+ */
+function mediaUrl(storage: { publicUrl: (key: string) => string }, path: string): string {
+  const url = absoluteUrl(storage.publicUrl(path))
+
+  if (!warnedAboutRelativeMedia && url.startsWith('/')) {
+    warnedAboutRelativeMedia = true
+    console.warn(
+      `[api] Serving relative media URLs (${url}). A consumer on another origin ` +
+        'cannot resolve them — set APP_URL, or configure object storage with a publicUrl.'
+    )
+  }
+
+  return url
 }
 
 /**
@@ -340,7 +458,7 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
     excerpt: row.excerpt,
     ...contentFor(row.content, row.content_html, format),
     featured_image_url:
-      row.featured_image_path && storage ? storage.url(row.featured_image_path) : null,
+      row.featured_image_path && storage ? mediaUrl(storage, row.featured_image_path) : null,
     author: row.author_name,
     category: row.category_id
       ? { id: row.category_id, name: row.category_name!, slug: row.category_slug! }

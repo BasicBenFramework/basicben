@@ -1,10 +1,20 @@
+import { ReactNode } from 'react'
 import { useTheme } from '../components/ThemeContext'
 import { Card } from '../components/Card'
 import { PageHeader } from '../components/PageHeader'
+// Generated from the interfaces in src/models/PublicContent.ts and the routes
+// in src/routes/api/v1.ts. Editing the tables below by hand would put the
+// response shape in two places, and the second one drifts.
+import { ENDPOINTS, QUERY_PARAMS, SHAPES, ENVELOPE } from './api-reference'
 
 interface CodeBlockProps {
   children: string
   title?: string
+}
+
+interface TableProps {
+  columns: string[]
+  children: ReactNode
 }
 
 export function Headless() {
@@ -16,6 +26,24 @@ export function Headless() {
       <div className={`rounded-lg p-4 font-mono text-sm ${t.card} border ${t.border} overflow-x-auto`}>
         <pre className={t.text}>{children}</pre>
       </div>
+    </div>
+  )
+
+  // Scrolls inside itself rather than widening the page: these tables carry
+  // long type signatures and a horizontally scrolling document is worse than a
+  // horizontally scrolling table.
+  const Table = ({ columns, children }: TableProps) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left">
+        <thead>
+          <tr className={`text-xs uppercase tracking-wide ${t.muted}`}>
+            {columns.map((column) => (
+              <th key={column} className="py-2 pr-4 font-medium">{column}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
     </div>
   )
 
@@ -70,22 +98,53 @@ export function Headless() {
 
         <Card>
           <h2 className="text-lg font-semibold mb-2">Endpoints</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            Every route is a GET, and only published content is returned. The scope is what an API
+            token needs; a signed-in session passes without one.
+          </p>
 
-          <CodeBlock>
-{`GET /api/v1/posts?page=&per_page=&category=&tag=&search=&format=
-GET /api/v1/posts/:slug
-GET /api/v1/pages
-GET /api/v1/pages/:slug
-GET /api/v1/categories
-GET /api/v1/tags
-GET /api/v1/media/:id`}
-          </CodeBlock>
+          <Table columns={['Path', 'Scope', 'Returns']}>
+            {ENDPOINTS.map((endpoint) => (
+              <tr key={endpoint.path} className={`border-t ${t.border} align-top`}>
+                <td className="py-2 pr-4">
+                  <div className="font-mono">{endpoint.path}</div>
+                  <div className={`text-xs mt-1 ${t.muted}`}>{endpoint.summary}</div>
+                </td>
+                <td className="py-2 pr-4 font-mono text-xs">{endpoint.scope}</td>
+                <td className="py-2 font-mono text-xs">
+                  {endpoint.collection ? `${endpoint.shape}[]` : endpoint.shape}
+                </td>
+              </tr>
+            ))}
+          </Table>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            Only published content is returned. <code>:slug</code> also accepts a numeric id, since
-            slugs are nullable on posts. <code>per_page</code> is clamped to 100. Responses are{' '}
-            <code>{'{ data, meta }'}</code>, with <code>meta.total_pages</code> computed for you.
+            <code>:slug</code> also accepts a numeric id, since slugs are nullable on posts.
           </p>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Comments are deliberately absent. That table stores <code>author_email</code> for
+            unauthenticated commenters, and a public feed of reader addresses is an incident rather
+            than a feature.
+          </p>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-2">Query parameters</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            Accepted on the collection routes. Filtering happens in SQL rather than over the page
+            that happened to load — filtering a page client-side gives an answer that depends on
+            the page size.
+          </p>
+
+          <Table columns={['Name', 'Meaning']}>
+            {QUERY_PARAMS.map((param) => (
+              <tr key={param.name} className={`border-t ${t.border} align-top`}>
+                <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{param.name}</td>
+                <td className={`py-2 text-sm ${t.muted}`}>{param.description}</td>
+              </tr>
+            ))}
+          </Table>
 
           <p className={`text-sm ${t.muted} mt-4`}>
             <code>?format=markdown</code> returns the source instead of rendered HTML. Every item
@@ -94,11 +153,77 @@ GET /api/v1/media/:id`}
             rather than labelling Markdown as HTML for you to inject into a page.{' '}
             <code>basicben content:rerender</code> fills the cache.
           </p>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-2">What comes back</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            One envelope for everything, so a consumer writes the unwrapping once.{' '}
+            <code>meta.total_pages</code> is computed for you: <code>total / per_page</code> is the
+            sum people get wrong, and an off-by-one there means a paginating client either misses
+            the last page or loops forever on an empty one.
+          </p>
+
+          <CodeBlock title="A collection">{ENVELOPE.collection}</CodeBlock>
+          <CodeBlock title="A single item">{ENVELOPE.item}</CodeBlock>
+          <CodeBlock title="Anything that failed">{ENVELOPE.error}</CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            Comments are deliberately absent. That table stores <code>author_email</code> for
-            unauthenticated commenters, and a public feed of reader addresses is an incident rather
-            than a feature.
+            A missing or unpublished item is a <code>404</code>; a missing or insufficiently scoped
+            credential is a <code>401</code>; too many requests is a <code>429</code>. There is no
+            partial success — an error body carries <code>error</code> and no <code>data</code>.
+          </p>
+        </Card>
+
+        {SHAPES.map((shape) => (
+          <Card key={shape.name}>
+            <h2 className="text-lg font-semibold mb-2">{shape.name}</h2>
+            <p className={`text-sm ${t.muted} mb-4`}>{shape.description}</p>
+
+            <Table columns={['Field', 'Type', 'Meaning']}>
+              {shape.fields.map((field) => (
+                <tr key={field.name} className={`border-t ${t.border} align-top`}>
+                  <td className="py-2 pr-4 font-mono text-xs whitespace-nowrap">{field.name}</td>
+                  <td className={`py-2 pr-4 font-mono text-xs ${t.muted}`}>{field.type}</td>
+                  <td className={`py-2 text-sm ${t.muted}`}>{field.description}</td>
+                </tr>
+              ))}
+            </Table>
+          </Card>
+        ))}
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-2">Media URLs</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            Every URL the content API returns is absolute, resolved against <code>APP_URL</code>.
+            That matters more here than anywhere else in the app: the bundled frontend can resolve{' '}
+            <code>/uploads/x.png</code> because it is served from the same origin, and a static
+            build on another host cannot — it would emit markup pointing at its own server.
+          </p>
+
+          <p className={`text-sm ${t.muted} mb-4`}>
+            With the default local driver the app serves those files itself, which works but puts
+            every image request through your Node process. Object storage is the production answer,
+            and <code>publicUrl</code> points the URLs at a CDN or custom domain rather than the
+            bucket's own hostname.
+          </p>
+
+          <CodeBlock title="basicben.config.js">
+{`storage: {
+  driver: 's3',                                 // also r2, minio, spaces, b2
+  bucket: process.env.S3_BUCKET,
+  accessKeyId: process.env.S3_ACCESS_KEY_ID,
+  secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+  publicUrl: 'https://cdn.example.com'          // what consumers receive
+}`}
+          </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            The API does not refuse to serve media when the local driver is active. Refusing would
+            break the same-origin case, which is legitimate, and would tell a consumer nothing
+            useful — an absolute URL at least resolves wherever the app is reachable. What it does
+            instead is warn once at the first request if the URL is still relative, which means{' '}
+            <code>APP_URL</code> is unset.
           </p>
         </Card>
 
