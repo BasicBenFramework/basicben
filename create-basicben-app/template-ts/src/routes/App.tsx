@@ -16,7 +16,7 @@ import { Authentication } from '../client/pages/Authentication'
 import { Validation } from '../client/pages/Validation'
 import { Content } from '../client/pages/Content'
 import { Storage } from '../client/pages/Storage'
-import { Plugins } from '../client/pages/Plugins'
+import { Extending } from '../client/pages/Extending'
 import { Headless } from '../client/pages/Headless'
 import { Testing } from '../client/pages/Testing'
 
@@ -29,7 +29,6 @@ import AdminCategories from '../client/pages/admin/Categories'
 import AdminTags from '../client/pages/admin/Tags'
 import AdminComments from '../client/pages/admin/Comments'
 import AdminMedia from '../client/pages/admin/Media'
-import AdminPlugins from '../client/pages/admin/Plugins'
 import AdminTokens from '../client/pages/admin/Tokens'
 import AdminSettings from '../client/pages/admin/Settings'
 
@@ -55,7 +54,7 @@ export default createClientApp({
     '/docs/validation': { component: Validation, layout: DocsLayout },
     '/docs/content': { component: Content, layout: DocsLayout },
     '/docs/storage': { component: Storage, layout: DocsLayout },
-    '/docs/plugins': { component: Plugins, layout: DocsLayout },
+    '/docs/extending': { component: Extending, layout: DocsLayout },
     '/docs/headless': { component: Headless, layout: DocsLayout },
     '/docs/testing': { component: Testing, layout: DocsLayout },
 
@@ -71,7 +70,6 @@ export default createClientApp({
     '/admin/tags': { component: AdminTags, layout: NoLayout, auth: true },
     '/admin/comments': { component: AdminComments, layout: NoLayout, auth: true },
     '/admin/media': { component: AdminMedia, layout: NoLayout, auth: true },
-    '/admin/plugins': { component: AdminPlugins, layout: NoLayout, auth: true },
     '/admin/tokens': { component: AdminTokens, layout: NoLayout, auth: true },
     '/admin/settings': { component: AdminSettings, layout: NoLayout, auth: true },
   }

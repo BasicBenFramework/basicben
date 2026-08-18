@@ -34,9 +34,6 @@ const commands = {
   'db:seed': () => import('../commands/seed.js'), // alias
   'make:seed': () => import('../commands/make-seed.js'),
 
-  // Plugins
-  plugin: () => import('../commands/plugin.js'),
-
   // Help
   help: () => import('../commands/help.js')
 }
@@ -135,17 +132,6 @@ export const commandMeta = {
     description: 'Generate a new seed file',
     usage: 'basicben make:seed <name>',
     example: 'basicben make:seed users'
-  },
-
-  plugin: {
-    description: 'Manage plugins in the plugins directory',
-    usage: 'basicben plugin <command> [options]',
-    options: {
-      'list': 'List plugins and whether each is active',
-      'activate <name>': 'Activate a plugin',
-      'deactivate <name>': 'Deactivate a plugin',
-      '--json': 'Output as JSON'
-    }
   },
 
   help: {

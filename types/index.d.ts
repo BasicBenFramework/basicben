@@ -2,8 +2,6 @@
 export const VERSION: string;
 export { db, query, getDb, QueryBuilder, Grammar } from "./db/index.js";
 export { hooks, HookManager, HOOKS } from "./hooks/index.js";
-export { plugins, PluginManager } from "./plugins/index.js";
-export { loadPlugins, scanPlugins, loadEnabledPlugins, saveEnabledPlugins } from "./plugins/loader.js";
 export { parseVersion, compareVersions, isNewer, isOlder, isEqual, satisfies, getChannel, incrementVersion } from "./version.js";
 export { createLimiter, rateLimit, parseDuration, clientAddress, MemoryStore, DatabaseStore } from "./server/rate-limit.js";
 export { sendMail, consoleTransport, httpTransport, smtpTransport, resendTransport, renderMail, resolveTransport, resetMailer } from "./mail/index.js";

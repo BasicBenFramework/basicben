@@ -152,7 +152,8 @@ Full end-to-end tests that:
 | `GET/POST /api/posts/:id/comments` | Comments |
 | `GET /api/media` | Media library |
 | `GET /api/settings` | Site settings |
-| `GET /api/plugins` | Plugin management |
+| `GET /api/tokens` | API tokens |
+| `GET /api/v1/posts` | Public content API |
 | `GET /feed.xml` | RSS feed |
 | `GET /feed.json` | JSON feed |
 | `GET /sitemap.xml` | Sitemap |
@@ -212,7 +213,7 @@ npm run dev
 - **Categories & Tags**: Organize content at `/admin/categories` and `/admin/tags`
 - **Comments**: Moderate comments at `/admin/comments`
 - **Media Library**: Upload files at `/admin/media`
-- **Plugins**: Enable/disable plugins at `/admin/plugins`
+- **API tokens**: Issue and revoke at `/admin/tokens`
 - **Settings**: Site configuration at `/admin/settings`
 - **Feeds**: Check `/feed.xml`, `/feed.json`, `/sitemap.xml`
 

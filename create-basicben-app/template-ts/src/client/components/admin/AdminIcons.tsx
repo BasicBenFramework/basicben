@@ -85,7 +85,6 @@ const byPath: Record<string, string> = {
   '/admin/tags': 'tags',
   '/admin/comments': 'comments',
   '/admin/media': 'media',
-  '/admin/plugins': 'plugins',
   '/admin/tokens': 'tokens',
   '/admin/settings': 'settings'
 }

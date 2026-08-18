@@ -92,14 +92,6 @@
     "./hooks": {
       "types": "./types/hooks/index.d.ts",
       "default": "./src/hooks/index.js"
-    },
-    "./plugins": {
-      "types": "./types/plugins/index.d.ts",
-      "default": "./src/plugins/index.js"
-    },
-    "./plugins/loader": {
-      "types": "./types/plugins/loader.d.ts",
-      "default": "./src/plugins/loader.js"
     }
   },
   "engines": {

@@ -87,16 +87,4 @@ export const Settings = {
     return value !== 'false' // Default to true
   },
 
-  async getEnabledPlugins(): Promise<string[]> {
-    const value = await this.get('enabled_plugins')
-    try {
-      return value ? JSON.parse(value) : []
-    } catch {
-      return []
-    }
-  },
-
-  async setEnabledPlugins(plugins: string[]): Promise<void> {
-    await this.set('enabled_plugins', JSON.stringify(plugins), 'plugins')
-  }
 }

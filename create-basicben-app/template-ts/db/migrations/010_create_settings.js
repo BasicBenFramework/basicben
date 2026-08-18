@@ -20,9 +20,7 @@ export const up = async (db, grammar) => {
     ('site_description', 'A blog powered by BasicBen', 'general'),
     ('posts_per_page', '10', 'reading'),
     ('allow_comments', 'true', 'discussion'),
-    ('moderate_comments', 'true', 'discussion'),
-    ('active_theme', 'default', 'appearance'),
-    ('enabled_plugins', '[]', 'plugins')
+    ('moderate_comments', 'true', 'discussion')
   `)
 }
 

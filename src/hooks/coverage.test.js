@@ -2,18 +2,18 @@
  * Every declared hook must have a call site.
  *
  * A hook constant with nothing firing it is the worst kind of bug this project
- * has: a plugin author reads `HOOKS.SERVER_STARTED`, writes a listener, and
+ * has: someone reads `HOOKS.SERVER_STARTED`, writes a listener, and
  * nothing happens — no error, no warning, just silence. That exact hook was
  * declared and unfired for several versions, because `server.started` was only
  * raised from `app.start()` and nothing calls `app.start()`.
  *
  * The docs claim this check exists ("Every hook the framework declares fires —
  * that is checked by a test that walks the constants and looks for a call
- * site"). It did not, until this file. All 38 passed on the day it was written;
+ * site"). It did not, until this file. Every one passed on the day it was written;
  * the value is in the next hook someone adds.
  *
  * It reads the template's sources as well as the framework's, because the two
- * share `HOOKS` and the split is not the plugin author's problem: content and
+ * share `HOOKS` and the split is not the listener's problem: content and
  * CRUD hooks fire from the generated app's controllers, lifecycle and transport
  * hooks from the framework. A hook fired from either is a hook that fires.
  */
@@ -27,11 +27,7 @@ import { HOOKS } from './index.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
-const SOURCE_ROOTS = [
-  'src',
-  'create-basicben-app/template-ts/src',
-  'create-basicben-app/template-ts/plugins'
-]
+const SOURCE_ROOTS = ['src', 'create-basicben-app/template-ts/src']
 
 /** Every hook name, paired with the constant path that names it. */
 function declaredHooks(obj = HOOKS, path = []) {
@@ -91,13 +87,13 @@ describe('hook coverage', () => {
   })
 
   test('the docs quote the right number of hooks', () => {
-    // The Plugins page states the count. Counts in prose go stale silently —
+    // The Extending page states the count. Counts in prose go stale silently —
     // the entry-point list on the Testing page said nineteen for two releases
     // after it became eighteen — so the number is asserted rather than trusted.
-    const page = join(ROOT, 'create-basicben-app/template-ts/src/client/pages/Plugins.tsx')
+    const page = join(ROOT, 'create-basicben-app/template-ts/src/client/pages/Extending.tsx')
     const quoted = readFileSync(page, 'utf-8').match(/All (\d+), by family/)
 
-    assert.ok(quoted, 'the Plugins docs page no longer states a hook count')
+    assert.ok(quoted, 'the Extending docs page no longer states a hook count')
     assert.strictEqual(
       Number(quoted[1]),
       hooks.length,

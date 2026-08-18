@@ -83,7 +83,6 @@ export function GettingStarted() {
 ├── db/
 │   ├── migrations/       # Database migrations
 │   └── seeds/            # Database seeders
-├── plugins/              # Installed plugins
 ├── mail/                 # Email templates
 ├── public/               # Static assets
 ├── index.html            # HTML shell
@@ -151,8 +150,7 @@ import { validate, rules } from '@basicbenframework/core/validation'
 import { signJwt, verifyJwt } from '@basicbenframework/core/auth'
 import { can, ROLES } from '@basicbenframework/core/auth/permissions'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
-import { plugins } from '@basicbenframework/core/plugins'
-import { loadPlugins } from '@basicbenframework/core/plugins/loader'`}</pre>
+import { createApiToken } from '@basicbenframework/core/auth/api-tokens'`}</pre>
           </div>
         </Card>
 

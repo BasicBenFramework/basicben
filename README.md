@@ -43,8 +43,8 @@ npx basicben dev
 
 Your app is running at `http://localhost:3000` — a working CMS, not a starter
 skeleton: authentication with two-factor and passkeys, posts and pages,
-categories, tags, comments, a media library, plugins, and an admin
-panel to manage them.
+categories, tags, comments, a media library, a headless content API, and an
+admin panel to manage them.
 
 Apps are TypeScript. Nothing forces you to annotate anything — Vite compiles
 the app either way — but the types are there when you want them, and the admin
@@ -87,7 +87,6 @@ my-app/
 ├── db/
 │   ├── migrations/          # Database migrations
 │   └── seeds/               # Database seeders
-├── plugins/                 # Installed plugins
 ├── mail/                    # Email templates
 ├── public/                  # Static assets
 ├── tsconfig.json
@@ -163,132 +162,56 @@ Navigate to `/admin` to access:
 
 ---
 
-## Plugins
+## Extending
 
-Plugins extend the CMS without forking it. A plugin is source in your
-repository — not a download — so it arrives the way the rest of your code does,
-through git and your package manager.
-
-### Registering plugins
-
-Two ways, and the difference only matters at deploy time.
+Hooks are how you change what the framework does without forking it. They live
+in `src/hooks.ts`, imported once by the server entry, so every listener is
+registered before the first request.
 
 ```js
-import helloWorld from '../../plugins/hello-world'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 
-const app = await createServer({
-  // Statically imported, so the plugin is bundled with the app and survives a
-  // production build. This is the one that works on every host.
-  plugins: [helloWorld],
+// A filter — return the value, changed. Return { cancel: true, reason }
+// to refuse the write entirely.
+hooks.on(HOOKS.POST_CREATING, async (data) => ({
+  ...data,
+  title: data.title.trim()
+}))
 
-  // Also scanned, which is convenient while you work: drop a file into
-  // plugins/ and restart. Set to false to load only what is listed above.
-  pluginsDir: 'plugins'
-})
+// A notification — the return value is ignored.
+hooks.on(HOOKS.MEDIA_UPLOADED, async ({ url }) => {
+  await purgeCdn(url)
+}, { name: 'cdn-purge' })
 ```
 
-A directory scan reads the source tree at runtime, and a host that ships a
-bundle rather than a working tree has no source tree to read — so passing
-plugins in is what makes them portable. A plugin named in both is registered
-once, from the list. `plugins: false` turns the system off entirely.
+The filter/notification distinction is the thing to get right: a filter that
+returns nothing replaces the value with undefined.
 
-There is no install command and no plugin registry. Downloading a plugin into a
-running server is the WordPress model, and it does not survive a redeploy on any
-host that rebuilds from an image.
-
-### How plugins hook in
-
-Every hook the framework declares now fires. A plugin listens with `hooks`,
-and the distinction that matters is between the two kinds:
-
-```js
-export default {
-  name: 'my-plugin',
-  version: '1.0.0',
-
-  hooks: {
-    // A filter: return the value, changed. Return { cancel: true, reason }
-    // to refuse the write entirely.
-    'post.creating': async (data) => ({ ...data, title: data.title.trim() }),
-    'content.render': async (html) => html.replace(/<code>/g, '<code class="hljs">'),
-    'admin.menu': async (items) => [...items, { path: '/admin/seo', label: 'SEO' }],
-
-    // A notification: the return value is ignored.
-    'post.created': async ({ post }) => { await index(post) },
-    'media.uploaded': async ({ key, url }) => { await purgeCdn(url) }
-  }
-}
-```
-
-All 38, by family: `server.*`, `request.*`, `post.*`, `page.*`, `comment.*`,
+All 36, by family: `server.*`, `request.*`, `post.*`, `page.*`, `comment.*`,
 `content.render/save/delete`, `media.*`, `auth.*`, `email.*`, `mail.*`,
-`admin.*`, `plugin.*`.
+`admin.*`. Every hook the framework declares fires — checked by a test that
+walks the constants and looks for a call site.
 
-**Settings reach `initialize`, not the hooks.** A hook callback receives the
-hook's own payload — `request.before` gets `{ req, res }` — so a plugin that
-needs its settings later has to keep them:
-
-```js
-let settings = {}
-
-export default {
-  settings: { greeting: 'Hello' },
-  initialize: async (ctx) => { settings = { ...settings, ...ctx.settings } },
-  hooks: { 'server.started': async () => console.log(settings.greeting) }
-}
-```
-
-A hook that throws is reported with the plugin that caused it and the others
-carry on, so one broken plugin cannot silently disable the rest. Set
+A listener that throws is contained and the others still run. Pass a `name` so
+the logged error points at the culprit rather than only naming the hook.
+`priority` takes a number, lower first, default 10. Set
 `BASICBEN_DEBUG_HOOKS=1` for stack traces.
 
-### Activating plugins
+**Where hooks fire matters.** The registry is a singleton per JavaScript realm,
+and the browser is a different realm from the server. `src/hooks.ts` is imported
+by the server entry, so a hook fired in the browser would consult an empty
+registry — which is why `admin.menu` fires on the server and reaches the UI
+through an API.
 
-```bash
-basicben plugin activate my-plugin
-```
+### There is no plugin system
 
-The choice is stored in the database and read at boot, which is the same list
-the admin panel writes. **Restart the server for it to take effect** — routes
-are registered at boot and there is no deregistration, so a plugin enabled in a
-running process would not mount its routes.
+There was one. It wrapped exactly the calls above in an object with a name, a
+version and an activation switch, and it was removed in 0.5.0.
 
-`enabledPlugins` in `basicben.config.js` overrides the stored list when set,
-for a deployment that wants to pin it.
-
-Plugins may be `.js`, `.mjs` or `.ts` — Node strips types natively, so a
-TypeScript plugin needs no build step, as long as it sticks to erasable syntax
-(no `enum`, no `namespace`). `.tsx` needs a build step and is not loaded.
-
-### Creating Plugins
-
-Plugins are JavaScript modules in the `plugins/` directory:
-
-```js
-// plugins/hello-world.js
-export default {
-  name: 'hello-world',
-  version: '1.0.0',
-
-  hooks: {
-    // Action — fires for side effects, return value is ignored
-    'request.before': async (ctx) => {
-      console.log('Request:', ctx.req.url)
-    },
-
-    // Filter — transform a value, return the new value
-    'content.render': async (html, ctx) => {
-      return html.replace(/{{year}}/g, new Date().getFullYear())
-    }
-  },
-
-  initialize: async () => {
-    console.log('Plugin activated!')
-  }
-}
-```
-
-Plugins can be written in JavaScript or TypeScript — Node strips types natively, so a `.ts` plugin needs no build step as long as it sticks to erasable syntax.
+A plugin could not be installed at runtime on any host that rebuilds from an
+image, so the container bought nothing that `import` does not already do.
+Shipping an extension as an npm package still works: install it, import it, call
+`hooks.on`.
 
 ---
 
@@ -319,11 +242,6 @@ basicben migrate:status            # Show which migrations have run
 basicben content:rerender          # Rebuild stored HTML from the Markdown source
 basicben content:rerender posts    # Just one table
 basicben content:rerender --dry-run
-
-# Plugins
-basicben plugin list               # List plugins and whether each is active
-basicben plugin activate <name>    # Activate a plugin
-basicben plugin deactivate <name>  # Deactivate a plugin
 
 # Help
 basicben help                      # Show all commands
@@ -988,7 +906,7 @@ and HTML entities. Headings get `id` anchors automatically.
 ### Sanitizing other HTML
 
 The parser is safe on its own, but imported content — a WordPress export, a
-plugin's output, a field you opened up to raw HTML — is not.
+a hook's output, a field you opened up to raw HTML — is not.
 
 ```js
 import { sanitizeHtml } from '@basicbenframework/core/content'
@@ -1015,10 +933,10 @@ hooks.on('content.render', (html, { table, id }) =>
 ```
 
 The filter runs **before** sanitization, never after. Sanitizing last and
-unconditionally means no plugin can put markup on the page the allowlist has not
+unconditionally means no listener can put markup on the page the allowlist has not
 seen.
 
-The practical consequence, and the first thing you will hit writing a plugin:
+The practical consequence, and the first thing you will hit writing a listener:
 **your markup is subject to the allowlist too.** `<span class>`, `<code class>`
 and `<img loading>` pass because they are on it; `<p class>` does not, and the
 attribute will simply be gone. Widen the list rather than moving the filter:
@@ -1032,7 +950,7 @@ await renderContent(markdown, {
 ### Rerendering
 
 Stored HTML goes stale when the parser changes, the allowlist changes, or a
-plugin that hooks `content.render` is installed or removed:
+listener on `content.render` is added or removed:
 
 ```bash
 basicben content:rerender
@@ -1260,7 +1178,7 @@ after defaults to `subscriber`.
 
 | Role | Can |
 |------|-----|
-| `admin` | Everything, including settings and plugins |
+| `admin` | Everything, including settings and API tokens |
 | `editor` | Create, edit, publish, and delete any content; moderate comments |
 | `author` | Create and publish their own posts; upload media |
 | `contributor` | Write their own drafts; cannot publish or upload |
@@ -1485,11 +1403,6 @@ export default {
     url: process.env.DATABASE_URL || './data.db'
   },
 
-  // Plugins. An array of imported plugin objects, or true to rely on the
-  // directory scan alone. pluginsDir: false turns the scan off.
-  plugins: [],
-  pluginsDir: 'plugins',
-
   // Auto-load routes from src/routes (default: true)
   autoloadRoutes: true,
 
@@ -1513,7 +1426,7 @@ hooks.on(HOOKS.REQUEST_BEFORE, async (ctx) => {
   return ctx
 })
 
-// Fire a hook (for plugin authors)
+// Fire a hook
 await hooks.fire('custom.event', { data: 'value' })
 
 // Filter data through callbacks
@@ -1539,7 +1452,6 @@ Errors thrown inside a callback are caught and logged — they do not abort the 
 | `request.after` | action | After route handler |
 | `post.created` | action | After post is created |
 | `comment.created` | action | After comment is created |
-| `plugin.activated` | action | When plugin is activated |
 | `content.render` | filter | Transform rendered HTML |
 
 ---

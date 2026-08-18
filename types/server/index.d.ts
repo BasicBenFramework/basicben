@@ -1,5 +1,5 @@
 /**
- * Create a BasicBen server instance with hooks and plugin support
+ * Create a BasicBen server instance
  */
 export function createServer(options?: {}): Promise<{
     use: (...handlers: any[]) => /*elided*/ any;
@@ -21,8 +21,6 @@ export function addResponseHelpers(req: any, res: any, next: any): void;
 export { createApp } from "./http.js";
 export { cors } from "./cors.js";
 export { serveStatic } from "./static.js";
-export { plugins } from "../plugins/index.js";
-export { loadPlugins } from "../plugins/loader.js";
 export { Router, createRouter } from "./router.js";
 export { bodyParser, json } from "./body-parser.js";
 export { loadRoutes, loadMiddleware, loadConfig } from "./loader.js";

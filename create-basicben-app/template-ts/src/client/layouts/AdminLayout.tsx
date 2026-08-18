@@ -42,9 +42,9 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   }
 
   /*
-    The menu comes from the server because that is the realm plugins load into.
-    Firing admin.menu in the browser would consult a hook registry that no
-    plugin has ever registered with, so a plugin could never add a nav item.
+    The menu comes from the server, because that is the realm hooks run in.
+    Firing admin.menu in the browser would consult a registry nothing has
+    registered with, so a listener could never add a nav item.
 
     The same list is hard-coded as a fallback: the sidebar must render even if
     the request fails, and it must not flash empty while the request is in
@@ -58,7 +58,6 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     { path: '/admin/tags', label: 'Tags' },
     { path: '/admin/comments', label: 'Comments' },
     { path: '/admin/media', label: 'Media' },
-    { path: '/admin/plugins', label: 'Plugins' },
     { path: '/admin/tokens', label: 'API tokens' },
     { path: '/admin/settings', label: 'Settings' },
   ]
@@ -76,7 +75,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
       })
       .catch(() => { /* the built-in menu is already showing */ })
 
-    // Lets a plugin do any one-off setup before the first admin screen renders.
+    // Lets an admin.init listener do one-off setup before the first screen renders.
     api.post('/api/admin/init').catch(() => {})
 
     return () => { cancelled = true }

@@ -2,7 +2,7 @@
  * BasicBen Server
  *
  * Zero-dependency HTTP server with custom router, middleware, and auto-loading.
- * Includes hook system and plugin support for extensibility.
+ * Includes a hook system for extensibility.
  */
 
 import { createApp } from './http.js'
@@ -12,11 +12,9 @@ import { cors } from './cors.js'
 import { serveStatic, spaFallback } from './static.js'
 import { loadRoutes, loadMiddleware, loadConfig } from './loader.js'
 import { hooks, HOOKS } from '../hooks/index.js'
-import { plugins } from '../plugins/index.js'
-import { loadPlugins } from '../plugins/loader.js'
 
 /**
- * Create a BasicBen server instance with hooks and plugin support
+ * Create a BasicBen server instance
  */
 export async function createServer(options = {}) {
   const config = await loadConfig()
@@ -91,64 +89,12 @@ export async function createServer(options = {}) {
     loadedRouter.applyTo(app)
   }
 
-  // Load and register plugins
-  if (mergedConfig.plugins !== false) {
-    // `plugins` is the master switch and, when it is an array, the plugins
-    // themselves. Passing them in is what makes a bundled deployment work: a
-    // static import is something a bundler can follow, where a directory scan
-    // is not. `pluginsDir: false` turns the scan off entirely for those builds.
-    const pluginModules = Array.isArray(mergedConfig.plugins) ? mergedConfig.plugins : []
-    const pluginDir = mergedConfig.pluginsDir === false
-      ? false
-      : mergedConfig.pluginsDir || 'plugins'
-
-    // Which plugins are enabled comes from the database, because that is what
-    // the admin UI writes to. Reading only `enabledPlugins` from config — which
-    // defaults to [] and which the templates never set — meant every plugin was
-    // loaded and registered but none was ever activated, so hooks never bound
-    // and `initialize` never ran. Config still wins when it is set, so a
-    // deployment can pin the list without a database.
-    const enabledPlugins = mergedConfig.enabledPlugins?.length
-      ? mergedConfig.enabledPlugins
-      : await readEnabledPlugins(mergedConfig)
-
-    const pluginContext = {
-      router,
-      app,
-      config: mergedConfig,
-      hooks
-    }
-
-    plugins.setContext(pluginContext)
-
-    const pluginResult = await loadPlugins(pluginDir, {
-      modules: pluginModules,
-      enabled: enabledPlugins,
-      context: pluginContext
-    })
-
-    if (pluginResult.loaded.length > 0) {
-      console.log(`Loaded plugins: ${pluginResult.loaded.join(', ')}`)
-    }
-
-    if (pluginResult.activated.length > 0) {
-      console.log(`Activated plugins: ${pluginResult.activated.join(', ')}`)
-    }
-
-    if (pluginResult.errors.length > 0) {
-      for (const error of pluginResult.errors) {
-        console.error(`Plugin error (${error.name}): ${error.error}`)
-      }
-    }
-  }
-
-  // Apply plugin routes
   router.applyTo(app)
 
   // `server.started` used to fire only from app.start(), and nothing calls
   // app.start() — both the TypeScript template's entry and the generated
   // production entry call app.listen() directly. So the hook never fired in any
-  // real app, including for the example plugin that listens for it.
+  // real app, including for anything listening for it.
   //
   // Wrapping listen() means it fires however the server is started, including
   // from a hand-written entry. The flag stops it firing twice when app.start()
@@ -194,7 +140,6 @@ export async function createServer(options = {}) {
    */
   app.stop = async () => {
     await hooks.fire(HOOKS.SERVER_STOPPING, {})
-    await plugins.deactivateAll()
 
     if (app.server) {
       return new Promise((resolve) => {
@@ -203,9 +148,8 @@ export async function createServer(options = {}) {
     }
   }
 
-  // Expose hooks and plugins on app
+  // Expose hooks on app, so a handler can fire or listen without an import.
   app.hooks = hooks
-  app.plugins = plugins
 
   return app
 }
@@ -213,44 +157,6 @@ export async function createServer(options = {}) {
 /**
  * Request hooks middleware - fires request.before and request.after hooks
  */
-/**
- * Read a setting the admin UI writes, without requiring a database.
- *
- * An app with no database, or one whose migrations have not run yet, must still
- * boot. Every failure here is expected rather than exceptional, so the caller
- * gets a default and the server starts.
- *
- * @param {string} key
- * @param {Object} config
- * @returns {Promise<string|null>}
- */
-async function readSetting(key, config) {
-  if (config.db === false) return null
-
-  try {
-    const { getDb } = await import('../db/index.js')
-    const db = await getDb()
-    const row = await db.get('SELECT value FROM settings WHERE key = ?', [key])
-
-    return row?.value ?? null
-  } catch {
-    return null
-  }
-}
-
-/** The plugins the admin UI has enabled. */
-async function readEnabledPlugins(config) {
-  const value = await readSetting('enabled_plugins', config)
-  if (!value) return []
-
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
 async function requestHooksMiddleware(req, res, next) {
   // Store original end method
   const originalEnd = res.end.bind(res)
@@ -300,11 +206,8 @@ const defaultConfig = {
   static: { dir: 'public' },
   routesDir: 'src/routes',
   middlewareDir: 'src/middleware',
-  pluginsDir: 'plugins',
   autoloadRoutes: true,
-  autoloadMiddleware: true,
-  plugins: true,
-  enabledPlugins: []
+  autoloadMiddleware: true
 }
 
 /**
@@ -391,8 +294,6 @@ export { cors } from './cors.js'
 export { serveStatic } from './static.js'
 export { loadRoutes, loadMiddleware, loadConfig } from './loader.js'
 export { hooks, HOOKS } from '../hooks/index.js'
-export { plugins } from '../plugins/index.js'
-export { loadPlugins } from '../plugins/loader.js'
 export {
   getEnvironment,
   isCloud,

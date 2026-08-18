@@ -31,14 +31,14 @@ export class HookManager {
      *
      * @param {string} hook - Hook name (e.g., 'server.started')
      * @param {Function} callback - Function to call when hook fires
-     * @param {Object} options - Options
-     * @param {number} options.priority - Lower numbers run first (default: 10)
-     * @param {string} options.name - Optional name for debugging/removal
+     * @param {Object} [options] - Options
+     * @param {number} [options.priority] - Lower numbers run first (default: 10)
+     * @param {string} [options.name] - Name, used in the error a throwing listener logs
      * @returns {this}
      */
     on(hook: string, callback: Function, options?: {
-        priority: number;
-        name: string;
+        priority?: number;
+        name?: string;
     }): this;
     /**
      * Remove a callback from a hook
@@ -98,7 +98,7 @@ export class HookManager {
      * Register multiple hooks at once from an object
      *
      * @param {Object<string, Function>} hookMap - Object mapping hook names to callbacks
-     * @param {Object} options - Options passed to each registration
+     * @param {Object} [options] - Options passed to each registration
      * @returns {this}
      */
     registerMany(hookMap: {
@@ -135,8 +135,6 @@ export namespace HOOKS {
     let ADMIN_MENU: string;
     let ADMIN_DASHBOARD: string;
     let ADMIN_INIT: string;
-    let PLUGIN_ACTIVATED: string;
-    let PLUGIN_DEACTIVATED: string;
     let MEDIA_UPLOADING: string;
     let MEDIA_UPLOADED: string;
     let MEDIA_DELETED: string;

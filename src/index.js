@@ -10,10 +10,8 @@ export const VERSION = pkg.version
 // Database
 export { db, query, getDb, QueryBuilder, Grammar } from './db/index.js'
 
-// Hooks & Plugins
+// Hooks
 export { hooks, HookManager, HOOKS } from './hooks/index.js'
-export { plugins, PluginManager } from './plugins/index.js'
-export { loadPlugins, scanPlugins, loadEnabledPlugins, saveEnabledPlugins } from './plugins/loader.js'
 
 // Version comparison
 export {

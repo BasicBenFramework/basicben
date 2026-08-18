@@ -65,34 +65,35 @@ cd "$WORK_DIR"
 tar -xzf "$CREATE_TGZ"
 node package/index.js "$APP_NAME" > /dev/null
 
-# A plugin that exercises the extension points, installed before the build so
-# it is discovered at boot like a real one.
-mkdir -p "$APP_NAME/plugins"
-cat > "$APP_NAME/plugins/probe.js" <<'PROBE'
-export default {
-  name: 'probe',
-  version: '1.0.0',
-  hooks: {
-    'post.creating': async (data) => ({ ...data, title: `[hooked] ${data.title}` }),
-    'content.save': async (html) => `${html}<p data-probe="1"></p>`,
-    'admin.menu': async (items) => [...items, { path: '/admin/probe', label: 'Probe' }],
-    'server.started': async () => { console.log('PROBE:server.started') }
-  },
-  initialize: async () => { console.log('PROBE:initialized') },
-  routes: (router) => {
-    router.get('/api/probe', (req, res) => res.json({ ok: true }))
-  }
-}
-PROBE
+# Hook listeners, appended to the app's own hooks file before the build. This
+# is how an app extends the framework now that plugins are gone, so it is what
+# the checks below should exercise — through the same file a user would edit.
+cat >> "$APP_NAME/src/hooks.ts" <<'PROBE'
 
-# A plugin that throws, to prove one bad plugin cannot disable the others.
-cat > "$APP_NAME/plugins/broken.js" <<'BROKEN'
-export default {
-  name: 'broken',
-  version: '1.0.0',
-  hooks: { 'post.created': async () => { throw new Error('deliberate') } }
-}
-BROKEN
+// --- smoke test probes -------------------------------------------------------
+
+hooks.on(HOOKS.POST_CREATING, async (data: { title?: string }) => ({
+  ...data,
+  title: `[hooked] ${data.title}`
+}))
+
+hooks.on(HOOKS.CONTENT_SAVE, async (html: string) => `${html}<p data-probe="1"></p>`)
+
+hooks.on(HOOKS.ADMIN_MENU, async (items: Array<{ path: string; label: string }>) => [
+  ...items,
+  { path: '/admin/probe', label: 'Probe' }
+])
+
+hooks.on(HOOKS.SERVER_STARTED, async () => {
+  console.log('PROBE:server.started')
+})
+
+// One listener that throws, to prove it cannot take the others down with it.
+// The name is what makes the logged error point at the culprit.
+hooks.on(HOOKS.POST_CREATED, async () => {
+  throw new Error('deliberate')
+}, { name: 'broken' })
+PROBE
 
 FILE_COUNT="$(find "$APP_NAME" -type f | wc -l | tr -d ' ')"
 if [ "$FILE_COUNT" -lt 20 ]; then
@@ -224,32 +225,6 @@ else
   pass "ran migrations"
 fi
 
-# --- Plugin activation --------------------------------------------------------
-#
-# This used to print a tick directly beneath "is not registered" and exit 0,
-# because activate() returned false and the CLI never looked at it.
-
-if npx basicben plugin activate does-not-exist > "$WORK_DIR/activate.log" 2>&1; then
-  cat "$WORK_DIR/activate.log"
-  fail "activating a missing plugin exited 0"
-fi
-pass "activating a missing plugin fails loudly"
-
-npx basicben plugin activate probe > /dev/null 2>&1 || fail "could not activate the probe plugin"
-npx basicben plugin activate broken > /dev/null 2>&1 || true
-npx basicben plugin activate hello-world > /dev/null 2>&1 \
-  || fail "could not activate the plugin the template ships"
-pass "activated a plugin from the CLI"
-
-# `plugin list` scans the directory in a process of its own, so it has to
-# discover and import each plugin before it can report anything about it. A
-# TypeScript plugin only appears here if Node stripped its types on the way in.
-PLUGIN_LIST="$(npx basicben plugin list --json 2>/dev/null)"
-case "$PLUGIN_LIST" in
-  *'"hello-world"'*) pass "the CLI lists a TypeScript plugin" ;;
-  *) echo "$PLUGIN_LIST"; fail "a .ts plugin was not discovered by the CLI" ;;
-esac
-
 # --- Boot --------------------------------------------------------------------
 
 # --env-file matches how `basicben start` runs this, so APP_KEY is available
@@ -266,11 +241,6 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 pass "server booted"
-
-# The activation must have survived the CLI process and been read back at boot.
-grep -q "PROBE:initialized" "$WORK_DIR/server.log" \
-  || { cat "$WORK_DIR/server.log"; fail "the plugin was never activated at boot"; }
-pass "plugins activate at boot from the stored list"
 
 grep -q "PROBE:server.started" "$WORK_DIR/server.log" \
   || fail "server.started never fired — it only fires from app.start(), which nothing calls"
@@ -329,7 +299,7 @@ auth_status() {
   curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" "http://localhost:$PORT$2"
 }
 
-for path in /api/settings /api/plugins; do
+for path in /api/settings /api/comments/pending; do
   code="$(auth_status "$VISITOR_TOKEN" "$path")"
   [ "$code" = "403" ] || fail "subscriber got $code on $path, expected 403"
 done
@@ -567,7 +537,7 @@ POST_ID="$(printf '%s' "$CREATED" | sed -n 's/.*"id":\([0-9]*\).*/\1/p' | head -
 STORED="$(curl -s "http://localhost:$PORT/api/posts/$POST_ID" \
   -H "Authorization: Bearer $MD_TOKEN")"
 
-# The plugin's filters must have altered what was actually written.
+# The filters must have altered what was actually written.
 case "$CREATED" in
   *'[hooked] Markdown test'*) pass "post.creating filtered the write" ;;
   *) echo "$CREATED"; fail "post.creating did not alter the stored title" ;;
@@ -579,69 +549,18 @@ case "$CREATED" in
 esac
 
 grep -qi 'Hook "post.created" (broken' "$WORK_DIR/server.log" \
-  && pass "a failing hook is reported with the plugin that caused it" \
-  || fail "a failing plugin hook was swallowed, or does not name the plugin"
-
-PROBE_ROUTE="$(curl -s "http://localhost:$PORT/api/probe")"
-case "$PROBE_ROUTE" in
-  *'"ok"'*) pass "plugin routes are mounted" ;;
-  *) echo "$PROBE_ROUTE"; fail "the plugin's route was never registered" ;;
-esac
-
-# The point of passing plugins to createServer rather than scanning for them:
-# this route comes from a plugin bundled into dist/server by a static import,
-# so it works on a host that ships a bundle instead of a source tree.
-HELLO_ROUTE="$(curl -s "http://localhost:$PORT/api/hello")"
-case "$HELLO_ROUTE" in
-  *'hello-world plugin'*) pass "an explicitly registered plugin mounts its routes" ;;
-  *) echo "$HELLO_ROUTE"; fail "the plugin passed to createServer never registered" ;;
-esac
-
-PLUGIN_API="$(curl -s "http://localhost:$PORT/api/plugins" -H "Authorization: Bearer $OWNER_TOKEN")"
-
-# Matching on substrings here would pass by accident: every plugin's fields sit
-# in one flat array, so "probe" appearing somewhere before "directory" proves
-# nothing about which plugin carries which source.
-plugin_report() {
-  printf '%s' "$PLUGIN_API" | PLUGIN_NAME="$1" node -e '
-    let raw = ""
-    process.stdin.on("data", (chunk) => (raw += chunk))
-    process.stdin.on("end", () => {
-      const found = (JSON.parse(raw).plugins || [])
-        .filter((plugin) => plugin.name === process.env.PLUGIN_NAME)
-
-      process.stdout.write(
-        found.length === 1 ? String(found[0].source) : `count=${found.length}`
-      )
-    })
-  ' 2>/dev/null
-}
-
-# hello-world is listed in the config array *and* sits in plugins/. Both copies
-# load; exactly one registration should survive, and it should be the explicit
-# one.
-HELLO_SOURCE="$(plugin_report hello-world)"
-[ "$HELLO_SOURCE" = "config" ] \
-  || { echo "$PLUGIN_API"; fail "hello-world reported '$HELLO_SOURCE', expected a single config registration"; }
-pass "a plugin in both config and plugins/ registers once, from config"
-
-# Where a plugin came from is recorded when it is registered, not guessed from
-# the filename afterwards — a plugin whose name differs from its file would be
-# mislabelled by any such guess.
-PROBE_SOURCE="$(plugin_report probe)"
-[ "$PROBE_SOURCE" = "directory" ] \
-  || { echo "$PLUGIN_API"; fail "the scanned plugin reported '$PROBE_SOURCE', expected directory"; }
-pass "a scanned plugin reports where it was found"
+  && pass "a failing hook is reported with the listener that caused it" \
+  || fail "a failing hook was swallowed, or does not name the listener"
 
 # The admin API only exists in the TypeScript template.
 MENU="$(curl -s "http://localhost:$PORT/api/admin/menu" -H "Authorization: Bearer $OWNER_TOKEN")"
 case "$MENU" in
-  *'/admin/probe'*) pass "a plugin can extend the admin menu" ;;
+  *'/admin/probe'*) pass "a hook can extend the admin menu" ;;
   *) echo "$MENU"; fail "admin.menu did not reach the UI" ;;
 esac
 case "$MENU" in
   *'/admin/posts'*) pass "and the built-in menu items survive" ;;
-  *) fail "the plugin replaced the menu instead of extending it" ;;
+  *) fail "the listener replaced the menu instead of extending it" ;;
 esac
 
 case "$STORED" in

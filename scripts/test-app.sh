@@ -448,21 +448,6 @@ if [ -n "$AUTH_TOKEN" ]; then
     ((TESTS_FAILED++))
   fi
 
-  # ---- Plugins API ----
-  echo ""
-  log_info "Testing Plugins API..."
-
-  # Get plugins
-  PLUGINS_RESPONSE=$(curl -s http://localhost:3001/api/plugins \
-    -H "Authorization: Bearer $AUTH_TOKEN")
-
-  if echo "$PLUGINS_RESPONSE" | grep -q "\["; then
-    log_success "GET /api/plugins returns array"
-    ((TESTS_PASSED++))
-  else
-    log_error "GET /api/plugins failed"
-    ((TESTS_FAILED++))
-  fi
 
 fi
 

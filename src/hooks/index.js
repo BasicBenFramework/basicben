@@ -31,9 +31,9 @@ export class HookManager {
    *
    * @param {string} hook - Hook name (e.g., 'server.started')
    * @param {Function} callback - Function to call when hook fires
-   * @param {Object} options - Options
-   * @param {number} options.priority - Lower numbers run first (default: 10)
-   * @param {string} options.name - Optional name for debugging/removal
+   * @param {Object} [options] - Options
+   * @param {number} [options.priority] - Lower numbers run first (default: 10)
+   * @param {string} [options.name] - Name, used in the error a throwing listener logs
    * @returns {this}
    */
   on(hook, callback, options = {}) {
@@ -101,8 +101,8 @@ export class HookManager {
       try {
         await callback(context)
       } catch (err) {
-        // One broken callback must not stop the others, or a single bad plugin
-        // silently disables every other plugin listening to the same hook.
+        // One broken callback must not stop the others, or a single bad
+        // listener silently disables every other listener on the same hook.
         reportHookError(hook, name, err)
       }
     }
@@ -193,7 +193,7 @@ export class HookManager {
    * Register multiple hooks at once from an object
    *
    * @param {Object<string, Function>} hookMap - Object mapping hook names to callbacks
-   * @param {Object} options - Options passed to each registration
+   * @param {Object} [options] - Options passed to each registration
    * @returns {this}
    */
   registerMany(hookMap, options = {}) {
@@ -209,9 +209,9 @@ export class HookManager {
  * Report a callback that threw.
  *
  * A hook error used to surface as `Error in hook "request.before": x` with no
- * indication of *which* plugin was at fault — on a site with several plugins
+ * indication of *which* listener was at fault — with several on one hook
  * listening to the same hook, that is not enough to act on. Callbacks are
- * registered with a `plugin:hook` name, so it is available; it just was not
+ * every listener is registered with a name, so it is available; it just was not
  * being used.
  *
  * The stack is kept on the error rather than printed, so a caller that wants
@@ -276,8 +276,6 @@ export const HOOKS = {
   ADMIN_INIT: 'admin.init',
 
   // Plugin hooks
-  PLUGIN_ACTIVATED: 'plugin.activated',
-  PLUGIN_DEACTIVATED: 'plugin.deactivated',
 
   // Media hooks
   MEDIA_UPLOADING: 'media.uploading',

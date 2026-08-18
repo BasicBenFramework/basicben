@@ -89,16 +89,6 @@ export const commandMeta: {
         usage: string;
         example: string;
     };
-    plugin: {
-        description: string;
-        usage: string;
-        options: {
-            list: string;
-            'activate <name>': string;
-            'deactivate <name>': string;
-            '--json': string;
-        };
-    };
     help: {
         description: string;
         usage: string;
