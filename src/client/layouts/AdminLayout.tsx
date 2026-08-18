@@ -556,6 +556,101 @@ const adminStyles = `
 
   .admin-btn-secondary { background: var(--surface); color: var(--fg); }
 
+  /* Creating a category or tag from inside the post editor, so adding one does
+     not mean leaving an unsaved draft to visit another page. */
+  .admin-inline-add {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .admin-inline-add .admin-input { flex: 1; min-width: 0; }
+  .admin-inline-add .admin-btn:disabled { opacity: 0.45; cursor: default; }
+
+  /* A checkbox list that scrolls rather than pushing the rest of the sidebar
+     off the screen. A site with eighty categories is normal. */
+  .admin-term-list {
+    max-height: 12rem;
+    overflow-y: auto;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+
+  .admin-term-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.1875rem 0;
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+
+  .admin-term-option input { cursor: pointer; }
+  .admin-term-option:hover { color: var(--accent); }
+
+  .admin-term-empty {
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+  }
+
+  .admin-term-add {
+    margin-top: 0.625rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+
+  .admin-term-add:hover { text-decoration: underline; }
+
+  /* The tags actually on the post, each removable — so the selection is
+     visible without opening anything. */
+  .admin-term-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.625rem;
+  }
+
+  .admin-term-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.1875rem 0.5rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 0.8125rem;
+  }
+
+  .admin-term-chip button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--fg-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .admin-term-chip button:hover { color: var(--danger); }
+
+  .admin-term-details { margin-top: 0.75rem; }
+
+  .admin-term-details summary {
+    color: var(--fg-muted);
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
+
+  .admin-term-details summary:hover { color: var(--accent); }
+  .admin-term-details .admin-term-list { margin-top: 0.5rem; }
+
   /* --- Markdown editor -------------------------------------------------------
      Every colour here was a hardcoded hex in the component's inline styles: a
      #f9fafb toolbar, #d1d5db borders, a #ffffff preview. Inline styles cannot

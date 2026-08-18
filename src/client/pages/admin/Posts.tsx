@@ -10,7 +10,7 @@ interface Post {
   title: string
   published: boolean
   created_at: string
-  category_name?: string
+  categories?: Array<{ id: number; name: string; slug: string }>
 }
 
 export default function AdminPosts() {
@@ -85,7 +85,7 @@ export default function AdminPosts() {
             <thead>
               <tr>
                 <th>Title</th>
-                <th>Category</th>
+                <th>Categories</th>
                 <th>Status</th>
                 <th>Date</th>
                 <th>Actions</th>
@@ -99,7 +99,11 @@ export default function AdminPosts() {
                       {post.title}
                     </Link>
                   </td>
-                  <td>{post.category_name || '—'}</td>
+                  <td>
+                    {post.categories?.length
+                      ? post.categories.map(c => c.name).join(', ')
+                      : '—'}
+                  </td>
                   <td>
                     <span className={`admin-badge ${post.published ? 'admin-badge-success' : 'admin-badge-warning'}`}>
                       {post.published ? 'Published' : 'Draft'}

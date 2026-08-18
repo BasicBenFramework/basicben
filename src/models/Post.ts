@@ -112,8 +112,15 @@ export const Post = {
 
     const counted = await db.get('SELECT COUNT(*) AS total FROM posts WHERE user_id = ?', [userId])
 
-    // Postgres returns bigint counts as strings rather than lose precision.
-    return { posts, total: Number(counted?.total) || 0 }
+    // The listing showed a `category_name` this query never selected, so its
+    // Category column rendered an em dash for every row whatever the post was
+    // filed under. Categories are many-to-many now, so it could not have been a
+    // single column anyway — they come back as an array, fetched once for the
+    // page rather than once per row.
+    return {
+      posts: await withCategories(db, posts),
+      total: Number(counted?.total) || 0
+    }
   },
 
   async findPublished(): Promise<PostType[]> {
@@ -231,4 +238,41 @@ async function withFeaturedImages(rows: PostRow[]): Promise<PostType[]> {
       ? storage.publicUrl(row.featured_image_path)
       : null
   }))
+}
+
+/**
+ * Attach each post's categories, in one query for the whole page.
+ *
+ * One query per post would be invisible on a seeded database and painful on a
+ * real one — the same reason PublicContent batches its tags.
+ */
+type CategoryRef = { id: number; name: string; slug: string }
+
+async function withCategories(
+  db: { all: (sql: string, params?: unknown[]) => Promise<unknown[]> },
+  posts: PostType[]
+): Promise<Array<PostType & { categories: CategoryRef[] }>> {
+  if (posts.length === 0) return []
+
+  const ids = posts.map((post) => post.id)
+  const placeholders = ids.map(() => '?').join(', ')
+
+  const rows = (await db.all(
+    `SELECT pc.post_id, c.id, c.name, c.slug
+     FROM post_categories pc
+     JOIN categories c ON c.id = pc.category_id
+     WHERE pc.post_id IN (${placeholders})
+     ORDER BY c.name ASC`,
+    ids
+  )) as Array<{ post_id: number } & CategoryRef>
+
+  const byPost = new Map<number, CategoryRef[]>()
+
+  for (const row of rows) {
+    const list = byPost.get(row.post_id) ?? []
+    list.push({ id: row.id, name: row.name, slug: row.slug })
+    byPost.set(row.post_id, list)
+  }
+
+  return posts.map((post) => ({ ...post, categories: byPost.get(post.id) ?? [] }))
 }
