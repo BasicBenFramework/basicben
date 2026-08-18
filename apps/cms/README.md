@@ -1,7 +1,7 @@
 # BasicBen CMS
 
 Posts, pages, categories, tags, media, comments, an admin UI, and a headless
-content API at `/api/v1`. Built on [BasicBen](../../packages/core).
+content API at `/api/v1`. Built on [BasicBen](https://github.com/BasicBenFramework/core).
 
 In the monorepo this is the CMS itself. Scaffolded with
 `npx @basicbenframework/create`, this is your project — a copy you own.

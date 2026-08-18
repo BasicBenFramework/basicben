@@ -23,11 +23,17 @@ import assert from 'node:assert'
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { HOOKS } from '../../../packages/core/src/hooks/index.js'
+import { HOOKS } from '@basicbenframework/core/hooks'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 
-const SOURCE_ROOTS = ['packages/core/src', 'apps/cms/src']
+// Both sides, still. Most hooks are declared and fired inside the framework
+// (server.starting, request.before, mail.sending); the CMS fires the content
+// ones. Scanning only this repository would report the framework's own hooks
+// as dead, which is a false alarm rather than a finding. The published package
+// ships its source, so the installed copy is scannable — this survives core
+// living in another repository.
+const SOURCE_ROOTS = ['apps/cms/src', 'node_modules/@basicbenframework/core/src']
 
 /** Every hook name, paired with the constant path that names it. */
 function declaredHooks(obj = HOOKS, path = []) {
@@ -49,7 +55,7 @@ function declaredHooks(obj = HOOKS, path = []) {
  * every hook including one nothing fires. The first version of this test did
  * exactly that and reported all-green for a hook invented to break it.
  */
-const DECLARATION = join(ROOT, 'packages/core/src/hooks/index.js')
+const DECLARATION = join(ROOT, 'node_modules/@basicbenframework/core/src/hooks/index.js')
 
 /** Application sources, excluding tests — a test firing a hook is not a call site. */
 function sourceFiles(dir, found = []) {

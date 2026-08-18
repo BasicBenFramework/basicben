@@ -16,7 +16,7 @@ cd "$ROOT_DIR"
 # Get current version
 # The repository root is a private workspace with no version of its own; core
 # is the package whose number this release names.
-CURRENT_VERSION=$(node -p "require('./packages/core/package.json').version")
+CURRENT_VERSION=$(node -p "require('./packages/create/package.json').version")
 
 echo -e "${YELLOW}Current version: ${NC}$CURRENT_VERSION"
 echo ""
@@ -87,7 +87,7 @@ fi
 # Update every versioned package. apps/cms is private and never published, but
 # it is the CMS this release ships, so it carries the same number rather than
 # drifting into meaninglessness.
-for TARGET in packages/core packages/create apps/cms; do
+for TARGET in packages/create apps/cms; do
   echo -e "${GREEN}Updating version in $TARGET/package.json...${NC}"
   node -e "
 const fs = require('fs');
@@ -103,7 +103,7 @@ npm install --package-lock-only > /dev/null 2>&1 || true
 
 # Commit
 echo -e "${GREEN}Committing changes...${NC}"
-git add packages/core/package.json packages/create/package.json apps/cms/package.json package-lock.json
+git add packages/create/package.json apps/cms/package.json package-lock.json
 git commit -m "v$NEW_VERSION"
 
 # Tag

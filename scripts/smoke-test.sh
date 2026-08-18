@@ -19,9 +19,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-# The publishable packages moved under packages/ when this became a workspace;
-# the CMS moved to apps/cms and is no longer a folder inside the create package.
-CORE_DIR="$ROOT_DIR/packages/core"
+# The CMS lives at apps/cms and the scaffolder at packages/create. The framework
+# is no longer in this repository — it is installed from npm like any consumer
+# gets it, which is why CORE_TGZ below is a download rather than a pack.
 CREATE_DIR="$ROOT_DIR/packages/create"
 WORK_DIR="$(mktemp -d)"
 PORT="${SMOKE_PORT:-3987}"
@@ -50,8 +50,21 @@ echo ""
 
 # --- Pack both artifacts -----------------------------------------------------
 
-cd "$CORE_DIR"
-CORE_TGZ="$(npm pack --pack-destination "$WORK_DIR" 2>/dev/null | tail -1)"
+# The framework as published, not as checked out. This is the one thing the
+# split costs: the smoke test can only exercise a *released* core, so a fix made
+# in the core repository is not covered here until it ships. Point
+# SMOKE_CORE_TGZ at a locally packed tarball to test an unreleased one.
+if [ -n "${SMOKE_CORE_TGZ:-}" ]; then
+  cp "$SMOKE_CORE_TGZ" "$WORK_DIR/"
+  CORE_TGZ="$(basename "$SMOKE_CORE_TGZ")"
+  echo "Using local core: $SMOKE_CORE_TGZ"
+else
+  CORE_VERSION="$(node -p "require('$ROOT_DIR/apps/cms/package.json').dependencies['@basicbenframework/core']" | tr -d '^~')"
+  (cd "$WORK_DIR" && npm pack "@basicbenframework/core@$CORE_VERSION" > /dev/null 2>&1) \
+    || fail "could not download @basicbenframework/core@$CORE_VERSION from npm"
+  CORE_TGZ="basicbenframework-core-$CORE_VERSION.tgz"
+fi
+
 cd "$CREATE_DIR"
 CREATE_TGZ="$(npm pack --pack-destination "$WORK_DIR" 2>/dev/null | tail -1)"
 
@@ -168,20 +181,9 @@ grep -qi "create_widgets" "$WORK_DIR/migrate-ts.log" \
   || { cat "$WORK_DIR/migrate-ts.log"; fail "the generated .ts migration was not discovered"; }
 pass "a generated .ts migration runs"
 
-# The committed declarations are generated from the JSDoc, so an edit to a
-# signature that skips `npm run build:types` ships types that describe the
-# previous version. Only checkable where the framework's own tsc is
-# installed, which is the machine where that edit is being made.
-if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
-  "$ROOT_DIR/node_modules/.bin/tsc" -p "$CORE_DIR/tsconfig.types.json" \
-    --outDir "$WORK_DIR/types-fresh" > /dev/null 2>&1
-  if ! diff -rq "$CORE_DIR/types" "$WORK_DIR/types-fresh" > "$WORK_DIR/types.diff" 2>&1; then
-    echo "--- stale declarations ---"
-    head -20 "$WORK_DIR/types.diff"
-    fail "types/ is out of date — run 'npm run build:types' and commit the result"
-  fi
-  pass "committed declarations match the JSDoc"
-fi
+# The framework's declaration checks moved to its own repository with it: they
+# compare core's committed types/ against its JSDoc, which needs core's source.
+# See BasicBenFramework/core.
 
 # The docs page renders a generated module rather than a hand-written table, so
 # an edit to PublicContent.ts that skips the generator ships a reference
@@ -191,22 +193,6 @@ if ! node "$ROOT_DIR/scripts/generate-api-reference.js" --check > "$WORK_DIR/ref
   fail "api-reference.ts is stale — run 'node scripts/generate-api-reference.js' and commit it"
 fi
 pass "the API reference matches the interfaces it documents"
-
-if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
-
-  # Apps compile with skipLibCheck, so a declaration can be malformed and
-  # still let every app typecheck. JSDoc that emits an optional parameter
-  # before a required one produced exactly that: an invalid .d.ts nobody saw.
-  if ! (cd "$CORE_DIR" && "$ROOT_DIR/node_modules/.bin/tsc" --noEmit --skipLibCheck false \
-         --strict false --moduleResolution bundler --module esnext \
-         --target es2022 --lib es2022,dom,dom.iterable \
-         $(find types -name '*.d.ts')) > "$WORK_DIR/dts.log" 2>&1; then
-    echo "--- declarations do not check on their own ---"
-    head -20 "$WORK_DIR/dts.log"
-    fail "generated declarations are not self-consistent"
-  fi
-  pass "declarations check on their own, without skipLibCheck"
-fi
 
 npx basicben build > /dev/null 2>&1 || fail "build failed"
 [ -f dist/client/index.html ] || fail "dist/client/index.html missing after build"
