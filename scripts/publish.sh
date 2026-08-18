@@ -112,7 +112,11 @@ git tag "v$NEW_VERSION"
 
 # Push
 echo -e "${GREEN}Pushing to origin...${NC}"
-git push origin "$CURRENT_BRANCH" --tags
+# The branch and the new tag only. `--tags` pushes every tag at once, and
+# GitHub creates no events when more than three arrive together — so the
+# release tag lands but the publish workflow never fires.
+git push origin "$CURRENT_BRANCH"
+git push origin "v$NEW_VERSION"
 
 echo ""
 echo -e "${GREEN}✓ Done!${NC}"
@@ -123,4 +127,4 @@ echo "  2. Publish @basicbenframework/core"
 echo "  3. Publish @basicbenframework/create"
 echo ""
 echo "Watch the workflow at:"
-echo "  https://github.com/BasicBenFramework/core/actions"
+echo "  https://github.com/BasicBenFramework/basicben/actions"

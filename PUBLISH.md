@@ -51,9 +51,16 @@ npm publish --workspace @basicbenframework/create --access public
 
 After packages exist, configure OIDC for automated releases.
 
+> **If the repository moves, this must be updated first.** npm authorises a
+> specific repository to publish a package. Publishing 0.5.1 from the new
+> monorepo failed with `404 Not Found - PUT ... or you do not have permission`
+> — which is npm's response to an unrecognised publisher, not a missing
+> package. The tarball built and the provenance was signed; only the final PUT
+> was refused.
+
 1. Go to [npmjs.com](https://www.npmjs.com) → Package Settings → Publishing Access
 2. Click "Add Linked Provider" → GitHub Actions
-3. Repository: `BasicBenFramework/core`
+3. Repository: `BasicBenFramework/basicben`
 4. Repeat for both packages:
    - `@basicbenframework/core`
    - `@basicbenframework/create`
