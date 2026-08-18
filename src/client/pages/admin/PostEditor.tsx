@@ -33,7 +33,7 @@ export default function AdminPostEditor() {
     content: '',
     excerpt: '',
     slug: '',
-    category_id: '',
+    category_ids: [] as number[],
     tags: [] as number[],
     meta_title: '',
     meta_description: '',
@@ -63,7 +63,7 @@ export default function AdminPostEditor() {
             content: post.content || '',
             excerpt: post.excerpt || '',
             slug: post.slug || '',
-            category_id: post.category_id?.toString() || '',
+            category_ids: post.category_ids || [],
             tags: post.tags?.map((t: Tag) => t.id) || [],
             meta_title: post.meta_title || '',
             meta_description: post.meta_description || '',
@@ -83,10 +83,8 @@ export default function AdminPostEditor() {
     setSaving(true)
 
     try {
-      const payload = {
-        ...formData,
-        category_id: formData.category_id ? parseInt(formData.category_id) : null
-      }
+      // Sent as-is: category_ids and tags are both arrays the server syncs.
+      const payload = { ...formData }
 
       if (isEditing) {
         await api.put(`/api/posts/${postId}`, payload)
@@ -110,6 +108,15 @@ export default function AdminPostEditor() {
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  const handleCategoryToggle = (categoryId: number) => {
+    setFormData(prev => ({
+      ...prev,
+      category_ids: prev.category_ids.includes(categoryId)
+        ? prev.category_ids.filter(id => id !== categoryId)
+        : [...prev.category_ids, categoryId]
     }))
   }
 
@@ -248,20 +255,32 @@ export default function AdminPostEditor() {
               </div>
             </div>
 
-            {/* Category */}
+            {/* Categories. A post can have several, as it can in every CMS
+                people arrive from — the first is treated as the primary one. */}
             <div className="admin-card">
-              <h3 className="admin-card-title">Category</h3>
-              <select
-                name="category_id"
-                value={formData.category_id}
-                onChange={handleChange}
-                className="admin-select"
-              >
-                <option value="">Select category</option>
+              <h3 className="admin-card-title">Categories</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleCategoryToggle(cat.id)}
+                    className={`admin-badge ${formData.category_ids.includes(cat.id) ? 'admin-badge-info' : ''}`}
+                    style={{
+                      cursor: 'pointer',
+                      border: '1px solid var(--border-strong)',
+                      backgroundColor: formData.category_ids.includes(cat.id) ? 'var(--tint-info)' : 'var(--surface)'
+                    }}
+                  >
+                    {cat.name}
+                  </button>
                 ))}
-              </select>
+              </div>
+              {categories.length === 0 && (
+                <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
+                  No categories yet. <Link href="/admin/categories">Create one</Link>
+                </p>
+              )}
             </div>
 
             {/* Tags */}

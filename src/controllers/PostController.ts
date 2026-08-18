@@ -31,7 +31,12 @@ export const PostController = {
     if (!post || post.user_id !== req.userId) {
       return res.json({ error: 'Post not found' }, 404)
     }
-    res.json({ post })
+
+    // The editor needs the current selection to check the right boxes, and a
+    // post has many of each now.
+    const taxonomy = await Post.taxonomy(post.id)
+
+    res.json({ post: { ...post, category_ids: taxonomy.categories, tag_ids: taxonomy.tags } })
   },
 
   async store(req: Request, res: Response) {
@@ -58,6 +63,12 @@ export const PostController = {
     }
 
     const post = await Post.create(draft)
+
+    // Categories and tags were accepted by the editor and dropped here — the
+    // request carried them, nothing read them, and the selection silently did
+    // nothing. They are persisted separately from the post row because both
+    // are many-to-many.
+    await saveTaxonomy(post.id, req.body)
 
     await hooks.fire(HOOKS.POST_CREATED, { post, userId: req.userId })
 
@@ -92,6 +103,8 @@ export const PostController = {
     }
 
     const updated = await Post.update(parseInt(req.params.id), changes)
+
+    await saveTaxonomy(parseInt(req.params.id), req.body)
 
     await hooks.fire(HOOKS.POST_UPDATED, { post: updated, previous: post, userId: req.userId })
 
@@ -128,5 +141,28 @@ export const PostController = {
       return res.json({ error: 'Post not found' }, 404)
     }
     res.json({ post })
+  }
+}
+
+/**
+ * Persist the category and tag selection that comes with a post.
+ *
+ * Absent keys leave the existing selection alone, so a caller that only wants
+ * to change a title does not have to resend the taxonomy to keep it. An empty
+ * array is a real instruction and clears it.
+ */
+async function saveTaxonomy(postId: number, body: unknown) {
+  const payload = (body ?? {}) as { category_ids?: unknown; tags?: unknown; tag_ids?: unknown }
+
+  if (Array.isArray(payload.category_ids)) {
+    await Post.syncCategories(postId, payload.category_ids as number[])
+  }
+
+  // The editor has always called this one `tags`; `tag_ids` is accepted too so
+  // the two halves of the pair are named alike from outside.
+  const tags = Array.isArray(payload.tag_ids) ? payload.tag_ids : payload.tags
+
+  if (Array.isArray(tags)) {
+    await Post.syncTags(postId, tags as number[])
   }
 }

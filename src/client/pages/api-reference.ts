@@ -87,7 +87,7 @@ export const SHAPES = [
       { name: 'format', type: '\'html\' | \'markdown\'', description: 'What `content` actually is — not what you asked for. See `?format=`.' },
       { name: 'featured_image_url', type: 'string | null', description: 'Absolute URL of the featured image, or null.' },
       { name: 'author', type: 'string | null', description: 'The author\'s display name. Never their address.' },
-      { name: 'category', type: '{ id: number; name: string; slug: string } | null', description: 'The single category, or null when uncategorised.' },
+      { name: 'categories', type: 'Array<{ id: number; name: string; slug: string }>', description: 'Every category on the post. Empty when uncategorised.' },
       { name: 'tags', type: 'Array<{ id: number; name: string; slug: string }>', description: 'Every tag on the post. Empty when untagged.' },
       { name: 'meta_title', type: 'string | null', description: 'SEO title override, if set.' },
       { name: 'meta_description', type: 'string | null', description: 'SEO description override, if set.' },

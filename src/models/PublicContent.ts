@@ -43,8 +43,8 @@ export interface PublicPost {
   featured_image_url: string | null
   /** The author's display name. Never their address. */
   author: string | null
-  /** The single category, or null when uncategorised. */
-  category: { id: number; name: string; slug: string } | null
+  /** Every category on the post. Empty when uncategorised. */
+  categories: Array<{ id: number; name: string; slug: string }>
   /** Every tag on the post. Empty when untagged. */
   tags: Array<{ id: number; name: string; slug: string }>
   /** SEO title override, if set. */
@@ -66,9 +66,6 @@ interface PostRow {
   content_html: string | null
   featured_image_path: string | null
   author_name: string | null
-  category_id: number | null
-  category_name: string | null
-  category_slug: string | null
   meta_title: string | null
   meta_description: string | null
   created_at: string
@@ -88,16 +85,12 @@ const POST_COLUMNS = `
   posts.created_at,
   posts.updated_at,
   users.name AS author_name,
-  categories.id AS category_id,
-  categories.name AS category_name,
-  categories.slug AS category_slug,
   media.path AS featured_image_path
 `
 
 const POST_JOINS = `
   FROM posts
   JOIN users ON posts.user_id = users.id
-  LEFT JOIN categories ON categories.id = posts.category_id
   LEFT JOIN media ON media.id = posts.featured_image
 `
 
@@ -143,9 +136,15 @@ export const PublicContent = {
     const params: unknown[] = []
 
     if (category) {
+      // Matches on *any* of the post's categories, not just its primary one —
+      // a post filed under both "AI" and "Jobs" belongs in either listing.
       // Accepts a slug or an id, because a consumer holding either should not
       // have to look the other up first.
-      where.push('(categories.slug = ? OR categories.id = ?)')
+      where.push(`posts.id IN (
+        SELECT pc.post_id FROM post_categories pc
+        JOIN categories ON categories.id = pc.category_id
+        WHERE categories.slug = ? OR categories.id = ?
+      )`)
       params.push(category, Number(category) || -1)
     }
 
@@ -254,7 +253,8 @@ export const PublicContent = {
       SELECT c.id, c.name, c.slug, c.description,
              COUNT(p.id) AS post_count
       FROM categories c
-      LEFT JOIN posts p ON p.category_id = c.id AND p.published = 1
+      LEFT JOIN post_categories pc ON pc.category_id = c.id
+      LEFT JOIN posts p ON p.id = pc.post_id AND p.published = 1
       GROUP BY c.id, c.name, c.slug, c.description
       ORDER BY c.name ASC
     `)) as Array<Omit<PublicCategory, 'post_count'> & { post_count: number | string }>
@@ -433,21 +433,43 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
   const ids = rows.map((row) => row.id)
   const placeholders = ids.map(() => '?').join(', ')
 
-  const tagRows = (await db.all(
-    `SELECT pt.post_id, t.id, t.name, t.slug
-     FROM post_tags pt
-     JOIN tags t ON t.id = pt.tag_id
-     WHERE pt.post_id IN (${placeholders})`,
-    ids
-  )) as Array<{ post_id: number; id: number; name: string; slug: string }>
+  const group = (
+    rowsFor: Array<{ post_id: number; id: number; name: string; slug: string }>
+  ) => {
+    const byPost = new Map<number, Array<{ id: number; name: string; slug: string }>>()
 
-  const byPost = new Map<number, Array<{ id: number; name: string; slug: string }>>()
+    for (const row of rowsFor) {
+      const list = byPost.get(row.post_id) ?? []
+      list.push({ id: row.id, name: row.name, slug: row.slug })
+      byPost.set(row.post_id, list)
+    }
 
-  for (const tag of tagRows) {
-    const list = byPost.get(tag.post_id) ?? []
-    list.push({ id: tag.id, name: tag.name, slug: tag.slug })
-    byPost.set(tag.post_id, list)
+    return byPost
   }
+
+  // Both in one query each for the whole page rather than one per post: the
+  // N+1 here is invisible on a seeded database and painful on a real one.
+  const tagsByPost = group(
+    (await db.all(
+      `SELECT pt.post_id, t.id, t.name, t.slug
+       FROM post_tags pt
+       JOIN tags t ON t.id = pt.tag_id
+       WHERE pt.post_id IN (${placeholders})
+       ORDER BY t.name ASC`,
+      ids
+    )) as Array<{ post_id: number; id: number; name: string; slug: string }>
+  )
+
+  const categoriesByPost = group(
+    (await db.all(
+      `SELECT pc.post_id, c.id, c.name, c.slug
+       FROM post_categories pc
+       JOIN categories c ON c.id = pc.category_id
+       WHERE pc.post_id IN (${placeholders})
+       ORDER BY c.name ASC`,
+      ids
+    )) as Array<{ post_id: number; id: number; name: string; slug: string }>
+  )
 
   const storage = rows.some((row) => row.featured_image_path) ? await getStorage() : null
 
@@ -460,10 +482,8 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
     featured_image_url:
       row.featured_image_path && storage ? mediaUrl(storage, row.featured_image_path) : null,
     author: row.author_name,
-    category: row.category_id
-      ? { id: row.category_id, name: row.category_name!, slug: row.category_slug! }
-      : null,
-    tags: byPost.get(row.id) ?? [],
+    categories: categoriesByPost.get(row.id) ?? [],
+    tags: tagsByPost.get(row.id) ?? [],
     meta_title: row.meta_title,
     meta_description: row.meta_description,
     published_at: row.created_at,

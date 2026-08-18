@@ -23,6 +23,60 @@ export const Post = {
     return db.all('SELECT * FROM posts ORDER BY created_at DESC')
   },
 
+  /**
+   * Replace a post's categories.
+   *
+   * Rebuilt rather than merged, because the editor sends the complete set: a
+   * merge would make unchecking a box do nothing, which is the kind of bug
+   * people re-report for months.
+   *
+   * `posts.category_id` is kept in step as the *primary* category — the first
+   * of the set — so a breadcrumb or canonical URL still has one to name.
+   */
+  async syncCategories(postId: number, categoryIds: number[]): Promise<void> {
+    const db = await getDb()
+    const ids = [...new Set(categoryIds.map(Number).filter(Number.isInteger))]
+
+    await db.run('DELETE FROM post_categories WHERE post_id = ?', [postId])
+
+    for (const id of ids) {
+      await db.run(
+        'INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)',
+        [postId, id]
+      )
+    }
+
+    await db.run('UPDATE posts SET category_id = ? WHERE id = ?', [ids[0] ?? null, postId])
+  },
+
+  /** Replace a post's tags. Rebuilt, for the same reason as categories. */
+  async syncTags(postId: number, tagIds: number[]): Promise<void> {
+    const db = await getDb()
+    const ids = [...new Set(tagIds.map(Number).filter(Number.isInteger))]
+
+    await db.run('DELETE FROM post_tags WHERE post_id = ?', [postId])
+
+    for (const id of ids) {
+      await db.run('INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)', [postId, id])
+    }
+  },
+
+  /** The ids of a post's categories and tags, for the editor to preselect. */
+  async taxonomy(postId: number): Promise<{ categories: number[]; tags: number[] }> {
+    const db = await getDb()
+
+    const categories = await db.all(
+      'SELECT category_id AS id FROM post_categories WHERE post_id = ?',
+      [postId]
+    )
+    const tags = await db.all('SELECT tag_id AS id FROM post_tags WHERE post_id = ?', [postId])
+
+    return {
+      categories: categories.map((row: { id: number }) => row.id),
+      tags: tags.map((row: { id: number }) => row.id)
+    }
+  },
+
   async find(id: number): Promise<PostType | undefined> {
     const db = await getDb()
     return db.get('SELECT * FROM posts WHERE id = ?', [id])

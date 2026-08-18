@@ -31,7 +31,18 @@ export interface Post {
   featured_image?: number
   /** Resolved by the model through the storage adapter. */
   featured_image_url?: string | null
+  /**
+   * The primary category — the one a breadcrumb or canonical URL would name.
+   * A post can belong to several; see `category_ids`.
+   */
   category_id?: number
+  /**
+   * Every category on the post. Returned by `GET /api/posts/:id` so the editor
+   * can preselect them; sent back on save to replace the set.
+   */
+  category_ids?: number[]
+  /** Every tag on the post, same contract as `category_ids`. */
+  tag_ids?: number[]
   meta_title?: string
   meta_description?: string
   publish_at?: string

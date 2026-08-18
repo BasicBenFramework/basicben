@@ -30,10 +30,13 @@
  * what was imported, so anything missed cannot be browsed or reused when
  * writing. `--skip-media` opts out.
  *
- * WordPress lets a post carry many categories and this schema allows one. The
- * first is kept as the category; the rest become tags, which are many-to-many
- * here and so lose nothing. Dropping the extras instead would quietly throw
- * away most of a typical site's taxonomy.
+ * Categories are many-to-many here as they are in WordPress, so a post keeps
+ * all of them. The first is also recorded on the post row as its primary
+ * category, which is what a breadcrumb or canonical URL would name.
+ *
+ * They used to be folded into tags — the schema allowed one category per post,
+ * and the alternative was dropping them. On the first real migration that
+ * demoted 67 of 83 categories, which preserved the words and lost the meaning.
  *
  * Content is stored twice, deliberately. `content_html` is WordPress's own
  * rendered HTML, which is what the blog renders, so the site looks byte-identical
@@ -346,13 +349,21 @@ async function main() {
     // leaves a post with half its tags, and the re-run would not notice because
     // the post itself already exists.
     await db.transaction(async (tx) => {
-      const categoryId = wpCategories.length
-        ? await upsertTerm(tx, 'categories', {
-            name: decode(wpCategories[0].name),
-            slug: wpCategories[0].slug,
+      // Every category the post has, not just the first. The first is kept as
+      // the primary one on the post row for breadcrumbs and canonical URLs.
+      const categoryIds = []
+
+      for (const term of wpCategories) {
+        categoryIds.push(
+          await upsertTerm(tx, 'categories', {
+            name: decode(term.name),
+            slug: term.slug,
             description: null
           })
-        : null
+        )
+      }
+
+      const categoryId = categoryIds[0] ?? null
 
       const mediaId =
         featured?.source_url && !featured.code
@@ -390,16 +401,22 @@ async function main() {
         created++
       }
 
-      // Tags are rebuilt rather than merged: a tag removed in WordPress should
+      // Both are rebuilt rather than merged: a term removed in WordPress should
       // disappear here too, and re-running must not accumulate.
       await tx.run('DELETE FROM post_tags WHERE post_id = ?', [postId])
+      await tx.run('DELETE FROM post_categories WHERE post_id = ?', [postId])
 
-      // Every category after the first becomes a tag. Nothing is lost, because
-      // tags are many-to-many where the category is not.
-      const asTags = [
-        ...wpTags.map((t) => ({ name: decode(t.name), slug: t.slug })),
-        ...wpCategories.slice(1).map((t) => ({ name: decode(t.name), slug: t.slug }))
-      ]
+      for (const id of categoryIds) {
+        await tx.run(
+          'INSERT INTO post_categories (post_id, category_id) VALUES (?, ?)',
+          [postId, id]
+        )
+      }
+
+      // Tags are tags. Categories used to be folded in here because the schema
+      // allowed a post only one of them; it allows several now, so they stay
+      // categories.
+      const asTags = wpTags.map((t) => ({ name: decode(t.name), slug: t.slug }))
 
       const seen = new Set()
 
