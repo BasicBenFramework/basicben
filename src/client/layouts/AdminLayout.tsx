@@ -38,8 +38,14 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   }, [appearance])
 
   const handleLogout = () => {
+    // `logout()` clears the token and navigates to '/' itself. This used to
+    // follow it with navigate('/auth') — a route that has never existed, and
+    // the second navigation won, so signing out of the admin landed on a 404.
+    //
+    // '/' is right in both modes. Normally it is the home page; with
+    // DISABLE_PUBLIC_SITE it is the dashboard behind an auth guard, and the
+    // guard sends a signed-out visitor to /login.
     logout()
-    navigate('/auth')
   }
 
   /*
