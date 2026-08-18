@@ -722,6 +722,86 @@ case "$LIMIT_HEADERS" in
   *) echo "$LIMIT_HEADERS"; fail "a limited response carried no Retry-After" ;;
 esac
 
+# --- Webhooks -----------------------------------------------------------------
+#
+# The delivery path only exists end to end: a hook fires in the server process,
+# reads a setting from the database, signs a body and puts it on the wire. The
+# unit tests cover the signing; only this covers the wiring.
+
+WEBHOOK_PORT="$(( PORT + 1 ))"
+WEBHOOK_LOG="$WORK_DIR/webhook.log"
+
+cat > "$WORK_DIR/receiver.mjs" <<'RECEIVER'
+import { createServer } from 'node:http'
+import { appendFileSync } from 'node:fs'
+
+createServer((req, res) => {
+  let body = ''
+  req.on('data', (chunk) => (body += chunk))
+  req.on('end', () => {
+    appendFileSync(process.argv[2], JSON.stringify({
+      event: req.headers['x-basicben-event'],
+      signature: req.headers['x-basicben-signature'],
+      body
+    }) + '\n')
+    res.statusCode = 200
+    res.end('ok')
+  })
+}).listen(Number(process.argv[3]))
+RECEIVER
+
+node "$WORK_DIR/receiver.mjs" "$WEBHOOK_LOG" "$WEBHOOK_PORT" &
+RECEIVER_PID=$!
+sleep 1
+
+curl -s -X PUT "http://localhost:$PORT/api/settings" \
+  -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' \
+  -d "{\"settings\":{\"webhook_urls\":\"http://localhost:$WEBHOOK_PORT/hook\"}}" -o /dev/null
+
+WH_POST="$(curl -s -X POST "http://localhost:$PORT/api/posts" \
+  -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"title":"Webhook probe","content":"Long enough to pass validation.","published":true}')"
+
+for _ in $(seq 1 20); do
+  [ -s "$WEBHOOK_LOG" ] && break
+  sleep 1
+done
+
+kill "$RECEIVER_PID" 2>/dev/null || true
+
+[ -s "$WEBHOOK_LOG" ] || { echo "$WH_POST"; fail "creating a post delivered no webhook"; }
+pass "a content change delivers a webhook"
+
+# The signature has to cover the exact bytes sent, or a receiver cannot verify
+# it. Recomputing with the app's own APP_KEY is the only way to know.
+APP_KEY_VALUE="$(grep '^APP_KEY=' .env | cut -d= -f2-)"
+
+VERIFIED="$(APP_KEY_VALUE="$APP_KEY_VALUE" WEBHOOK_LOG="$WEBHOOK_LOG" node -e '
+  const { readFileSync } = require("node:fs")
+  const { createHmac } = require("node:crypto")
+  const line = readFileSync(process.env.WEBHOOK_LOG, "utf-8").trim().split("\n")[0]
+  const { event, signature, body } = JSON.parse(line)
+  const expected = "sha256=" + createHmac("sha256", process.env.APP_KEY_VALUE).update(body).digest("hex")
+  const payload = JSON.parse(body)
+  process.stdout.write([
+    signature === expected ? "signed" : "BAD-SIGNATURE",
+    event,
+    payload.event,
+    payload.id ? "has-id" : "NO-ID"
+  ].join(" "))
+')"
+
+case "$VERIFIED" in
+  "signed post.created post.created has-id") pass "the delivery is signed over its exact body" ;;
+  *) echo "  got: $VERIFIED"; cat "$WEBHOOK_LOG"; fail "webhook signature or payload is wrong" ;;
+esac
+
+# Leaving it configured would fire a delivery at a dead port for every later
+# content change in this run.
+curl -s -X PUT "http://localhost:$PORT/api/settings" \
+  -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"settings":{"webhook_urls":""}}' -o /dev/null
+
 # --- Media uploads -------------------------------------------------------------
 #
 # The previous upload path could not work: the global body parser drained every

@@ -126,9 +126,12 @@ export namespace HOOKS {
     let PAGE_CREATED: string;
     let PAGE_UPDATING: string;
     let PAGE_UPDATED: string;
+    let PAGE_DELETING: string;
+    let PAGE_DELETED: string;
     let COMMENT_CREATING: string;
     let COMMENT_CREATED: string;
     let COMMENT_APPROVED: string;
+    let COMMENT_DELETED: string;
     let AUTH_LOGIN: string;
     let AUTH_LOGOUT: string;
     let AUTH_REGISTER: string;

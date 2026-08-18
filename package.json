@@ -92,6 +92,10 @@
     "./hooks": {
       "types": "./types/hooks/index.d.ts",
       "default": "./src/hooks/index.js"
+    },
+    "./webhooks": {
+      "types": "./types/webhooks.d.ts",
+      "default": "./src/webhooks.js"
     }
   },
   "engines": {

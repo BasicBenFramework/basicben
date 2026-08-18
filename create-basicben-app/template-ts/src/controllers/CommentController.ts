@@ -129,6 +129,9 @@ export const CommentController = {
     }
 
     await Comment.delete(parseInt(req.params.id))
+
+    await hooks.fire(HOOKS.COMMENT_DELETED, { comment, userId: req.userId })
+
     res.json({ message: 'Comment deleted' })
   }
 }

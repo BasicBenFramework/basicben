@@ -82,6 +82,27 @@ export const Settings = {
     return value === 'true'
   },
 
+  /**
+   * Webhook receivers, one URL per line in the setting.
+   *
+   * Non-http entries are dropped rather than attempted: a typo would otherwise
+   * produce a delivery failure on every content change, logged forever.
+   */
+  async getWebhookUrls(): Promise<string[]> {
+    const value = await this.get('webhook_urls')
+
+    if (!value) return []
+
+    return value
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => /^https?:\/\//i.test(url))
+  },
+
+  async setWebhookUrls(urls: string[]): Promise<void> {
+    await this.set('webhook_urls', urls.join('\n'), 'integrations')
+  },
+
   async getModerateComments(): Promise<boolean> {
     const value = await this.get('moderate_comments')
     return value !== 'false' // Default to true

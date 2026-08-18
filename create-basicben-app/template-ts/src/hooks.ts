@@ -5,11 +5,6 @@
  * `src/server/index.ts`, so every listener below is registered before the
  * server starts handling requests.
  *
- * There used to be a plugin system wrapping this — an object with a name, a
- * version and an activation switch. It was removed: a plugin could not be
- * installed at runtime on any host worth deploying to, so it amounted to a
- * container around exactly the calls below, and `import` already does that job.
- *
  * ## Two kinds of hook
  *
  * A **filter** transforms a value and must return it. Returning nothing
@@ -21,6 +16,8 @@
  */
 
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
+import { deliver } from '@basicbenframework/core/webhooks'
+import { Settings } from './models/Settings.ts'
 
 /**
  * Trim titles before a post is written.
@@ -34,18 +31,45 @@ hooks.on(HOOKS.POST_CREATING, async (data: { title?: string }) => ({
 }))
 
 /**
- * Add a nav item to the admin sidebar.
+ * Content changes, delivered to whatever is configured at /admin/webhooks.
  *
- * This fires on the server, not in the browser: the admin asks the API what to
- * render, because the hook registry lives in the server process. Firing it
- * client-side would consult a registry nothing has registered with.
+ * This is what stops a headless consumer polling. Delivery is at-most-once —
+ * see `@basicbenframework/core/webhooks` for why there is no retry queue — so a
+ * consumer that cannot miss an event should poll as a backstop.
+ *
+ * Every one of these is a *notification*: it is told what happened after the
+ * fact, and a failure here cannot fail the write that triggered it.
  */
-hooks.on(HOOKS.ADMIN_MENU, async (items: Array<{ path: string; label: string }>) => items)
+const CONTENT_EVENTS = [
+  [HOOKS.POST_CREATED, 'post'],
+  [HOOKS.POST_UPDATED, 'post'],
+  [HOOKS.POST_DELETED, 'post'],
+  [HOOKS.PAGE_CREATED, 'page'],
+  [HOOKS.PAGE_UPDATED, 'page'],
+  [HOOKS.PAGE_DELETED, 'page'],
+  [HOOKS.MEDIA_UPLOADED, 'media'],
+  [HOOKS.MEDIA_DELETED, 'media']
+] as const
 
-/**
- * A notification. Useful for search indexing, cache purging, webhooks — work
- * that should not hold up the response any longer than it has to.
- */
-hooks.on(HOOKS.POST_CREATED, async ({ post }: { post: { id: number; title: string } }) => {
-  console.log(`[hooks] post created: ${post.title}`)
-})
+for (const [event, kind] of CONTENT_EVENTS) {
+  hooks.on(
+    event,
+    async (payload: Record<string, any>) => {
+      const urls = await Settings.getWebhookUrls()
+
+      if (urls.length === 0) return
+
+      // The record is under its own key — `{ post }`, `{ page }` — except for
+      // media, which reports the row directly.
+      const record = payload?.[kind] ?? payload
+
+      await deliver({
+        urls,
+        event,
+        data: { id: record?.id ?? null, slug: record?.slug ?? null },
+        secret: process.env.APP_KEY as string
+      })
+    },
+    { name: `webhook:${event}` }
+  )
+}

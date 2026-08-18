@@ -137,6 +137,50 @@ GET /api/v1/media/:id`}
         </Card>
 
         <Card>
+          <h2 className="text-lg font-semibold mb-2">Webhooks</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            Add receivers at <code>/admin/settings</code>, one URL per line. Each gets a POST when
+            a post, page or media item is created, updated or deleted — which is what stops a
+            consumer polling.
+          </p>
+
+          <CodeBlock title="What arrives">
+{`POST /your-hook
+X-BasicBen-Event: post.created
+X-BasicBen-Signature: sha256=<hex>
+
+{ "event": "post.created", "id": 7, "slug": "hello", "at": "2026-08-18T…" }`}
+          </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            The signature is an HMAC of the exact body, keyed with your <code>APP_KEY</code>.
+            Verify it over the <strong>raw</strong> bytes — a body that has been parsed and
+            re-serialised does not reproduce it, because whitespace and number formatting are free
+            to change. That is what <code>bodyParser</code>'s <code>skip</code> option is for.
+          </p>
+
+          <CodeBlock title="Verifying on the receiving end">
+{`import { verify } from '@basicbenframework/core/webhooks'
+
+// bodyParser({ skip: '/api/webhooks/' }) left the stream unread
+let raw = ''
+for await (const chunk of req) raw += chunk
+
+if (!verify(raw, req.headers['x-basicben-signature'], process.env.APP_KEY)) {
+  return res.json({ error: 'Bad signature' }, 401)
+}`}
+          </CodeBlock>
+
+          <p className={`text-sm ${t.muted} mt-4`}>
+            Delivery is <strong>at-most-once</strong>. A failure is logged and dropped; there is no
+            retry queue, because a durable one needs a table and a worker and this framework has
+            neither — an in-memory retry loop would lose everything on the next deploy while
+            looking like a guarantee. Treat webhooks as a latency optimisation and poll as the
+            backstop if you cannot miss an event.
+          </p>
+        </Card>
+
+        <Card>
           <h2 className="text-lg font-semibold mb-2">Rate limits</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
             120 requests a minute, per address. Every response carries{' '}

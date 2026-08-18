@@ -186,7 +186,7 @@ hooks.on(HOOKS.MEDIA_UPLOADED, async ({ url }) => {
 The filter/notification distinction is the thing to get right: a filter that
 returns nothing replaces the value with undefined.
 
-All 36, by family: `server.*`, `request.*`, `post.*`, `page.*`, `comment.*`,
+All 39, by family: `server.*`, `request.*`, `post.*`, `page.*`, `comment.*`,
 `content.render/save/delete`, `media.*`, `auth.*`, `email.*`, `mail.*`,
 `admin.*`. Every hook the framework declares fires — checked by a test that
 walks the constants and looks for a call site.
@@ -1291,6 +1291,36 @@ a token to the browser.
 Every read carries an `ETag` and `Cache-Control`, and `If-None-Match` gets a
 `304` with no body. Static files get the same, plus `Accept-Ranges` and real
 `206` responses so media can be seeked and resumed.
+
+### Webhooks
+
+Add receivers at `/admin/settings`, one URL per line. Each gets a POST when a
+post, page or media item is created, updated or deleted.
+
+```
+POST /your-hook
+X-BasicBen-Event: post.created
+X-BasicBen-Signature: sha256=<hex>
+
+{ "event": "post.created", "id": 7, "slug": "hello", "at": "2026-08-18T…" }
+```
+
+The signature is an HMAC of the exact body keyed with `APP_KEY`. Verify it over
+the **raw** bytes — a parsed and re-serialised body does not reproduce it, which
+is what `bodyParser({ skip })` exists for.
+
+```js
+import { verify } from '@basicbenframework/core/webhooks'
+
+if (!verify(rawBody, req.headers['x-basicben-signature'], process.env.APP_KEY)) {
+  return res.json({ error: 'Bad signature' }, 401)
+}
+```
+
+Delivery is **at-most-once**: a failure is logged and dropped, with no retry
+queue. A durable one needs a table and a worker, and an in-memory retry loop
+would lose everything on the next deploy while looking like a guarantee. Poll as
+a backstop if you cannot miss an event.
 
 ### Rate limits
 

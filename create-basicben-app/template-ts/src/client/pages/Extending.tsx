@@ -98,7 +98,7 @@ hooks.on(HOOKS.MEDIA_UPLOADED, async ({ url }) => {
         <Card>
           <h2 className="text-lg font-semibold mb-2">Every hook</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            All 36, by family: <code>server.*</code>, <code>request.*</code>, <code>post.*</code>,{' '}
+            All 39, by family: <code>server.*</code>, <code>request.*</code>, <code>post.*</code>,{' '}
             <code>page.*</code>, <code>comment.*</code>,{' '}
             <code>content.render/save/delete</code>, <code>media.*</code>, <code>auth.*</code>,{' '}
             <code>email.*</code>, <code>mail.*</code>, <code>admin.*</code>. Every hook the

@@ -183,9 +183,18 @@ export const PageController = {
       return res.json({ error: 'Page not found' }, 404)
     }
 
+    // A deleted page is exactly what a rebuild needs to know about, and until
+    // page.deleted existed it was the one content change that notified nothing.
+    const intent = await hooks.filter(HOOKS.PAGE_DELETING, { page, cancel: false }, { req })
+
+    if (intent?.cancel) {
+      return res.json({ error: intent.reason || 'Deletion rejected.' }, 422)
+    }
+
     await Page.delete(parseInt(req.params.id))
 
     await hooks.fire(HOOKS.CONTENT_DELETE, { type: 'page', page, userId: req.userId })
+    await hooks.fire(HOOKS.PAGE_DELETED, { page, userId: req.userId })
 
     res.json({ message: 'Page deleted' })
   },

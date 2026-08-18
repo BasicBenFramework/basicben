@@ -259,11 +259,14 @@ export const HOOKS = {
   PAGE_CREATED: 'page.created',
   PAGE_UPDATING: 'page.updating',
   PAGE_UPDATED: 'page.updated',
+  PAGE_DELETING: 'page.deleting',
+  PAGE_DELETED: 'page.deleted',
 
   // Comment hooks
   COMMENT_CREATING: 'comment.creating',
   COMMENT_CREATED: 'comment.created',
   COMMENT_APPROVED: 'comment.approved',
+  COMMENT_DELETED: 'comment.deleted',
 
   // Auth hooks
   AUTH_LOGIN: 'auth.login',
