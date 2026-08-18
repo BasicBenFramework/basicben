@@ -67,7 +67,7 @@ export const CommentController = {
     // Check if moderation is enabled
     const moderateComments = await Settings.getModerateComments()
 
-    // A filter, so a spam plugin can reject a comment or force it into
+    // A filter, so a spam check can reject a comment or force it into
     // moderation before it is ever stored.
     const draft = await hooks.filter(HOOKS.COMMENT_CREATING, {
       post_id: postId,

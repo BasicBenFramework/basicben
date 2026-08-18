@@ -9,8 +9,8 @@ import React from 'react'
  * These are stroked paths, so they take `currentColor` and match whatever the
  * nav item is doing.
  *
- * Plugins add menu items through the `admin.menu` hook and supply an emoji, so
- * anything unrecognised falls back to what the plugin sent, and then to a dot.
+ * A listener can add menu items through the `admin.menu` hook and supply an
+ * emoji, so anything unrecognised falls back to that, and then to a dot.
  */
 
 const paths: Record<string, React.ReactNode> = {
@@ -47,13 +47,6 @@ const paths: Record<string, React.ReactNode> = {
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <circle cx="8.5" cy="9.5" r="1.5" />
       <path d="M21 16l-5-5-5 5-3-3-5 5" />
-    </>
-  ),
-  plugins: (
-    <>
-      <path d="M9 3v4M15 3v4" />
-      <path d="M5 7h14v6a6 6 0 0 1-12 0z" />
-      <path d="M12 19v2" />
     </>
   ),
   tokens: (
@@ -94,7 +87,7 @@ interface AdminIconProps {
   path?: string
   /** Icon name, when there is no route to key off. */
   name?: string
-  /** What a plugin supplied; shown when the path is not one of ours. */
+  /** What a listener supplied; shown when the path is not one of ours. */
   fallback?: string
 }
 

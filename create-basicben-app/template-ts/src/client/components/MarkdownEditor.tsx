@@ -19,7 +19,7 @@ import MediaPicker, { markdownFor } from './admin/MediaPicker'
  *
  * ## The preview is the same renderer
  *
- * It calls `renderContentSync`, which is the server's pipeline minus the plugin
+ * It calls `renderContentSync`, which is the server's pipeline minus the hook
  * filter — parse, then sanitize, same code. A preview that renders through a
  * different path is not a preview, it is a second opinion.
  */

@@ -2,15 +2,15 @@
  * Admin surface extension points.
  *
  * `admin.menu`, `admin.dashboard` and `admin.init` were declared as hooks and
- * fired by nothing, so a plugin had no way to add a nav item or a dashboard
+ * fired by nothing, so there was no way to add a nav item or a dashboard
  * panel.
  *
  * They fire **here**, on the server, rather than in the React admin — which
  * matters more than it looks. The hook registry is a singleton per JavaScript
- * realm, and the browser is a different realm from the server. A plugin loaded
- * from `plugins/` registers its callbacks in the server's registry; a hook
+ * realm, and the browser is a different realm from the server. `src/hooks.ts`
+ * is imported by the server entry, so its listeners are on that registry; a hook
  * fired in the browser would consult an empty one and find nothing. So the
- * admin UI asks the server what to render, and the server is where plugins are.
+ * admin UI asks the server what to render, and the server is where listeners are.
  */
 
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
@@ -20,7 +20,7 @@ import { Comment } from '../models/Comment'
 import { Media } from '../models/Media'
 import type { Request, Response } from '../types'
 
-/** The menu the admin ships with. Plugins filter this, they do not replace it. */
+/** The menu the admin ships with. Listeners filter it, they do not replace it. */
 const DEFAULT_MENU = [
   { path: '/admin', label: 'Dashboard', icon: '📊' },
   { path: '/admin/posts', label: 'Posts', icon: '📝' },
@@ -41,7 +41,7 @@ interface MenuItem {
 
 export const AdminController = {
   /**
-   * The admin navigation, after plugins have had their say.
+   * The admin navigation, after listeners have had their say.
    *
    * @example
    * hooks.on('admin.menu', (items) => [
@@ -52,7 +52,7 @@ export const AdminController = {
   async menu(req: Request, res: Response) {
     const items = await hooks.filter(HOOKS.ADMIN_MENU, [...DEFAULT_MENU], { req })
 
-    // A plugin that returns something that is not a list should not blank the
+    // A listener that returns something that is not a list should not blank the
     // navigation — it should be ignored.
     const menu = Array.isArray(items) ? items : DEFAULT_MENU
 
@@ -64,7 +64,7 @@ export const AdminController = {
   },
 
   /**
-   * Dashboard statistics, and any panels plugins contribute.
+   * Dashboard statistics, and any panels listeners contribute.
    *
    * @example
    * hooks.on('admin.dashboard', (data) => ({
@@ -95,7 +95,7 @@ export const AdminController = {
   },
 
   /**
-   * Fired once when the admin UI boots, so a plugin can register or warm
+   * Fired once when the admin UI boots, so a listener can register or warm
    * anything it needs before the first screen renders.
    */
   async init(req: Request, res: Response) {

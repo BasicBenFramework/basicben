@@ -91,7 +91,7 @@ const url = slugify('Hello, World!')     // "hello-world"`}
           <h2 className="text-lg font-semibold mb-2">Sanitizing other HTML</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
             The parser is safe on its own, but imported content is not — a WordPress export, a
-            plugin's output, a field you deliberately opened up to raw HTML.
+            a hook's output, a field you deliberately opened up to raw HTML.
           </p>
 
           <CodeBlock title="Allowlist-based sanitization">
@@ -114,18 +114,18 @@ sanitizeHtml(imported, { allowed: { p: [], a: ['href'] } })`}
         <Card>
           <h2 className="text-lg font-semibold mb-2">Extending the pipeline</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            Plugins post-process rendered HTML through the <code>content.render</code> filter —
+            A listener post-processes rendered HTML through the <code>content.render</code> filter —
             syntax highlighting, lazy-loaded images, a table of contents.
           </p>
 
-          <CodeBlock title="A plugin filtering rendered content">
+          <CodeBlock title="Filtering rendered content">
 {`hooks.on('content.render', (html, { table, id }) =>
   html.replace(/<code>/g, '<code class="hljs">')
 )`}
           </CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            The filter runs <strong>before</strong> sanitization, never after — so no plugin can
+            The filter runs <strong>before</strong> sanitization, never after — so no listener can
             put markup on the page the allowlist has not seen. The practical consequence, and the
             first thing you will hit writing one: your markup is subject to the allowlist too.{' '}
             <code>&lt;span class&gt;</code> and <code>&lt;code class&gt;</code> pass;{' '}
@@ -137,7 +137,7 @@ sanitizeHtml(imported, { allowed: { p: [], a: ['href'] } })`}
         <Card>
           <h2 className="text-lg font-semibold mb-2">Rerendering</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            Stored HTML goes stale when the parser changes, the allowlist changes, or a plugin
+            Stored HTML goes stale when the parser changes, the allowlist changes, or a listener
             that hooks <code>content.render</code> is installed or removed.
           </p>
 

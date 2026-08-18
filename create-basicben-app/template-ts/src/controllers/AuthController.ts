@@ -151,7 +151,7 @@ export const AuthController = {
    *
    * The token is a stateless JWT, so nothing here can revoke it — it stays
    * valid until it expires, and the client is what discards it. The endpoint
-   * exists for the hook: a plugin implementing a token denylist, or an audit
+   * exists for the hook: a token denylist, or an audit
    * log, needs a point at which a sign-out is observable, and there was none.
    */
   async logout(req: Request, res: Response) {

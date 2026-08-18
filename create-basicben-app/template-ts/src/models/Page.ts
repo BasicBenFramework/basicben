@@ -72,7 +72,7 @@ export const Page = {
       context: { table: 'pages', slug }
     })
 
-    // The last point a plugin can alter what is stored. Its return value has
+    // The last point a listener can alter what is stored. Its return value has
     // to be what gets written, or the filter is decoration.
     const contentSaved = await hooks.filter(HOOKS.CONTENT_SAVE, contentHtml, { type: 'page', data })
 

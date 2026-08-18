@@ -147,7 +147,7 @@ storage.publicUrl('media/a.png')`}
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold mb-2">Plugin hooks</h2>
+          <h2 className="text-lg font-semibold mb-2">Hooks</h2>
 
           <CodeBlock title="Rewrite a key, or refuse an upload">
 {`hooks.on('media.uploading', (upload) => ({

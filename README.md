@@ -156,7 +156,6 @@ Navigate to `/admin` to access:
 - Category and tag management
 - Comment moderation
 - Media library
-- Plugin management
 - API tokens for the headless content API
 - Site settings
 
@@ -847,7 +846,7 @@ expiry — checked at confirm time. Without it, a caller could confirm someone
 else's object as its own media row. It is stateless, so there is no pending-upload
 table to clean up.
 
-### Plugins
+### Hooks
 
 `media.uploading` runs before signing and can rewrite the key or refuse the
 upload; `media.uploaded` and `media.deleted` fire after the fact.
@@ -923,7 +922,7 @@ pass. URLs are checked after entity decoding, so `&#x6A;avascript:` is caught.
 
 ### Extending the pipeline
 
-Plugins can post-process rendered HTML through the `content.render` filter —
+A listener can post-process rendered HTML through the `content.render` filter —
 syntax highlighting, lazy-loaded images, a table of contents:
 
 ```js

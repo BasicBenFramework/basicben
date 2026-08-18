@@ -4,9 +4,9 @@ import { Post } from '../models/Post'
 import type { Request, Response } from '../types'
 
 /**
- * Hooks fire from here so plugins can take part in the content lifecycle.
+ * Hooks fire from here so an app can take part in the content lifecycle.
  *
- * The `*.creating` and `*.updating` hooks are **filters**: a plugin receives
+ * The `*.creating` and `*.updating` hooks are **filters**: a listener receives
  * the data and returns it, possibly changed, or returns `{ cancel: true }` to
  * refuse the write. The `*.created`, `*.updated` and `*.deleted` hooks are
  * notifications — the write has happened and their return value is ignored.

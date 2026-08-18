@@ -182,12 +182,7 @@ import { createApiToken } from '@basicbenframework/core/auth/api-tokens'`}</pre>
   db: {
     driver: 'sqlite',
     url: process.env.DATABASE_URL || './data.db'
-  },
-
-  // Imported plugin objects. Also accepts true to rely on the
-  // directory scan alone, or false to disable plugins entirely.
-  plugins: [],
-  pluginsDir: 'plugins'
+  }
 }`}</pre>
           </div>
           <p className={`text-sm ${t.muted} mt-4`}>
