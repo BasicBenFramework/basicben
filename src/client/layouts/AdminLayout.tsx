@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../../helpers/api'
 import { useAuth, useNavigate, usePath } from '@basicbenframework/core/client'
 import AdminIcon from '../components/admin/AdminIcons'
+import { Link } from '../components/Link'
 
 interface MenuItem {
   path: string
@@ -90,15 +91,15 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="admin-sidebar-header">
-          <a href="/" className="admin-logo" title="BasicBen">
+          <Link href="/" className="admin-logo" title="BasicBen">
             <span className="admin-logo-mark">B</span>
             {sidebarOpen && <span className="admin-logo-text">BasicBen</span>}
-          </a>
+          </Link>
         </div>
 
         <nav className="admin-nav">
           {menuItems.map(item => (
-            <a
+            <Link
               key={item.path}
               href={item.path}
               className={`admin-nav-item ${currentPath === item.path ? 'active' : ''}`}
@@ -106,7 +107,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
             >
               <AdminIcon path={item.path} fallback={item.icon} />
               {sidebarOpen && <span className="admin-nav-label">{item.label}</span>}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -114,10 +115,10 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
           {/* There is no site to view without a public one, and `/` is the
               dashboard you are already looking at. */}
           {!__DISABLE_PUBLIC_SITE__ && (
-            <a href="/" className="admin-nav-item" title={sidebarOpen ? undefined : 'View site'}>
+            <Link href="/" className="admin-nav-item" title={sidebarOpen ? undefined : 'View site'}>
               <AdminIcon name="site" />
               {sidebarOpen && <span className="admin-nav-label">View site</span>}
-            </a>
+            </Link>
           )}
           <button
             className="admin-nav-item admin-collapse"
@@ -554,6 +555,45 @@ const adminStyles = `
   .admin-btn-primary:disabled:hover { background: var(--accent); }
 
   .admin-btn-secondary { background: var(--surface); color: var(--fg); }
+
+  /* Pager for the admin tables. Sits under the table, quiet by default: the
+     controls only matter when there is more than one page, and the component
+     renders nothing at all in that case. */
+  .admin-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .admin-pagination-summary {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+
+  .admin-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .admin-pagination-position {
+    font-size: 0.8125rem;
+    color: var(--muted);
+    /* Keeps Previous and Next from shuffling sideways as the digits change. */
+    min-width: 9ch;
+    text-align: center;
+  }
+
+  .admin-pagination .admin-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
 
   .admin-btn-danger {
     background: transparent;

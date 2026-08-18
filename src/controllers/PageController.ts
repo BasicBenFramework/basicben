@@ -2,11 +2,14 @@ import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Page } from '../models/Page'
 import type { Request, Response } from '../types'
+import { paginationFrom, meta } from '../models/pagination'
 
 export const PageController = {
   async index(req: Request, res: Response) {
-    const pages = await Page.all()
-    res.json({ pages })
+    const { page, perPage, offset } = paginationFrom(req.query as Record<string, string>)
+    const { pages, total } = await Page.paginate({ perPage, offset })
+
+    res.json({ pages, meta: meta(page, perPage, total) })
   },
 
   async tree(req: Request, res: Response) {

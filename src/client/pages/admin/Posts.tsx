@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from '@basicbenframework/core/client'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import { Link } from '../../components/Link'
+import { Pagination, type PageMeta } from '../../components/admin/Pagination'
 
 interface Post {
   id: number
@@ -14,16 +16,21 @@ interface Post {
 export default function AdminPosts() {
   const navigate = useNavigate()
   const [posts, setPosts] = useState<Post[]>([])
+  const [meta, setMeta] = useState<PageMeta | null>(null)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadPosts()
-  }, [])
+    loadPosts(page)
+  }, [page])
 
-  const loadPosts = async () => {
+  const loadPosts = async (which: number) => {
+    setLoading(true)
+
     try {
-      const res = await api.get<{ posts: Post[] }>('/api/posts')
+      const res = await api.get<{ posts: Post[]; meta: PageMeta }>(`/api/posts?page=${which}`)
       setPosts(res?.posts || [])
+      setMeta(res?.meta || null)
     } catch (error) {
       console.error('Failed to load posts:', error)
     } finally {
@@ -36,7 +43,15 @@ export default function AdminPosts() {
 
     try {
       await api.delete(`/api/posts/${id}`)
-      setPosts(posts.filter(p => p.id !== id))
+
+      // Reload rather than splice the row out. The page is a window on the
+      // server's ordering, so removing a row locally leaves it one short and
+      // silently hides whatever should have moved up into it. Stepping back a
+      // page when the last row on it goes keeps the table from showing empty.
+      const emptied = posts.length === 1 && page > 1
+
+      if (emptied) setPage(page - 1)
+      else loadPosts(page)
     } catch (error) {
       console.error('Failed to delete post:', error)
       alert('Failed to delete post')
@@ -56,9 +71,9 @@ export default function AdminPosts() {
       <div className="admin-card">
         <div className="admin-card-header">
           <h2 className="admin-card-title">All Posts</h2>
-          <a href="/admin/posts/new" className="admin-btn admin-btn-primary">
+          <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
             + New Post
-          </a>
+          </Link>
         </div>
 
         {posts.length === 0 ? (
@@ -80,9 +95,9 @@ export default function AdminPosts() {
               {posts.map(post => (
                 <tr key={post.id}>
                   <td>
-                    <a href={`/admin/posts/${post.id}/edit`} style={{ color: 'var(--accent)', fontWeight: 500 }}>
+                    <Link href={`/admin/posts/${post.id}/edit`} style={{ color: 'var(--accent)', fontWeight: 500 }}>
                       {post.title}
-                    </a>
+                    </Link>
                   </td>
                   <td>{post.category_name || '—'}</td>
                   <td>
@@ -93,9 +108,9 @@ export default function AdminPosts() {
                   <td>{new Date(post.created_at).toLocaleDateString()}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <a href={`/admin/posts/${post.id}/edit`} className="admin-btn admin-btn-secondary">
+                      <Link href={`/admin/posts/${post.id}/edit`} className="admin-btn admin-btn-secondary">
                         Edit
-                      </a>
+                      </Link>
                       <button
                         onClick={() => handleDelete(post.id)}
                         className="admin-btn admin-btn-danger"
@@ -109,6 +124,8 @@ export default function AdminPosts() {
             </tbody>
           </table>
         )}
+
+        {meta && <Pagination meta={meta} onChange={setPage} noun="posts" />}
       </div>
     </AdminLayout>
   )

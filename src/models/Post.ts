@@ -33,6 +33,35 @@ export const Post = {
     return db.all('SELECT * FROM posts WHERE user_id = ? ORDER BY created_at DESC', [userId])
   },
 
+  /**
+   * One page of a user's posts, with the total so a caller can size the pager.
+   *
+   * The count is a second query rather than a window function, because the
+   * three drivers do not agree on those and this has to run on all of them.
+   * It is cheap: an indexed count over one user's rows.
+   */
+  async pageByUser(
+    userId: number,
+    { perPage, offset }: { perPage: number; offset: number }
+  ): Promise<{ posts: PostType[]; total: number }> {
+    const db = await getDb()
+
+    // `id` breaks ties. `created_at` alone is not a total order — these rows
+    // are written in the same second all the time — and an unspecified order
+    // is merely untidy until you paginate it, at which point LIMIT/OFFSET can
+    // return a row on two pages and never return another. SQLite happens to be
+    // stable here; Postgres is under no obligation to be.
+    const posts = await db.all(
+      'SELECT * FROM posts WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?',
+      [userId, perPage, offset]
+    )
+
+    const counted = await db.get('SELECT COUNT(*) AS total FROM posts WHERE user_id = ?', [userId])
+
+    // Postgres returns bigint counts as strings rather than lose precision.
+    return { posts, total: Number(counted?.total) || 0 }
+  },
+
   async findPublished(): Promise<PostType[]> {
     const db = await getDb()
     const rows = await db.all(`

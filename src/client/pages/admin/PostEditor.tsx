@@ -5,6 +5,7 @@ import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
 
 import type { Post } from '../../../types'
+import { Link } from '../../components/Link'
 
 interface Category {
   id: number
@@ -241,9 +242,9 @@ export default function AdminPostEditor() {
                 >
                   {saving ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
                 </button>
-                <a href="/admin/posts" className="admin-btn admin-btn-secondary">
+                <Link href="/admin/posts" className="admin-btn admin-btn-secondary">
                   Cancel
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -285,7 +286,7 @@ export default function AdminPostEditor() {
               </div>
               {allTags.length === 0 && (
                 <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
-                  No tags yet. <a href="/admin/tags">Create one</a>
+                  No tags yet. <Link href="/admin/tags">Create one</Link>
                 </p>
               )}
             </div>

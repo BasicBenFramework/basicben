@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import type { Post, Page } from '../../../types'
+import { Link } from '../../components/Link'
 
 interface Stats {
   posts: number
@@ -79,9 +80,9 @@ export default function AdminDashboard() {
       <div className="admin-card">
         <div className="admin-card-header">
           <h2 className="admin-card-title">Recent Posts</h2>
-          <a href="/admin/posts/new" className="admin-btn admin-btn-primary">
+          <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
             New Post
-          </a>
+          </Link>
         </div>
 
         {recentPosts.length === 0 ? (
@@ -107,9 +108,9 @@ export default function AdminDashboard() {
                   </td>
                   <td>{new Date(post.created_at).toLocaleDateString()}</td>
                   <td>
-                    <a href={`/admin/posts/${post.id}/edit`} className="admin-btn admin-btn-secondary">
+                    <Link href={`/admin/posts/${post.id}/edit`} className="admin-btn admin-btn-secondary">
                       Edit
-                    </a>
+                    </Link>
                   </td>
                 </tr>
               ))}
@@ -123,36 +124,36 @@ export default function AdminDashboard() {
         <div className="admin-card">
           <h3 className="admin-card-title">Content</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
-            <a href="/admin/posts/new" className="admin-btn admin-btn-secondary">
+            <Link href="/admin/posts/new" className="admin-btn admin-btn-secondary">
               New Post
-            </a>
-            <a href="/admin/pages/new" className="admin-btn admin-btn-secondary">
+            </Link>
+            <Link href="/admin/pages/new" className="admin-btn admin-btn-secondary">
               New Page
-            </a>
-            <a href="/admin/media" className="admin-btn admin-btn-secondary">
+            </Link>
+            <Link href="/admin/media" className="admin-btn admin-btn-secondary">
               Upload Media
-            </a>
+            </Link>
           </div>
         </div>
 
         <div className="admin-card">
           <h3 className="admin-card-title">Extend</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
-            <a href="/admin/settings" className="admin-btn admin-btn-secondary">
+            <Link href="/admin/settings" className="admin-btn admin-btn-secondary">
               Settings
-            </a>
+            </Link>
           </div>
         </div>
 
         <div className="admin-card">
           <h3 className="admin-card-title">Help</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
-            <a href="https://basicben.com/docs" target="_blank" rel="noopener noreferrer" className="admin-btn admin-btn-secondary">
+            <Link href="https://basicben.com/docs" target="_blank" rel="noopener noreferrer" className="admin-btn admin-btn-secondary">
               Documentation
-            </a>
-            <a href="/" className="admin-btn admin-btn-secondary">
+            </Link>
+            <Link href="/" className="admin-btn admin-btn-secondary">
               View Site
-            </a>
+            </Link>
           </div>
         </div>
       </div>

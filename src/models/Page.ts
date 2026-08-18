@@ -28,6 +28,33 @@ interface UpdatePageData {
 }
 
 export const Page = {
+  /**
+   * One page of pages, with the total so a caller can size the pager.
+   *
+   * Counted separately rather than with a window function: the drivers do not
+   * agree on those, and this runs on all of them.
+   */
+  async paginate(
+    { perPage, offset }: { perPage: number; offset: number }
+  ): Promise<{ pages: PageType[]; total: number }> {
+    const db = await getDb()
+
+    // `id` breaks ties. `created_at` alone is not a total order — these rows
+    // are written in the same second all the time — and an unspecified order
+    // is merely untidy until you paginate it, at which point LIMIT/OFFSET can
+    // return a row on two pages and never return another. SQLite happens to be
+    // stable here; Postgres is under no obligation to be.
+    const pages = await db.all(
+      'SELECT * FROM pages ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?',
+      [perPage, offset]
+    )
+
+    const counted = await db.get('SELECT COUNT(*) AS total FROM pages')
+
+    // Postgres returns bigint counts as strings rather than lose precision.
+    return { pages, total: Number(counted?.total) || 0 }
+  },
+
   async all(): Promise<PageType[]> {
     const db = await getDb()
     return db.all('SELECT * FROM pages ORDER BY menu_order ASC, title ASC')

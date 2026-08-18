@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import { Link } from '../../components/Link'
+import { Pagination, type PageMeta } from '../../components/admin/Pagination'
 
 interface Page {
   id: number
@@ -13,16 +15,21 @@ interface Page {
 
 export default function AdminPages() {
   const [pages, setPages] = useState<Page[]>([])
+  const [meta, setMeta] = useState<PageMeta | null>(null)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadPages()
-  }, [])
+    loadPages(page)
+  }, [page])
 
-  const loadPages = async () => {
+  const loadPages = async (which: number) => {
+    setLoading(true)
+
     try {
-      const res = await api.get<{ pages: Page[] }>('/api/pages')
+      const res = await api.get<{ pages: Page[]; meta: PageMeta }>(`/api/pages?page=${which}`)
       setPages(res?.pages || [])
+      setMeta(res?.meta || null)
     } catch (error) {
       console.error('Failed to load pages:', error)
     } finally {
@@ -35,7 +42,14 @@ export default function AdminPages() {
 
     try {
       await api.delete(`/api/pages/${id}`)
-      setPages(pages.filter(p => p.id !== id))
+
+      // Reload rather than splice: the view is a window on the server's
+      // ordering, so dropping a row locally hides whatever should have moved
+      // up into it. Step back when the last row on a page goes.
+      const emptied = pages.length === 1 && page > 1
+
+      if (emptied) setPage(page - 1)
+      else loadPages(page)
     } catch (error) {
       alert('Failed to delete page')
     }
@@ -54,9 +68,9 @@ export default function AdminPages() {
       <div className="admin-card">
         <div className="admin-card-header">
           <h2 className="admin-card-title">All Pages</h2>
-          <a href="/admin/pages/new" className="admin-btn admin-btn-primary">
+          <Link href="/admin/pages/new" className="admin-btn admin-btn-primary">
             + New Page
-          </a>
+          </Link>
         </div>
 
         {pages.length === 0 ? (
@@ -78,9 +92,9 @@ export default function AdminPages() {
               {pages.map(page => (
                 <tr key={page.id}>
                   <td>
-                    <a href={`/admin/pages/${page.id}/edit`} style={{ color: 'var(--accent)', fontWeight: 500 }}>
+                    <Link href={`/admin/pages/${page.id}/edit`} style={{ color: 'var(--accent)', fontWeight: 500 }}>
                       {page.title}
-                    </a>
+                    </Link>
                   </td>
                   <td><code>/{page.slug}</code></td>
                   <td>{page.template}</td>
@@ -91,9 +105,9 @@ export default function AdminPages() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <a href={`/admin/pages/${page.id}/edit`} className="admin-btn admin-btn-secondary">
+                      <Link href={`/admin/pages/${page.id}/edit`} className="admin-btn admin-btn-secondary">
                         Edit
-                      </a>
+                      </Link>
                       <button
                         onClick={() => handleDelete(page.id)}
                         className="admin-btn admin-btn-danger"
@@ -107,6 +121,8 @@ export default function AdminPages() {
             </tbody>
           </table>
         )}
+
+        {meta && <Pagination meta={meta} onChange={setPage} noun="pages" />}
       </div>
     </AdminLayout>
   )

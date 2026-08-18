@@ -2,6 +2,7 @@ import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Post } from '../models/Post'
 import type { Request, Response } from '../types'
+import { paginationFrom, meta } from '../models/pagination'
 
 /**
  * Hooks fire from here so an app can take part in the content lifecycle.
@@ -17,8 +18,12 @@ import type { Request, Response } from '../types'
  */
 export const PostController = {
   async index(req: Request, res: Response) {
-    const posts = await Post.findByUser(req.userId!)
-    res.json({ posts })
+    const { page, perPage, offset } = paginationFrom(req.query as Record<string, string>)
+    const { posts, total } = await Post.pageByUser(req.userId!, { perPage, offset })
+
+    // `posts` stays where it was so nothing reading this breaks; `meta` is
+    // added alongside, in the same shape /api/v1 uses.
+    res.json({ posts, meta: meta(page, perPage, total) })
   },
 
   async show(req: Request, res: Response) {
