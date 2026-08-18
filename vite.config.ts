@@ -5,6 +5,22 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+
+  // Deployment flags, baked into the client at build time.
+  //
+  // They are read here from plain environment variables rather than VITE_
+  // prefixed ones so that a single variable serves both sides: the server
+  // reads process.env directly, the client reads these constants. Two names
+  // for one switch is how you end up with a site that hides registration in
+  // the UI and still accepts it over the API.
+  //
+  // The client half is presentation only. Disabling registration is enforced
+  // in AuthController, because a route the UI does not link to is still a
+  // route.
+  define: {
+    __DISABLE_REGISTRATION__: JSON.stringify(process.env.DISABLE_REGISTRATION === 'true'),
+    __DISABLE_PUBLIC_SITE__: JSON.stringify(process.env.DISABLE_PUBLIC_SITE === 'true')
+  },
   server: {
     port: parseInt(process.env.VITE_PORT || '3000'),
     proxy: {

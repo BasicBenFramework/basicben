@@ -55,10 +55,14 @@ export function Auth() {
         <Input type="password" placeholder="Password" required minLength={8} value={form.password} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, password: e.target.value })} />
         <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : isLogin ? 'Sign in' : 'Create account'}</Button>
       </form>
-      <p className={`text-xs ${t.muted} text-center mt-4`}>
-        {isLogin ? "Don't have an account? " : 'Have an account? '}
-        <button onClick={() => navigate(isLogin ? '/register' : '/login')} className="underline hover:no-underline">{isLogin ? 'Sign up' : 'Sign in'}</button>
-      </p>
+      {/* With registration closed there is nothing to offer someone without an
+          account, and inviting them to sign up would be a dead end. */}
+      {!__DISABLE_REGISTRATION__ && (
+        <p className={`text-xs ${t.muted} text-center mt-4`}>
+          {isLogin ? "Don't have an account? " : 'Have an account? '}
+          <button onClick={() => navigate(isLogin ? '/register' : '/login')} className="underline hover:no-underline">{isLogin ? 'Sign up' : 'Sign in'}</button>
+        </p>
+      )}
     </div>
   )
 }

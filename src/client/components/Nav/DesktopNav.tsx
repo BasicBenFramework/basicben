@@ -15,7 +15,7 @@ export function DesktopNav({ user, navigate, logout }: DesktopNavProps) {
 
   return (
     <div className="hidden sm:flex items-center gap-2">
-      <NavLink onClick={() => navigate('/docs')}>Docs</NavLink>
+      {!__DISABLE_PUBLIC_SITE__ && <NavLink onClick={() => navigate('/docs')}>Docs</NavLink>}
 
       <div className={`w-px h-5 mx-1 ${dark ? 'bg-white/20' : 'bg-black/20'}`} />
 
@@ -23,7 +23,7 @@ export function DesktopNav({ user, navigate, logout }: DesktopNavProps) {
 
       {user ? (
         <>
-          <NavLink onClick={() => navigate('/feed')}>Feed</NavLink>
+          {!__DISABLE_PUBLIC_SITE__ && <NavLink onClick={() => navigate('/feed')}>Feed</NavLink>}
           <NavLink onClick={() => navigate('/posts')}>My Posts</NavLink>
           <NavLink onClick={() => navigate('/profile')}>Profile</NavLink>
           <Button variant="secondary" onClick={logout} className="px-3 py-1.5">Log out</Button>
@@ -31,7 +31,9 @@ export function DesktopNav({ user, navigate, logout }: DesktopNavProps) {
       ) : (
         <>
           <NavLink onClick={() => navigate('/login')}>Sign in</NavLink>
-          <Button onClick={() => navigate('/register')} className="px-3 py-1.5">Get started</Button>
+          {!__DISABLE_REGISTRATION__ && (
+            <Button onClick={() => navigate('/register')} className="px-3 py-1.5">Get started</Button>
+          )}
         </>
       )}
     </div>

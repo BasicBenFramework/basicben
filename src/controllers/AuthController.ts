@@ -30,15 +30,36 @@ export const AuthController = {
 
     const { name, email, password } = req.body as { name: string; email: string; password: string }
 
+    // The first account to register is the operator setting the site up, so it
+    // becomes the admin. Everyone after gets the least privileged role.
+    const isFirstUser = (await User.count()) === 0
+
+    // DISABLE_REGISTRATION closes the door behind that first account.
+    //
+    // It deliberately does not apply when there are no users at all. A fresh
+    // deployment with the flag already set would otherwise have no way to
+    // create its own admin — the flag would lock the operator out of the site
+    // they are installing, which is a trap rather than a security measure.
+    // Once one account exists the flag is absolute.
+    //
+    // Enforced here rather than in the router because the client hides the
+    // form, and hiding a form is not a control.
+    //
+    // This runs *before* the address is looked up, and the order is the point.
+    // Checking for a duplicate first would answer a question the caller has no
+    // business asking: a taken address would come back "already registered"
+    // while a free one came back "closed", turning an endpoint that refuses
+    // everyone into a way to test which addresses have accounts.
+    if (!isFirstUser && process.env.DISABLE_REGISTRATION === 'true') {
+      return res.json({ error: 'Registration is closed' }, 403)
+    }
+
     // Check if email exists
     const existing = await User.findByEmail(email)
     if (existing) {
       return res.json({ error: 'Email already registered' }, 400)
     }
 
-    // The first account to register is the operator setting the site up, so it
-    // becomes the admin. Everyone after gets the least privileged role.
-    const isFirstUser = (await User.count()) === 0
     const role = isFirstUser ? ROLES.ADMIN : DEFAULT_ROLE
 
     // The first account is the operator setting the site up, and on a fresh

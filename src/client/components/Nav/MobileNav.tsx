@@ -42,32 +42,36 @@ export function MobileNav({ user, navigate, onClose, logout }: MobileNavProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="space-y-1">
-            <button
-              onClick={() => handleNav('/')}
-              className={`w-full text-left px-4 py-3 rounded-lg ${t.card} hover:opacity-80 transition`}
-            >
-              Home
-            </button>
-            <button
-              onClick={() => handleNav('/docs')}
-              className={`w-full text-left px-4 py-3 rounded-lg ${t.card} hover:opacity-80 transition`}
-            >
-              Docs
-            </button>
-          </div>
+          {!__DISABLE_PUBLIC_SITE__ && (
+            <div className="space-y-1">
+              <button
+                onClick={() => handleNav('/')}
+                className={`w-full text-left px-4 py-3 rounded-lg ${t.card} hover:opacity-80 transition`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => handleNav('/docs')}
+                className={`w-full text-left px-4 py-3 rounded-lg ${t.card} hover:opacity-80 transition`}
+              >
+                Docs
+              </button>
+            </div>
+          )}
 
           {user ? (
             <>
               <div className={`my-4 border-t ${t.border}`} />
               <p className={`px-4 py-2 text-xs font-medium uppercase tracking-wider ${t.muted}`}>Account</p>
               <div className="space-y-1">
-                <button
-                  onClick={() => handleNav('/feed')}
-                  className={`w-full text-left px-4 py-3 rounded-lg ${t.card} hover:opacity-80 transition`}
-                >
-                  Feed
-                </button>
+                {!__DISABLE_PUBLIC_SITE__ && (
+                  <button
+                    onClick={() => handleNav('/feed')}
+                    className={`w-full text-left px-4 py-3 rounded-lg ${t.card} hover:opacity-80 transition`}
+                  >
+                    Feed
+                  </button>
+                )}
                 <button
                   onClick={() => handleNav('/posts')}
                   className={`w-full text-left px-4 py-3 rounded-lg ${t.card} hover:opacity-80 transition`}
@@ -99,12 +103,14 @@ export function MobileNav({ user, navigate, onClose, logout }: MobileNavProps) {
                 >
                   Sign in
                 </button>
-                <button
-                  onClick={() => handleNav('/register')}
-                  className={`w-full px-4 py-3 rounded-lg ${t.btn} ${t.btnHover} transition`}
-                >
-                  Get started
-                </button>
+                {!__DISABLE_REGISTRATION__ && (
+                  <button
+                    onClick={() => handleNav('/register')}
+                    className={`w-full px-4 py-3 rounded-lg ${t.btn} ${t.btnHover} transition`}
+                  >
+                    Get started
+                  </button>
+                )}
               </div>
             </>
           )}

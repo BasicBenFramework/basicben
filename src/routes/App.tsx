@@ -1,4 +1,19 @@
 import { createClientApp } from '@basicbenframework/core/client'
+
+/**
+ * Mirrors the framework's RouteDefinition, which its client entry point does
+ * not re-export. Declared here only so the conditional route maps below can be
+ * annotated: without an annotation TypeScript widens every key of a spread
+ * conditional to `Type | undefined`, which the router's own signature refuses.
+ */
+type RouteDefinition =
+  | React.ComponentType<any>
+  | {
+      component: React.ComponentType<any>
+      auth?: boolean
+      guest?: boolean
+      layout?: React.ComponentType<any> | null
+    }
 import { AppLayout } from '../client/layouts/AppLayout'
 import { AuthLayout } from '../client/layouts/AuthLayout'
 import { DocsLayout } from '../client/layouts/DocsLayout'
@@ -35,28 +50,63 @@ import AdminSettings from '../client/pages/admin/Settings'
 // Admin layout wrapper (no default layout)
 const NoLayout = ({ children }: { children: React.ReactNode }) => <>{children}</>
 
+/**
+ * The public site: the marketing page, the built-in blog, and the framework
+ * documentation. Present unless DISABLE_PUBLIC_SITE is set, which is how you
+ * run this purely as a backend for something else — the admin and the content
+ * API, with nothing for a visitor to land on.
+ *
+ * `__DISABLE_PUBLIC_SITE__` is a build-time constant, so these routes and the
+ * pages they name are dropped from the bundle rather than merely unreachable.
+ */
+const publicRoutes: Record<string, RouteDefinition> = __DISABLE_PUBLIC_SITE__
+  ? {}
+  : {
+      '/': Home,
+      '/feed': Feed,
+      '/feed/:id': FeedPost,
+      '/docs': { component: GettingStarted, layout: DocsLayout },
+      '/docs/routing': { component: Routing, layout: DocsLayout },
+      '/docs/database': { component: Database, layout: DocsLayout },
+      '/docs/authentication': { component: Authentication, layout: DocsLayout },
+      '/docs/validation': { component: Validation, layout: DocsLayout },
+      '/docs/content': { component: Content, layout: DocsLayout },
+      '/docs/storage': { component: Storage, layout: DocsLayout },
+      '/docs/extending': { component: Extending, layout: DocsLayout },
+      '/docs/headless': { component: Headless, layout: DocsLayout },
+      '/docs/testing': { component: Testing, layout: DocsLayout }
+    }
+
+/**
+ * Signing in is always reachable; signing *up* is not.
+ *
+ * With DISABLE_REGISTRATION the route goes, so the form cannot be reached by
+ * typing the URL either. The server refuses the request regardless — see
+ * AuthController.register — because a missing route is presentation and this
+ * needs to be a control.
+ */
+const authRoutes: Record<string, RouteDefinition> = {
+  '/login': { component: Auth, layout: AuthLayout, guest: true },
+  ...(__DISABLE_REGISTRATION__
+    ? {}
+    : { '/register': { component: Auth, layout: AuthLayout, guest: true } })
+}
+
 export default createClientApp({
   layout: AppLayout,
   routes: {
-    '/': Home,
-    '/login': { component: Auth, layout: AuthLayout, guest: true },
-    '/register': { component: Auth, layout: AuthLayout, guest: true },
-    '/feed': Feed,
-    '/feed/:id': FeedPost,
+    ...publicRoutes,
+    ...authRoutes,
+
+    // With no public site, `/` would otherwise 404 for someone who simply
+    // opened the domain. Sending them to the one page that does exist is
+    // friendlier than a dead end, and it is where they were going anyway.
+    ...(__DISABLE_PUBLIC_SITE__ ? { '/': { component: Auth, layout: AuthLayout, guest: true } } : {}),
+
     '/posts': { component: Posts, auth: true },
     '/posts/new': { component: PostForm, auth: true },
     '/posts/:id/edit': { component: PostForm, auth: true },
     '/profile': { component: Profile, auth: true },
-    '/docs': { component: GettingStarted, layout: DocsLayout },
-    '/docs/routing': { component: Routing, layout: DocsLayout },
-    '/docs/database': { component: Database, layout: DocsLayout },
-    '/docs/authentication': { component: Authentication, layout: DocsLayout },
-    '/docs/validation': { component: Validation, layout: DocsLayout },
-    '/docs/content': { component: Content, layout: DocsLayout },
-    '/docs/storage': { component: Storage, layout: DocsLayout },
-    '/docs/extending': { component: Extending, layout: DocsLayout },
-    '/docs/headless': { component: Headless, layout: DocsLayout },
-    '/docs/testing': { component: Testing, layout: DocsLayout },
 
     // Admin routes (use their own layout)
     '/admin': { component: AdminDashboard, layout: NoLayout, auth: true },
