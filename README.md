@@ -6,6 +6,50 @@ BasicBen gives you a productive, convention-driven structure for building React 
 
 ---
 
+## Repository layout
+
+```
+packages/core     the framework — server, router, db adapters, auth, storage
+packages/create   scaffolder for a new project from apps/cms
+apps/cms          the CMS — posts, pages, media, admin UI, headless API
+```
+
+These were one repo before, but only one half was a first-class citizen. `src/`
+was a tested library; the CMS lived inside the scaffolder as `template-ts` —
+14,000 lines shipped as package cargo, with no tests of its own.
+
+That is not a filing detail. It is where `storage.url()` survived: a method
+called in three places and defined by no storage adapter, so every post with a
+featured image threw a `TypeError`. The framework's tests could not catch it,
+because it was not in the framework.
+
+Same split, stated honestly. The library is a package; the CMS is an
+application, with its own tests, deployed like anything else, and acting as the
+framework's integration test rather than its payload. The boundary is the point,
+not the packaging — a workspace keeps core from reaching into the CMS while
+dropping what was costing without paying: no publish step between a fix and a
+deploy, and no version skew between what the CMS runs and what core is.
+
+```bash
+npm install          # links the workspace; no publishing involved
+npm run dev          # the CMS: admin on :3000, API on :3001
+npm test             # both workspaces (core 1161, cms 55)
+npm run smoke        # 114 end-to-end checks against a real build
+```
+
+`npm run smoke` packs both packages, scaffolds a project exactly as a user
+would, builds it, boots it and drives the whole surface. Point it at Postgres
+with `SMOKE_DATABASE_URL=postgres://... npm run smoke`.
+
+Nothing here needs publishing to be used. If you do publish, `packages/create`
+copies `apps/cms` into itself on `prepack` so the tarball is self-contained;
+that snapshot is generated at publish time and gitignored, so the repo still
+holds exactly one copy of the CMS.
+
+Deploying the CMS, including the Vercel handler, is in `apps/cms/README.md`.
+
+---
+
 ## Why BasicBen?
 
 Most JS frameworks make one of two mistakes: they do too much (Next.js, Remix) or they do nothing and leave you to wire everything yourself. BasicBen sits in the middle — conventions when you want them, escape hatches when you don't.

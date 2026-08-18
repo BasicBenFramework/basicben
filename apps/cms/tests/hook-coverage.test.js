@@ -23,11 +23,11 @@ import assert from 'node:assert'
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { HOOKS } from './index.js'
+import { HOOKS } from '../../../packages/core/src/hooks/index.js'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..')
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 
-const SOURCE_ROOTS = ['src', 'create-basicben-app/template-ts/src']
+const SOURCE_ROOTS = ['packages/core/src', 'apps/cms/src']
 
 /** Every hook name, paired with the constant path that names it. */
 function declaredHooks(obj = HOOKS, path = []) {
@@ -49,7 +49,7 @@ function declaredHooks(obj = HOOKS, path = []) {
  * every hook including one nothing fires. The first version of this test did
  * exactly that and reported all-green for a hook invented to break it.
  */
-const DECLARATION = join(ROOT, 'src/hooks/index.js')
+const DECLARATION = join(ROOT, 'packages/core/src/hooks/index.js')
 
 /** Application sources, excluding tests — a test firing a hook is not a call site. */
 function sourceFiles(dir, found = []) {
@@ -90,7 +90,7 @@ describe('hook coverage', () => {
     // The Extending page states the count. Counts in prose go stale silently —
     // the entry-point list on the Testing page said nineteen for two releases
     // after it became eighteen — so the number is asserted rather than trusted.
-    const page = join(ROOT, 'create-basicben-app/template-ts/src/client/pages/Extending.tsx')
+    const page = join(ROOT, 'apps/cms/src/client/pages/Extending.tsx')
     const quoted = readFileSync(page, 'utf-8').match(/All (\d+), by family/)
 
     assert.ok(quoted, 'the Extending docs page no longer states a hook count')

@@ -16,7 +16,8 @@ import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const frameworkDir = resolve(__dirname, '..')
+// packages/create -> repo root -> packages/core
+const frameworkDir = resolve(__dirname, '../core')
 
 // ANSI colors
 const bold = (s) => `\x1b[1m${s}\x1b[0m`
@@ -83,7 +84,17 @@ async function main() {
   mkdirSync(projectDir, { recursive: true })
 
   // Copy template files
-  const templateDir = join(__dirname, 'template-ts')
+  // The CMS is a real application at apps/cms, not a folder inside this
+  // package. `prepack` copies it to ./template-ts so a published tarball is
+  // self-contained; in the monorepo that copy does not exist and apps/cms is
+  // read directly, so there is only ever one source of truth.
+  const bundled = join(__dirname, 'template-ts')
+  const templateDir = existsSync(bundled) ? bundled : resolve(__dirname, '../../apps/cms')
+
+  if (!existsSync(templateDir)) {
+    console.error(`\n${red('Error:')} cannot find the CMS to copy from.\n`)
+    process.exit(1)
+  }
   copyDir(templateDir, projectDir)
 
   // Determine basicben dependency

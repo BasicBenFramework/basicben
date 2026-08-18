@@ -35,10 +35,10 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SCOPES } from '../src/auth/api-tokens.js'
+import { SCOPES } from '../packages/core/src/auth/api-tokens.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const TEMPLATE = join(ROOT, 'create-basicben-app/template-ts')
+const TEMPLATE = join(ROOT, 'apps/cms')
 
 const MODEL = join(TEMPLATE, 'src/models/PublicContent.ts')
 const ROUTES = join(TEMPLATE, 'src/routes/api/v1.ts')

@@ -64,8 +64,18 @@ tokensRoutes(router)
 v1Routes(router)
 router.applyTo(app)
 
-const port = process.env.PORT || 3001
+// Serverless platforms invoke a handler per request and give you no port to
+// bind, so the listener has to be conditional. `api/index.ts` imports this
+// module for its configured app and drives it directly; see that file for how.
+//
+// Everywhere else — local development, any persistent host — this is the entry
+// point and listening is exactly right.
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 3001
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`)
-})
+  app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`)
+  })
+}
+
+export default app

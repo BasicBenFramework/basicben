@@ -1,0 +1,43 @@
+{
+  "name": "@basicben/cms",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "description": "The BasicBen CMS. Posts, pages, media, an admin UI, and a headless content API.",
+  "scripts": {
+    "dev": "basicben dev",
+    "build": "basicben build",
+    "build:client": "vite build",
+    "build:server": "vite build --ssr src/server/index.ts --outDir dist/server",
+    "start": "basicben start",
+    "test": "node --test \"tests/**/*.test.js\"",
+    "migrate": "basicben migrate",
+    "migrate:rollback": "basicben migrate:rollback",
+    "migrate:fresh": "basicben migrate:fresh",
+    "migrate:status": "basicben migrate:status",
+    "make:migration": "basicben make:migration",
+    "make:controller": "basicben make:controller",
+    "make:model": "basicben make:model"
+  },
+  "dependencies": {
+    "@basicbenframework/core": "*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.5",
+    "he": "^1.2.0",
+    "tailwindcss": "^4.3.3",
+    "turndown": "^7.2.2",
+    "typescript": "^5.8",
+    "vite": "^8.2.1",
+    "vitest": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

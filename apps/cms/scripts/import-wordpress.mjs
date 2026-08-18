@@ -1,0 +1,343 @@
+#!/usr/bin/env node
+/**
+ * Import posts from the existing WordPress site into this CMS.
+ *
+ * Run it as often as you like: posts are matched on slug, so a second run
+ * updates what changed rather than duplicating anything. That matters because
+ * the useful way to cut over is to import now, keep publishing on WordPress,
+ * and re-run immediately before flipping traffic across.
+ *
+ * Usage:
+ *   node --env-file=.env scripts/import-wordpress.mjs [options]
+ *
+ *   --dry-run     report what would change, write nothing
+ *   --limit N     only the N most recent posts, for a quick look
+ *   --url URL     override WORDPRESS_URL
+ *
+ * ## What is and is not carried across
+ *
+ * Media files are *not* re-uploaded. A featured image is recorded as the object
+ * key it already has, and served through `storage.publicUrl` — so images
+ * resolve when the storage driver points at the host already serving them
+ * (S3_PUBLIC_URL). If your WordPress media sits on the WordPress host itself
+ * rather than on object storage, migrate the files first or those URLs will not
+ * resolve.
+ *
+ * WordPress lets a post carry many categories and this schema allows one. The
+ * first is kept as the category; the rest become tags, which are many-to-many
+ * here and so lose nothing. Dropping the extras instead would quietly throw
+ * away most of a typical site's taxonomy.
+ *
+ * Content is stored twice, deliberately. `content_html` is WordPress's own
+ * rendered HTML, which is what the blog renders, so the site looks byte-identical
+ * after the cutover. `content` is that HTML converted to Markdown, because this
+ * CMS edits Markdown — storing HTML there would show raw tags in the editor and
+ * make `?format=markdown` a lie. Editing a post in the admin re-renders the HTML
+ * from the Markdown, so an edited post may differ cosmetically from WordPress's
+ * output. That only happens to posts you actually edit.
+ */
+
+import { getDb } from '@basicbenframework/core/db'
+import TurndownService from 'turndown'
+import he from 'he'
+
+const args = process.argv.slice(2)
+const dryRun = args.includes('--dry-run')
+const limitFlag = args.indexOf('--limit')
+const limit = limitFlag === -1 ? null : Number(args[limitFlag + 1])
+const urlFlag = args.indexOf('--url')
+const WORDPRESS_URL = (
+  urlFlag === -1 ? process.env.WORDPRESS_URL : args[urlFlag + 1]
+)?.replace(/\/$/, '')
+
+if (!WORDPRESS_URL) {
+  console.error('Set WORDPRESS_URL in .env, or pass --url https://example.com')
+  process.exit(1)
+}
+
+if (limitFlag !== -1 && (!Number.isInteger(limit) || limit < 1)) {
+  console.error('--limit needs a positive whole number')
+  process.exit(1)
+}
+
+const turndown = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-'
+})
+
+// Turndown drops anything it has no rule for, and figure/iframe are the two
+// that carry real content here — an embedded video would vanish silently.
+turndown.keep(['figure', 'iframe', 'video', 'table'])
+
+/** WordPress renders entities; everything downstream wants the text. */
+const decode = (value) => he.decode(String(value ?? ''))
+
+/**
+ * The plain-text summary, matching what the blog used to compute at render
+ * time. Doing it here means the CMS stores a clean excerpt and the blog stops
+ * needing an HTML stripper.
+ */
+function plainExcerpt(html) {
+  return decode(
+    String(html ?? '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\[&hellip;\]/g, '...')
+      .replace(/\s+/g, ' ')
+      .trim()
+  )
+}
+
+/** WordPress dates are local-with-no-zone; `date_gmt` is the one to trust. */
+function timestamp(post) {
+  const raw = post.date_gmt ? `${post.date_gmt}Z` : post.date
+  const parsed = new Date(raw)
+
+  if (Number.isNaN(parsed.getTime())) return new Date().toISOString()
+
+  return parsed.toISOString().replace('T', ' ').slice(0, 19)
+}
+
+/**
+ * The object key behind a media URL.
+ *
+ * `https://cdn.example.com/2025/11/x.jpeg` is stored as `2025/11/x.jpeg`,
+ * because `publicUrl()` prepends the configured domain. Storing the absolute
+ * URL instead would produce `/uploads/https%3A%2F%2F...` on any driver.
+ */
+function objectKey(url) {
+  try {
+    return decodeURIComponent(new URL(url).pathname.replace(/^\/+/, ''))
+  } catch {
+    return null
+  }
+}
+
+async function fetchAllPosts() {
+  const posts = []
+  let page = 1
+
+  while (true) {
+    const endpoint =
+      `${WORDPRESS_URL}/wp-json/wp/v2/posts?per_page=100&page=${page}&_embed`
+    const response = await fetch(endpoint)
+
+    if (response.status === 400 && page > 1) break // past the last page
+    if (!response.ok) throw new Error(`WordPress returned ${response.status} for page ${page}`)
+
+    const batch = await response.json()
+
+    if (!Array.isArray(batch) || batch.length === 0) break
+
+    posts.push(...batch)
+
+    const totalPages = Number(response.headers.get('x-wp-totalpages') || '1')
+
+    if (page >= totalPages) break
+
+    page++
+  }
+
+  return posts
+}
+
+/** Insert-or-return-existing, keyed on slug. */
+async function upsertTerm(db, table, { name, slug, description }) {
+  const existing = await db.get(`SELECT id FROM ${table} WHERE slug = ?`, [slug])
+
+  if (existing) return existing.id
+
+  const columns = table === 'categories' ? '(name, slug, description)' : '(name, slug)'
+  const values = table === 'categories' ? [name, slug, description ?? null] : [name, slug]
+  const placeholders = values.map(() => '?').join(', ')
+
+  const result = await db.run(
+    `INSERT INTO ${table} ${columns} VALUES (${placeholders})`,
+    values
+  )
+
+  return result.lastInsertRowid
+}
+
+/**
+ * A media row for an image that already lives in the bucket.
+ *
+ * Keyed on `path`, so re-running does not accumulate duplicates of the same
+ * file. Nothing is uploaded — this only records what is already there so a post
+ * can reference it.
+ */
+async function upsertMedia(db, userId, media) {
+  const key = objectKey(media.source_url)
+
+  if (!key) return null
+
+  const existing = await db.get('SELECT id FROM media WHERE path = ?', [key])
+  const filename = key.split('/').pop()
+  const altText = decode(media.alt_text || '') || null
+
+  if (existing) {
+    await db.run('UPDATE media SET alt_text = ? WHERE id = ?', [altText, existing.id])
+    return existing.id
+  }
+
+  const result = await db.run(
+    `INSERT INTO media (user_id, filename, original_name, path, mime_type, size, alt_text)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      userId,
+      filename,
+      filename,
+      key,
+      media.mime_type || null,
+      // WordPress does not report a byte count on the embed, and inventing one
+      // would be worse than admitting it is unknown.
+      null,
+      altText
+    ]
+  )
+
+  return result.lastInsertRowid
+}
+
+async function main() {
+  const db = await getDb()
+
+  const author = await db.get(
+    "SELECT id, name, email FROM users WHERE role IN ('admin', 'owner') ORDER BY id ASC LIMIT 1"
+  )
+
+  if (!author) {
+    console.error(
+      'No admin user exists yet. Start the CMS and register — the first account\n' +
+        'created becomes the admin — then run this again so imported posts have\n' +
+        'an author.'
+    )
+    process.exit(1)
+  }
+
+  console.log(`Importing from ${WORDPRESS_URL}`)
+  console.log(`Author: ${author.name} <${author.email}>`)
+  if (dryRun) console.log('Dry run — nothing will be written.\n')
+
+  let posts = await fetchAllPosts()
+  posts.sort((a, b) => new Date(a.date_gmt || a.date) - new Date(b.date_gmt || b.date))
+  if (limit) posts = posts.slice(-limit)
+
+  console.log(`Found ${posts.length} published post(s).\n`)
+
+  let created = 0
+  let updated = 0
+  let images = 0
+
+  for (const post of posts) {
+    const slug = post.slug
+    const title = decode(post.title?.rendered)
+    const html = decode(post.content?.rendered ?? '')
+    const markdown = turndown.turndown(html)
+    const excerpt = plainExcerpt(post.excerpt?.rendered)
+    const at = timestamp(post)
+
+    const terms = post._embedded?.['wp:term'] ?? []
+    const wpCategories = (terms[0] ?? []).filter((t) => t?.slug)
+    const wpTags = (terms[1] ?? []).filter((t) => t?.slug)
+    const featured = post._embedded?.['wp:featuredmedia']?.[0]
+
+    if (dryRun) {
+      const existing = await db.get('SELECT id FROM posts WHERE slug = ?', [slug])
+      console.log(
+        `${existing ? 'update' : 'create'}  ${slug}` +
+          `  (${wpCategories.length} cat, ${wpTags.length} tag` +
+          `${featured?.source_url ? ', image' : ''})`
+      )
+      continue
+    }
+
+    // The whole post lands or none of it does. Without this a failure partway
+    // leaves a post with half its tags, and the re-run would not notice because
+    // the post itself already exists.
+    await db.transaction(async (tx) => {
+      const categoryId = wpCategories.length
+        ? await upsertTerm(tx, 'categories', {
+            name: decode(wpCategories[0].name),
+            slug: wpCategories[0].slug,
+            description: null
+          })
+        : null
+
+      const mediaId =
+        featured?.source_url && !featured.code
+          ? await upsertMedia(tx, author.id, featured)
+          : null
+
+      if (mediaId) images++
+
+      const existing = await tx.get('SELECT id FROM posts WHERE slug = ?', [slug])
+
+      let postId
+
+      if (existing) {
+        await tx.run(
+          `UPDATE posts SET title = ?, content = ?, content_html = ?, excerpt = ?,
+                            published = 1, category_id = ?, featured_image = ?,
+                            meta_title = ?, meta_description = ?, updated_at = ?
+           WHERE id = ?`,
+          [title, markdown, html, excerpt, categoryId, mediaId, title, excerpt, at, existing.id]
+        )
+        postId = existing.id
+        updated++
+      } else {
+        const result = await tx.run(
+          `INSERT INTO posts (user_id, title, slug, content, content_html, excerpt,
+                              published, category_id, featured_image,
+                              meta_title, meta_description, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+          [
+            author.id, title, slug, markdown, html, excerpt,
+            categoryId, mediaId, title, excerpt, at, at
+          ]
+        )
+        postId = result.lastInsertRowid
+        created++
+      }
+
+      // Tags are rebuilt rather than merged: a tag removed in WordPress should
+      // disappear here too, and re-running must not accumulate.
+      await tx.run('DELETE FROM post_tags WHERE post_id = ?', [postId])
+
+      // Every category after the first becomes a tag. Nothing is lost, because
+      // tags are many-to-many where the category is not.
+      const asTags = [
+        ...wpTags.map((t) => ({ name: decode(t.name), slug: t.slug })),
+        ...wpCategories.slice(1).map((t) => ({ name: decode(t.name), slug: t.slug }))
+      ]
+
+      const seen = new Set()
+
+      for (const tag of asTags) {
+        if (seen.has(tag.slug)) continue
+        seen.add(tag.slug)
+
+        const tagId = await upsertTerm(tx, 'tags', tag)
+        await tx.run('INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)', [postId, tagId])
+      }
+    })
+  }
+
+  if (dryRun) {
+    console.log('\nDry run complete.')
+    return
+  }
+
+  console.log(`\nCreated ${created}, updated ${updated}, ${images} featured image(s) linked.`)
+
+  const [{ total }] = [await db.get('SELECT COUNT(*) AS total FROM posts WHERE published = 1')]
+  console.log(`${Number(total)} published post(s) in the CMS.`)
+}
+
+main().then(
+  () => process.exit(0),
+  (error) => {
+    console.error(`\nImport failed: ${error.message}`)
+    process.exit(1)
+  }
+)

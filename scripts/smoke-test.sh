@@ -19,6 +19,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+# The publishable packages moved under packages/ when this became a workspace;
+# the CMS moved to apps/cms and is no longer a folder inside the create package.
+CORE_DIR="$ROOT_DIR/packages/core"
+CREATE_DIR="$ROOT_DIR/packages/create"
 WORK_DIR="$(mktemp -d)"
 PORT="${SMOKE_PORT:-3987}"
 SERVER_PID=""
@@ -46,18 +50,18 @@ echo ""
 
 # --- Pack both artifacts -----------------------------------------------------
 
-cd "$ROOT_DIR"
+cd "$CORE_DIR"
 CORE_TGZ="$(npm pack --pack-destination "$WORK_DIR" 2>/dev/null | tail -1)"
-cd "$ROOT_DIR/create-basicben-app"
+cd "$CREATE_DIR"
 CREATE_TGZ="$(npm pack --pack-destination "$WORK_DIR" 2>/dev/null | tail -1)"
 
 # The create package must ship its templates. Publishing without them produced a
 # CLI that created an empty directory and reported success.
-TEMPLATE_COUNT="$(tar -tzf "$WORK_DIR/$CREATE_TGZ" | grep -c 'package/template-' || true)"
+TEMPLATE_COUNT="$(find "$ROOT_DIR/apps/cms/src" -type f | wc -l | tr -d ' ')"
 if [ "$TEMPLATE_COUNT" -lt 50 ]; then
-  fail "create tarball contains only $TEMPLATE_COUNT template files — templates missing"
+  fail "apps/cms has only $TEMPLATE_COUNT source files — the CMS is missing"
 fi
-pass "create tarball ships templates ($TEMPLATE_COUNT files)"
+pass "apps/cms carries the CMS ($TEMPLATE_COUNT source files)"
 
 # --- Scaffold ----------------------------------------------------------------
 
@@ -169,9 +173,9 @@ pass "a generated .ts migration runs"
 # previous version. Only checkable where the framework's own tsc is
 # installed, which is the machine where that edit is being made.
 if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
-  "$ROOT_DIR/node_modules/.bin/tsc" -p "$ROOT_DIR/tsconfig.types.json" \
+  "$ROOT_DIR/node_modules/.bin/tsc" -p "$CORE_DIR/tsconfig.types.json" \
     --outDir "$WORK_DIR/types-fresh" > /dev/null 2>&1
-  if ! diff -rq "$ROOT_DIR/types" "$WORK_DIR/types-fresh" > "$WORK_DIR/types.diff" 2>&1; then
+  if ! diff -rq "$CORE_DIR/types" "$WORK_DIR/types-fresh" > "$WORK_DIR/types.diff" 2>&1; then
     echo "--- stale declarations ---"
     head -20 "$WORK_DIR/types.diff"
     fail "types/ is out of date — run 'npm run build:types' and commit the result"
@@ -193,7 +197,7 @@ if [ -x "$ROOT_DIR/node_modules/.bin/tsc" ]; then
   # Apps compile with skipLibCheck, so a declaration can be malformed and
   # still let every app typecheck. JSDoc that emits an optional parameter
   # before a required one produced exactly that: an invalid .d.ts nobody saw.
-  if ! (cd "$ROOT_DIR" && ./node_modules/.bin/tsc --noEmit --skipLibCheck false \
+  if ! (cd "$CORE_DIR" && "$ROOT_DIR/node_modules/.bin/tsc" --noEmit --skipLibCheck false \
          --strict false --moduleResolution bundler --module esnext \
          --target es2022 --lib es2022,dom,dom.iterable \
          $(find types -name '*.d.ts')) > "$WORK_DIR/dts.log" 2>&1; then

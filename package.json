@@ -1,0 +1,23 @@
+{
+  "name": "basicben",
+  "private": true,
+  "type": "module",
+  "description": "A CMS you can deploy anywhere, and the framework underneath it.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "test:core": "npm run test --workspace @basicbenframework/core",
+    "test:cms": "npm run test --workspace @basicben/cms",
+    "dev": "npm run dev --workspace @basicben/cms",
+    "build": "npm run build --workspace @basicben/cms",
+    "smoke": "./scripts/smoke-test.sh",
+    "build:types": "npm run build:types --workspace @basicbenframework/core",
+    "api-reference": "node scripts/generate-api-reference.js"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

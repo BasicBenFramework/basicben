@@ -29,9 +29,13 @@ Thumbs.db
 coverage/
 
 # Database
+# The -wal and -shm sidecars carry committed rows not yet in the main file, so
+# ignoring only *.sqlite leaks content. WAL is on by default.
 *.sqlite
 *.sqlite3
 *.db
+*.sqlite-*
+*.db-*
 
 # Internal
 plans/
@@ -40,3 +44,6 @@ plans/
 # Test apps
 my-test-app/
 .playwright-mcp/
+
+# Generated at publish time by packages/create/bundle-template.mjs
+packages/create/template-ts/

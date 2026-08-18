@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 const REFERENCE = join(
   dirname(fileURLToPath(import.meta.url)),
-  '../create-basicben-app/template-ts/src/client/pages/api-reference.ts'
+  '../apps/cms/src/client/pages/api-reference.ts'
 )
 
 export const { SHAPES } = await import(REFERENCE)
