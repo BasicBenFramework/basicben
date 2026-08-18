@@ -2,6 +2,7 @@ import { PublicApiController } from '../../controllers/PublicApiController'
 import { requireScope } from '../../middleware/api-auth'
 import { SCOPES } from '@basicbenframework/core/auth/api-tokens'
 import { cacheable } from '../../middleware/cache'
+import { publicApiLimit } from '../../middleware/rate-limits'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -18,14 +19,14 @@ export default (router: Router) => {
   const content = requireScope(SCOPES.CONTENT_READ)
   const media = requireScope(SCOPES.MEDIA_READ)
 
-  router.get('/api/v1/posts', content, cacheable, PublicApiController.posts)
-  router.get('/api/v1/posts/:slug', content, cacheable, PublicApiController.post)
+  router.get('/api/v1/posts', publicApiLimit, content, cacheable, PublicApiController.posts)
+  router.get('/api/v1/posts/:slug', publicApiLimit, content, cacheable, PublicApiController.post)
 
-  router.get('/api/v1/pages', content, cacheable, PublicApiController.pages)
-  router.get('/api/v1/pages/:slug', content, cacheable, PublicApiController.page)
+  router.get('/api/v1/pages', publicApiLimit, content, cacheable, PublicApiController.pages)
+  router.get('/api/v1/pages/:slug', publicApiLimit, content, cacheable, PublicApiController.page)
 
-  router.get('/api/v1/categories', content, cacheable, PublicApiController.categories)
-  router.get('/api/v1/tags', content, cacheable, PublicApiController.tags)
+  router.get('/api/v1/categories', publicApiLimit, content, cacheable, PublicApiController.categories)
+  router.get('/api/v1/tags', publicApiLimit, content, cacheable, PublicApiController.tags)
 
-  router.get('/api/v1/media/:id', media, cacheable, PublicApiController.media)
+  router.get('/api/v1/media/:id', publicApiLimit, media, cacheable, PublicApiController.media)
 }

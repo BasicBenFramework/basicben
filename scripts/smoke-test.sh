@@ -700,6 +700,28 @@ REVALIDATED="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/ap
 [ "$REVALIDATED" = "304" ] || fail "revalidating with the ETag got $REVALIDATED, expected 304"
 pass "the content API answers a conditional request with 304"
 
+# The public API is the one surface that can be served to anyone, and it had no
+# limit at all. The limiter keys on the address and runs ahead of the scope
+# check, so a flood of fabricated tokens is limited too rather than costing an
+# indexed lookup each.
+LIMITED=""
+for _ in $(seq 1 140); do
+  code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/api/v1/posts" \
+    -H "Authorization: Bearer $API_TOKEN")"
+  if [ "$code" = "429" ]; then LIMITED="yes"; break; fi
+done
+
+[ -n "$LIMITED" ] || fail "the content API never returned 429 across 140 requests"
+pass "the content API rate limits a flood"
+
+# A 429 a client cannot act on is only half a limit.
+LIMIT_HEADERS="$(curl -s -D - -o /dev/null "http://localhost:$PORT/api/v1/posts" \
+  -H "Authorization: Bearer $API_TOKEN" | tr -d '\r')"
+case "$LIMIT_HEADERS" in
+  *Retry-After*) pass "and says when to retry" ;;
+  *) echo "$LIMIT_HEADERS"; fail "a limited response carried no Retry-After" ;;
+esac
+
 # --- Media uploads -------------------------------------------------------------
 #
 # The previous upload path could not work: the global body parser drained every

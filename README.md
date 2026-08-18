@@ -1292,6 +1292,16 @@ Every read carries an `ETag` and `Cache-Control`, and `If-None-Match` gets a
 `304` with no body. Static files get the same, plus `Accept-Ranges` and real
 `206` responses so media can be seeked and resumed.
 
+### Rate limits
+
+120 requests a minute, per address. Every response carries `RateLimit-Limit`,
+`RateLimit-Remaining` and `RateLimit-Reset`; a refused one adds `Retry-After`.
+
+Per-token budgets would be better accounting, but a limiter has to run before
+authentication — otherwise a flood of fabricated tokens is never limited — and
+before authentication the token is unverified. Keying on an unverified string
+would hand an attacker a fresh budget per fabricated token.
+
 ### CORS
 
 ```js

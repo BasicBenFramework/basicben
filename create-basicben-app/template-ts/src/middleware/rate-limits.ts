@@ -1,5 +1,5 @@
 /**
- * Rate limits for the authentication endpoints.
+ * Rate limits for the authentication endpoints and the public content API.
  *
  * Two shapes, because they stop different attacks.
  *
@@ -93,3 +93,37 @@ export const emailSendLimiter = createLimiter({
 })
 
 export { address }
+
+/**
+ * The public content API.
+ *
+ * `/api/v1` is the one surface that can be served to anyone — `public_api` in
+ * settings turns off the credential requirement — and it was the only route
+ * file with no limit at all.
+ *
+ * ## Why this keys on the address and not the token
+ *
+ * Per-token buckets would be the better accounting: a build server on a shared
+ * CI address gets its own budget rather than competing with everything else on
+ * that egress IP. They are also not implementable here.
+ *
+ * A limiter has to run *before* authentication, or a flood of fabricated
+ * tokens is never limited — `requireScope` refuses them and returns, so the
+ * limiter downstream never sees the request, and each one has already cost an
+ * indexed lookup. Running before authentication means the token is unverified,
+ * and keying on an unverified string hands an attacker a fresh bucket per
+ * fabricated token, which is worse than no limit because it looks like one.
+ *
+ * So: the address, always. The cost is that consumers sharing an egress IP
+ * share a budget. The limit below is set high enough that this does not bite in
+ * practice — a static build fetching a thousand posts at the maximum hundred
+ * per page is ten requests.
+ */
+export const publicApiLimit = rateLimit({
+  limit: 120,
+  window: '1m',
+  blockFor: '1m',
+  store,
+  trustProxy,
+  message: 'Too many requests. Please slow down.'
+})

@@ -137,6 +137,24 @@ GET /api/v1/media/:id`}
         </Card>
 
         <Card>
+          <h2 className="text-lg font-semibold mb-2">Rate limits</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            120 requests a minute, per address. Every response carries{' '}
+            <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code> and{' '}
+            <code>RateLimit-Reset</code>; a refused one adds <code>Retry-After</code> and a 429.
+          </p>
+          <p className={`text-sm ${t.muted}`}>
+            Per-token budgets would be the better accounting — a build server on a shared CI
+            address would get its own — but a limiter has to run before authentication, or a flood
+            of fabricated tokens is never limited at all. Before authentication the token is
+            unverified, and keying on an unverified string hands an attacker a fresh budget per
+            fabricated token. So the address it is. The limit is set high enough that sharing one
+            rarely bites: a build fetching a thousand posts at the maximum hundred per page is ten
+            requests.
+          </p>
+        </Card>
+
+        <Card>
           <h2 className="text-lg font-semibold mb-2">CORS</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
             A browser-side consumer on another origin needs an allowlist. The default is{' '}
