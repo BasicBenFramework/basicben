@@ -1,14 +1,13 @@
 {
   "name": "@basicbenframework/create",
   "version": "0.5.1",
-  "description": "Create a new BasicBen application",
+  "description": "Create a new project from the BasicBen CMS",
   "type": "module",
   "bin": {
     "create-basicben": "./index.js"
   },
   "files": [
-    "index.js",
-    "template-ts"
+    "index.js"
   ],
   "keywords": [
     "basicben",
@@ -28,7 +27,5 @@
   "engines": {
     "node": ">=24.0.0"
   },
-  "scripts": {
-    "prepack": "node ./bundle-template.mjs"
-  }
+  "scripts": {}
 }

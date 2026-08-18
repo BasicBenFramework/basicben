@@ -45,5 +45,3 @@ plans/
 my-test-app/
 .playwright-mcp/
 
-# Generated at publish time by create/bundle-template.mjs
-create/template-ts/

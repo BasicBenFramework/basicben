@@ -50,13 +50,30 @@ export function GettingStarted() {
             <div className={t.muted}># Install dependencies</div>
             <div>npm install</div>
             <div className="mt-2" />
+            <div className={t.muted}># Create the database</div>
+            <div>npm run migrate</div>
+            <div className="mt-2" />
             <div className={t.muted}># Start the development server</div>
             <div>npm run dev</div>
           </div>
           <p className={`text-sm ${t.muted} mt-4`}>
+            What you get is the CMS: posts, pages, categories, tags, media, comments, an admin
+            panel and a headless content API at <code>/api/v1</code>. Not a blank application —
+            a working one you delete the parts of that you do not want. The first account you
+            register becomes the admin.
+          </p>
+          <p className={`text-sm ${t.muted} mt-4`}>
             Apps are TypeScript. Nothing forces you to annotate anything — Vite compiles the app
             either way — but the types are there when you want them, and the admin panel is
             written against them. BasicBen requires Node 24 or later.
+          </p>
+          <p className={`text-sm ${t.muted} mt-4`}>
+            The command downloads the CMS repository rather than unpacking a copy bundled inside
+            the package, so it is never a stale snapshot. What it gives you is <em>yours</em>,
+            with no link back — which is usually what you want, and means framework fixes reach
+            you through <code>@basicbenframework/core</code> but CMS changes do not. If you would
+            rather track the CMS and merge its fixes, fork it instead of scaffolding:{' '}
+            <code>git clone https://github.com/BasicBenFramework/basicben.git my-app</code>.
           </p>
         </Card>
 

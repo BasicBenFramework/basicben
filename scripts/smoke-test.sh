@@ -65,22 +65,86 @@ else
   CORE_TGZ="basicbenframework-core-$CORE_VERSION.tgz"
 fi
 
-cd "$CREATE_DIR"
-CREATE_TGZ="$(npm pack --pack-destination "$WORK_DIR" 2>/dev/null | tail -1)"
-
-# The create package must ship its templates. Publishing without them produced a
-# CLI that created an empty directory and reported success.
-TEMPLATE_COUNT="$(find "$ROOT_DIR/src" -type f | wc -l | tr -d ' ')"
-if [ "$TEMPLATE_COUNT" -lt 50 ]; then
-  fail "only $TEMPLATE_COUNT source files under src/ — the CMS is missing"
+SOURCE_COUNT="$(find "$ROOT_DIR/src" -type f | wc -l | tr -d ' ')"
+if [ "$SOURCE_COUNT" -lt 50 ]; then
+  fail "only $SOURCE_COUNT source files under src/ — the CMS is missing"
 fi
-pass "the CMS is present ($TEMPLATE_COUNT source files)"
+pass "the CMS is present ($SOURCE_COUNT source files)"
 
-# --- Scaffold ----------------------------------------------------------------
+# --- The scaffolder ------------------------------------------------------------
+#
+# It is a published artifact that can break on its own, and did: 0.5.0 shipped a
+# bundled snapshot of the CMS that still called storage.url(), so every project
+# made from it threw on any post with a featured image. It downloads now, which
+# cannot go stale — but the downloading, the exclusions and the renaming can
+# still break, so they are checked.
+#
+# This necessarily tests against the repository's default branch, not this
+# checkout. That is what the scaffolder targets, so it is the honest thing to
+# assert. SMOKE_SKIP_CREATE=1 skips it when offline.
+
+if [ -z "${SMOKE_SKIP_CREATE:-}" ]; then
+  SCAFFOLD_DIR="$WORK_DIR/scaffold-check"
+  mkdir -p "$SCAFFOLD_DIR"
+
+  if ! (cd "$SCAFFOLD_DIR" && node "$CREATE_DIR/index.js" probe-app > "$WORK_DIR/create.log" 2>&1); then
+    cat "$WORK_DIR/create.log"
+    fail "the scaffolder could not create a project"
+  fi
+
+  for LEAK in create .github PUBLISH.md package-lock.json; do
+    [ -e "$SCAFFOLD_DIR/probe-app/$LEAK" ] && fail "the scaffolder copied $LEAK into a project"
+  done
+
+  [ -f "$SCAFFOLD_DIR/probe-app/.gitignore" ] || fail "the scaffolder left gitignore undotted"
+  [ -d "$SCAFFOLD_DIR/probe-app/src/models" ] || fail "the scaffolded project has no CMS source"
+
+  grep -qE '^APP_KEY=[0-9a-f]{64}$' "$SCAFFOLD_DIR/probe-app/.env" \
+    || fail "the scaffolder did not generate an APP_KEY"
+
+  node -e "
+const pkg = require('$SCAFFOLD_DIR/probe-app/package.json')
+if (pkg.name !== 'probe-app') { console.error('name is ' + pkg.name); process.exit(1) }
+if (!pkg.dependencies['@basicbenframework/core']) { console.error('no core dependency'); process.exit(1) }
+" || fail "the scaffolded package.json was not rewritten for the project"
+
+  pass "the scaffolder produces a project, without the repository's own files"
+fi
+
+# --- Make a project out of this checkout ---------------------------------------
+#
+# Deliberately not through `create`. The scaffolder downloads the repository
+# from GitHub at run time, so driving it here would test whatever is on main
+# rather than the working tree in front of you — which is the opposite of what
+# a pre-release check is for. It is exercised separately below, against what it
+# actually targets.
+#
+# This mirrors what the scaffolder does: everything except the parts that
+# belong to the repository rather than to a project.
 
 cd "$WORK_DIR"
-tar -xzf "$CREATE_TGZ"
-node package/index.js "$APP_NAME" > /dev/null
+mkdir -p "$APP_NAME"
+
+tar -cf - -C "$ROOT_DIR" \
+  --exclude='./create' --exclude='./.github' --exclude='./.git' \
+  --exclude='./node_modules' --exclude='./dist' --exclude='./package-lock.json' \
+  --exclude='./PUBLISH.md' --exclude='./TESTING.md' \
+  --exclude='./.env' --exclude='./database.sqlite*' . | tar -xf - -C "$APP_NAME"
+
+mv "$APP_NAME/gitignore" "$APP_NAME/.gitignore" 2>/dev/null || true
+
+node -e "
+const fs = require('fs')
+const path = '$WORK_DIR/$APP_NAME/package.json'
+const pkg = JSON.parse(fs.readFileSync(path, 'utf8'))
+pkg.name = '$APP_NAME'
+pkg.private = true
+fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n')
+"
+
+sed \
+  -e "s|^APP_KEY=.*|APP_KEY=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))")|" \
+  "$ROOT_DIR/.env.example" > "$APP_NAME/.env"
 
 # Hook listeners, appended to the app's own hooks file before the build. This
 # is how an app extends the framework now that plugins are gone, so it is what

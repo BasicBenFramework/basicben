@@ -3,22 +3,52 @@
 /**
  * @basicbenframework/create
  *
- * Scaffolds a new BasicBen project with the recommended structure.
+ * Creates a new project from the BasicBen CMS.
  *
  * Usage:
  *   npx @basicbenframework/create my-app
- *   npx @basicbenframework/create my-app --template minimal
+ *   npx @basicbenframework/create my-app --ref v0.5.1
+ *
+ * ## Why this downloads instead of bundling
+ *
+ * It used to ship a copy of the CMS inside the package, written at publish
+ * time. That copy went stale the moment the CMS changed, and staleness here is
+ * not a missing feature — the published 0.5.0 scaffolder handed people a CMS
+ * that threw a TypeError on any post with a featured image, long after the
+ * repository had fixed it. A snapshot released on a different cadence from the
+ * thing it snapshots will always drift; the only question is how far.
+ *
+ * So there is no copy. This fetches the repository at run time, which cannot be
+ * stale by construction, and removes the bundling step, the second release and
+ * the second place for the CMS to exist.
+ *
+ * The cost is that creating a project needs network access and GitHub to be
+ * reachable — already true of the `npm install` that follows it.
  */
 
-import { mkdirSync, writeFileSync, copyFileSync, readdirSync, statSync, existsSync } from 'node:fs'
-import { join, resolve, dirname, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
+import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, renameSync, readdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
+import { tmpdir } from 'node:os'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const frameworkDir = resolve(__dirname, '..')
+const REPO = 'BasicBenFramework/basicben'
 
-// ANSI colors
+/**
+ * Paths that belong to the repository rather than to a project made from it.
+ *
+ * `create` is this package: a project does not contain its own scaffolder. The
+ * rest is repository plumbing — CI, the release script, the end-to-end smoke
+ * test — which a new project has no use for.
+ */
+const NOT_YOURS = new Set([
+  'create',
+  '.github',
+  'PUBLISH.md',
+  'TESTING.md',
+  'package-lock.json'
+])
+
 const bold = (s) => `\x1b[1m${s}\x1b[0m`
 const green = (s) => `\x1b[32m${s}\x1b[0m`
 const cyan = (s) => `\x1b[36m${s}\x1b[0m`
@@ -26,19 +56,14 @@ const yellow = (s) => `\x1b[33m${s}\x1b[0m`
 const red = (s) => `\x1b[31m${s}\x1b[0m`
 const dim = (s) => `\x1b[2m${s}\x1b[0m`
 
-/**
- * Main entry point
- */
 async function main() {
   const args = process.argv.slice(2)
 
-  // Show help
   if (args.includes('--help') || args.includes('-h') || args.length === 0) {
     showHelp()
     process.exit(0)
   }
 
-  // Get project name
   const projectName = args[0]
 
   if (!projectName || projectName.startsWith('-')) {
@@ -47,29 +72,23 @@ async function main() {
     process.exit(1)
   }
 
-  // Validate project name
   if (!/^[a-z0-9-_]+$/i.test(projectName)) {
     console.error(`\n${red('Error:')} Project name can only contain letters, numbers, dashes, and underscores.\n`)
     process.exit(1)
   }
 
-  // Check for --local flag
-  const useLocal = args.includes('--local')
+  // A branch, tag or commit. `main` is the current CMS; pin it if you would
+  // rather a new project not move when the repository does.
+  const refFlag = args.indexOf('--ref')
+  const ref = refFlag === -1 ? 'main' : args[refFlag + 1]
 
-  // --typescript/--ts are accepted and ignored: TypeScript is the only
-  // template now, so existing scripts that pass the flag keep working.
-  if (args.includes('--js') || args.includes('--javascript')) {
-    console.log(
-      `\n${yellow('Note:')} the JavaScript template has been removed — every app is TypeScript now.`
-    )
-    console.log(
-      `${dim('Nothing forces you to write annotations; Vite compiles the app either way.')}\n`
-    )
+  if (refFlag !== -1 && !ref) {
+    console.error(`\n${red('Error:')} --ref needs a branch, tag or commit.\n`)
+    process.exit(1)
   }
 
   const projectDir = resolve(process.cwd(), projectName)
 
-  // Check if directory exists
   if (existsSync(projectDir)) {
     console.error(`\n${red('Error:')} Directory "${projectName}" already exists.\n`)
     process.exit(1)
@@ -77,172 +96,139 @@ async function main() {
 
   console.log()
   console.log(`${bold('Creating a new BasicBen app')} in ${cyan(projectDir)}`)
+  console.log(dim(`from ${REPO}@${ref}`))
   console.log()
 
-  // Create project directory
-  mkdirSync(projectDir, { recursive: true })
+  const work = join(tmpdir(), `basicben-create-${randomBytes(6).toString('hex')}`)
+  mkdirSync(work, { recursive: true })
 
-  // Copy template files
-  // The CMS is the repository this package sits inside, not a folder within
-  // it. `prepack` copies the repository root to ./template-ts so a published
-  // tarball is self-contained; in a checkout that copy does not exist and the
-  // root is read directly, so there is only ever one source of truth.
-  const bundled = join(__dirname, 'template-ts')
-  const templateDir = existsSync(bundled) ? bundled : resolve(__dirname, '..')
-
-  if (!existsSync(templateDir)) {
-    console.error(`\n${red('Error:')} cannot find the CMS to copy from.\n`)
+  try {
+    await download(ref, work)
+    place(work, projectDir)
+    configure(projectDir, projectName)
+  } catch (error) {
+    // A half-written directory is worse than none: the next attempt would
+    // refuse to run because the path already exists.
+    rmSync(projectDir, { recursive: true, force: true })
+    console.error(`\n${red('Error:')} ${error.message}\n`)
     process.exit(1)
-  }
-  copyDir(templateDir, projectDir)
-
-  // Determine basicben dependency
-  let basicbenDep = 'latest'
-  if (useLocal) {
-    const relativePath = relative(projectDir, frameworkDir)
-    basicbenDep = `file:${relativePath}`
-    console.log(`${yellow('Using local framework:')} ${relativePath}\n`)
+  } finally {
+    rmSync(work, { recursive: true, force: true })
   }
 
-  // Create package.json with project name
-  const pkg = {
-    name: projectName,
-    version: '0.1.0',
-    private: true,
-    type: 'module',
-    scripts: {
-      dev: 'basicben dev',
-      build: 'basicben build',
-      'build:client': 'vite build',
-      'build:server': 'vite build --ssr src/server/index.ts --outDir dist/server',
-      start: 'basicben start',
-      test: 'basicben test',
-      migrate: 'basicben migrate',
-      'migrate:rollback': 'basicben migrate:rollback',
-      'migrate:fresh': 'basicben migrate:fresh',
-      'migrate:status': 'basicben migrate:status',
-      'make:migration': 'basicben make:migration',
-      'make:controller': 'basicben make:controller',
-      'make:model': 'basicben make:model'
-    },
-    dependencies: {
-      '@basicbenframework/core': basicbenDep,
-      react: '^19.2.0',
-      'react-dom': '^19.2.0'
-    },
-    devDependencies: {
-      '@vitejs/plugin-react': '^6.0.5',
-      // Tailwind is compiled at build time. It was previously loaded from
-      // cdn.tailwindcss.com, which ships a compiler to the browser and is
-      // documented as development-only — a deployed site lost its styling
-      // entirely whenever that CDN was unreachable.
-      tailwindcss: '^4.3.3',
-      '@tailwindcss/vite': '^4.3.3',
-      vite: '^8.2.1',
-      vitest: '^4.0.0',
-      'typescript': '^5.8',
-      '@types/node': '^24',
-      '@types/react': '^19',
-      '@types/react-dom': '^19'
-    }
-  }
-
-  writeFileSync(
-    join(projectDir, 'package.json'),
-    JSON.stringify(pkg, null, 2) + '\n'
-  )
-
-  // Generate APP_KEY for .env
-  const appKey = generateAppKey()
-  const envContent = `# Application
-APP_KEY=${appKey}
-
-# Server Ports
-PORT=3001              # API server
-VITE_PORT=3000         # Frontend dev server
-
-# The origin this site is reached at. Passkeys are bound to it, and the content
-# API resolves media URLs against it — with the local storage driver those are
-# app-relative, and a headless consumer on another host cannot resolve them.
-# In production this is your domain.
-APP_URL=http://localhost:3000
-
-# Database (uncomment one)
-# DATABASE_URL=./data.db
-# DATABASE_URL=postgres://user:pass@localhost:5432/mydb
-`
-  writeFileSync(join(projectDir, '.env'), envContent)
-
-  console.log(`${green('✓')} Project created successfully!\n`)
-
-  // Install dependencies prompt
-  console.log(`${bold('Next steps:')}\n`)
+  console.log(`${green('✓')} Project created successfully!`)
+  console.log()
+  console.log(bold('Next steps:'))
+  console.log()
   console.log(`  ${cyan('cd')} ${projectName}`)
   console.log(`  ${cyan('npm install')}`)
-  console.log(`  ${cyan('npm run dev')}\n`)
-
-  console.log(`${dim('This will start the development server at http://localhost:3000')}\n`)
+  console.log(`  ${cyan('npm run migrate')}`)
+  console.log(`  ${cyan('npm run dev')}`)
+  console.log()
+  console.log(dim('The first account you register becomes the admin.'))
+  console.log()
 }
 
-/**
- * Show help message
- */
+/** Fetch and unpack the repository at `ref`. */
+async function download(ref, work) {
+  const url = `https://codeload.github.com/${REPO}/tar.gz/${encodeURIComponent(ref)}`
+
+  let response
+
+  try {
+    response = await fetch(url, { redirect: 'follow' })
+  } catch (error) {
+    throw new Error(`Could not reach GitHub — ${error.message}`)
+  }
+
+  if (!response.ok) {
+    throw response.status === 404
+      ? new Error(`No branch, tag or commit named "${ref}" in ${REPO}.`)
+      : new Error(`Could not download ${REPO}@${ref} — GitHub returned ${response.status}.`)
+  }
+
+  const archive = join(work, 'cms.tar.gz')
+  writeFileSync(archive, Buffer.from(await response.arrayBuffer()))
+
+  const unpacked = join(work, 'src')
+  mkdirSync(unpacked, { recursive: true })
+
+  // GitHub nests everything under `owner-repo-sha/`, hence the strip. `tar` is
+  // present on macOS, Linux and Windows 10+ — a weaker assumption than the one
+  // npm itself makes.
+  try {
+    execFileSync('tar', ['-xzf', archive, '-C', unpacked, '--strip-components=1'], { stdio: 'pipe' })
+  } catch {
+    throw new Error('Could not unpack the download — is `tar` on your PATH?')
+  }
+}
+
+/** Move the repository into place, minus the parts that are not a project. */
+function place(work, projectDir) {
+  const source = join(work, 'src')
+
+  mkdirSync(projectDir, { recursive: true })
+
+  for (const entry of readdirSync(source)) {
+    if (NOT_YOURS.has(entry)) continue
+    renameSync(join(source, entry), join(projectDir, entry))
+  }
+
+  // The repository carries this undotted because npm strips dotfiles from
+  // published packages. Nothing strips anything here, but the name still has to
+  // be corrected for git to honour it.
+  const undotted = join(projectDir, 'gitignore')
+
+  if (existsSync(undotted)) renameSync(undotted, join(projectDir, '.gitignore'))
+}
+
+/** Name the project and give it an environment it can start with. */
+function configure(projectDir, projectName) {
+  const pkgPath = join(projectDir, 'package.json')
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+
+  // The repository's own package.json, renamed — not rebuilt from a list here.
+  // That list was a second copy of the scripts and dependencies, and it drifted
+  // from the real one exactly as you would expect a second copy to.
+  pkg.name = projectName
+  pkg.version = '0.1.0'
+  pkg.private = true
+  delete pkg.description
+
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+
+  // Likewise the environment: .env.example is the documented one, so the only
+  // thing added is the key, which has to be generated per project.
+  const examplePath = join(projectDir, '.env.example')
+  const example = existsSync(examplePath) ? readFileSync(examplePath, 'utf-8') : 'APP_KEY=\n'
+
+  writeFileSync(
+    join(projectDir, '.env'),
+    example.replace(/^APP_KEY=.*$/m, `APP_KEY=${randomBytes(32).toString('hex')}`)
+  )
+}
+
 function showHelp() {
   console.log(`
-${bold('@basicbenframework/create')} - Create a new BasicBen project
+${bold('create-basicben')} — start a project from the BasicBen CMS
 
-${bold('Usage:')}
-  npx @basicbenframework/create ${dim('<project-name>')} [options]
+${bold('Usage')}
+  ${cyan('npx @basicbenframework/create')} ${dim('<project-name>')}
 
-${bold('Options:')}
-  --local              Use local framework (for development)
-  -h, --help           Show this help message
+${bold('Options')}
+  ${dim('--ref <ref>')}   branch, tag or commit to take (default: main)
+  ${dim('--help')}        show this
 
-${bold('Examples:')}
-  npx @basicbenframework/create my-app
-  npx @basicbenframework/create my-app --local        ${dim('# Use local framework')}
+${bold('What you get')}
+  The CMS from ${REPO}: posts, pages, media, an
+  admin UI and a headless content API. It is downloaded rather than bundled,
+  so it is never a stale copy.
 
-${dim('Apps are TypeScript. --typescript/--ts still work, and do nothing.')}
+  ${yellow('This is your project.')} It has no link back to the repository. To track
+  the CMS and pull fixes instead, fork it:
+
+    ${cyan(`git clone https://github.com/${REPO}.git my-app`)}
 `)
 }
 
-/**
- * Copy directory recursively
- */
-function copyDir(src, dest) {
-  if (!existsSync(src)) return
-
-  mkdirSync(dest, { recursive: true })
-  const entries = readdirSync(src, { withFileTypes: true })
-
-  for (const entry of entries) {
-    const srcPath = join(src, entry.name)
-    // Rename gitignore to .gitignore (npm strips dotfiles during publish)
-    const destName = entry.name === 'gitignore' ? '.gitignore' : entry.name
-    const destPath = join(dest, destName)
-
-    if (entry.isDirectory()) {
-      copyDir(srcPath, destPath)
-    } else {
-      copyFileSync(srcPath, destPath)
-    }
-  }
-}
-
-/**
- * Generate a random APP_KEY
- */
-function generateAppKey() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  let key = ''
-  for (let i = 0; i < 32; i++) {
-    key += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return key
-}
-
-// Run
-main().catch((err) => {
-  console.error(`\n${red('Error:')} ${err.message}\n`)
-  process.exit(1)
-})
+main()
