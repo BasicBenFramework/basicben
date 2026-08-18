@@ -19,10 +19,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-# The CMS is this repository. The scaffolder is a separate package inside it,
-# and the framework is installed from npm like any consumer gets it — which is
-# why CORE_TGZ below is a download rather than a pack.
-CREATE_DIR="$ROOT_DIR/create"
+# The CMS is this repository, and nothing here is published: the framework and
+# the scaffolder both come from BasicBenFramework/core. The framework is
+# installed from npm like any consumer gets it, which is why CORE_TGZ below is
+# a download rather than a pack.
 WORK_DIR="$(mktemp -d)"
 PORT="${SMOKE_PORT:-3987}"
 SERVER_PID=""
@@ -71,45 +71,10 @@ if [ "$SOURCE_COUNT" -lt 50 ]; then
 fi
 pass "the CMS is present ($SOURCE_COUNT source files)"
 
-# --- The scaffolder ------------------------------------------------------------
-#
-# It is a published artifact that can break on its own, and did: 0.5.0 shipped a
-# bundled snapshot of the CMS that still called storage.url(), so every project
-# made from it threw on any post with a featured image. It downloads now, which
-# cannot go stale — but the downloading, the exclusions and the renaming can
-# still break, so they are checked.
-#
-# This necessarily tests against the repository's default branch, not this
-# checkout. That is what the scaffolder targets, so it is the honest thing to
-# assert. SMOKE_SKIP_CREATE=1 skips it when offline.
-
-if [ -z "${SMOKE_SKIP_CREATE:-}" ]; then
-  SCAFFOLD_DIR="$WORK_DIR/scaffold-check"
-  mkdir -p "$SCAFFOLD_DIR"
-
-  if ! (cd "$SCAFFOLD_DIR" && node "$CREATE_DIR/index.js" probe-app > "$WORK_DIR/create.log" 2>&1); then
-    cat "$WORK_DIR/create.log"
-    fail "the scaffolder could not create a project"
-  fi
-
-  for LEAK in create .github PUBLISH.md package-lock.json; do
-    [ -e "$SCAFFOLD_DIR/probe-app/$LEAK" ] && fail "the scaffolder copied $LEAK into a project"
-  done
-
-  [ -f "$SCAFFOLD_DIR/probe-app/.gitignore" ] || fail "the scaffolder left gitignore undotted"
-  [ -d "$SCAFFOLD_DIR/probe-app/src/models" ] || fail "the scaffolded project has no CMS source"
-
-  grep -qE '^APP_KEY=[0-9a-f]{64}$' "$SCAFFOLD_DIR/probe-app/.env" \
-    || fail "the scaffolder did not generate an APP_KEY"
-
-  node -e "
-const pkg = require('$SCAFFOLD_DIR/probe-app/package.json')
-if (pkg.name !== 'probe-app') { console.error('name is ' + pkg.name); process.exit(1) }
-if (!pkg.dependencies['@basicbenframework/core']) { console.error('no core dependency'); process.exit(1) }
-" || fail "the scaffolded package.json was not rewritten for the project"
-
-  pass "the scaffolder produces a project, without the repository's own files"
-fi
+# The scaffolder moved to the framework's repository, which is where it is
+# published from. It downloads this repository at run time, so it is checked
+# there against this repository's default branch — see check-scaffolder.sh in
+# BasicBenFramework/core.
 
 # --- Make a project out of this checkout ---------------------------------------
 #

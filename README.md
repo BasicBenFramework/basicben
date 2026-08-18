@@ -7,6 +7,12 @@ This repository *is* the CMS. Clone it, or scaffold a copy with
 `npx @basicbenframework/create` — either way it is a plain BasicBen
 application that installs the framework from npm, the same shape as any other.
 
+Nothing here is published. Both `@basicbenframework/core` and
+`@basicbenframework/create` are released from
+[BasicBenFramework/core](https://github.com/BasicBenFramework/core); the
+scaffolder downloads this repository at run time rather than bundling a copy of
+it, so there is no snapshot to keep in step.
+
 ## Getting started
 
 ```bash
