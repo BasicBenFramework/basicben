@@ -556,6 +556,173 @@ const adminStyles = `
 
   .admin-btn-secondary { background: var(--surface); color: var(--fg); }
 
+  /* --- Markdown editor -------------------------------------------------------
+     Every colour here was a hardcoded hex in the component's inline styles: a
+     #f9fafb toolbar, #d1d5db borders, a #ffffff preview. Inline styles cannot
+     answer to a theme, so the editor stayed lit while the rest of the admin
+     went dark. These are the same variables everything else uses. */
+
+  .markdown-editor-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    padding: 0.375rem;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: var(--surface);
+  }
+
+  .markdown-editor-mark {
+    min-width: 2rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--fg);
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+
+  .markdown-editor-mark:hover:not(:disabled) { background: var(--surface-hover); }
+  .markdown-editor-mark:disabled { opacity: 0.4; cursor: default; }
+
+  .markdown-editor-tabs { margin-left: auto; display: flex; gap: 0.25rem; }
+
+  .markdown-editor-tab {
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--fg-muted);
+    font-size: 0.875rem;
+    text-transform: capitalize;
+    cursor: pointer;
+  }
+
+  .markdown-editor-tab.active {
+    background: var(--bg);
+    color: var(--fg);
+    font-weight: 600;
+  }
+
+  .markdown-editor-input {
+    border-radius: 0 0 var(--radius) var(--radius);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  .markdown-editor-hint {
+    margin: 0.375rem 0 0;
+    color: var(--fg-subtle);
+    font-size: 0.8125rem;
+  }
+
+  .markdown-editor-error { color: var(--danger); }
+  .markdown-editor-empty { color: var(--fg-subtle); }
+
+  /* The preview had no typography at all — rendered HTML fell back to browser
+     defaults inside a page that resets them, so headings, lists and code came
+     out flat and cramped. It is a preview; it has to look like prose. */
+  .markdown-editor-preview {
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+    background: var(--bg);
+    color: var(--fg);
+    overflow-wrap: break-word;
+    line-height: 1.7;
+  }
+
+  .markdown-editor-preview > :first-child { margin-top: 0; }
+  .markdown-editor-preview > :last-child { margin-bottom: 0; }
+
+  .markdown-editor-preview h1,
+  .markdown-editor-preview h2,
+  .markdown-editor-preview h3,
+  .markdown-editor-preview h4 {
+    margin: 1.6em 0 0.6em;
+    line-height: 1.25;
+    font-weight: 650;
+    color: var(--fg);
+  }
+
+  .markdown-editor-preview h1 { font-size: 1.75rem; }
+  .markdown-editor-preview h2 { font-size: 1.4rem; }
+  .markdown-editor-preview h3 { font-size: 1.15rem; }
+  .markdown-editor-preview h4 { font-size: 1rem; }
+
+  .markdown-editor-preview p { margin: 0 0 1em; }
+
+  .markdown-editor-preview ul,
+  .markdown-editor-preview ol { margin: 0 0 1em; padding-left: 1.5rem; }
+  .markdown-editor-preview li { margin: 0.25em 0; }
+  .markdown-editor-preview li > ul,
+  .markdown-editor-preview li > ol { margin: 0.25em 0; }
+
+  .markdown-editor-preview a { color: var(--accent); text-decoration: underline; }
+
+  .markdown-editor-preview blockquote {
+    margin: 0 0 1em;
+    padding: 0.25rem 0 0.25rem 1rem;
+    border-left: 3px solid var(--border-strong);
+    color: var(--fg-muted);
+  }
+
+  .markdown-editor-preview code {
+    padding: 0.15em 0.35em;
+    border-radius: 0.25rem;
+    background: var(--surface);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.875em;
+  }
+
+  .markdown-editor-preview pre {
+    margin: 0 0 1em;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    /* Long lines scroll inside the block rather than widening the editor. */
+    overflow-x: auto;
+  }
+
+  .markdown-editor-preview pre code {
+    padding: 0;
+    background: none;
+    font-size: 0.8125rem;
+  }
+
+  .markdown-editor-preview img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+  }
+
+  .markdown-editor-preview hr {
+    margin: 1.75em 0;
+    border: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .markdown-editor-preview table {
+    width: 100%;
+    margin: 0 0 1em;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+
+  .markdown-editor-preview th,
+  .markdown-editor-preview td {
+    padding: 0.5rem 0.625rem;
+    border: 1px solid var(--border);
+    text-align: left;
+  }
+
+  .markdown-editor-preview th { background: var(--surface); font-weight: 600; }
+
   /* Pager for the admin tables. Sits under the table, quiet by default: the
      controls only matter when there is more than one page, and the component
      renders nothing at all in that case. */

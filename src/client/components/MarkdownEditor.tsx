@@ -78,7 +78,7 @@ export default function MarkdownEditor({
     try {
       return renderContentSync(value || '')
     } catch (error) {
-      return `<p style="color:#b91c1c">Preview failed: ${(error as Error).message}</p>`
+      return `<p class="markdown-editor-error">Preview failed: ${(error as Error).message}</p>`
     }
   }, [value])
 
@@ -204,20 +204,7 @@ export default function MarkdownEditor({
 
   return (
     <div className="markdown-editor">
-      <div
-        className="markdown-editor-bar"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.25rem',
-          flexWrap: 'wrap',
-          padding: '0.375rem',
-          border: '1px solid #d1d5db',
-          borderBottom: 'none',
-          borderRadius: '0.375rem 0.375rem 0 0',
-          backgroundColor: '#f9fafb'
-        }}
-      >
+      <div className="markdown-editor-bar">
         {MARKS.map((mark) => (
           <button
             key={mark.title}
@@ -225,18 +212,11 @@ export default function MarkdownEditor({
             title={mark.title}
             onClick={() => applyMark(mark)}
             disabled={mode === 'preview'}
+            className="markdown-editor-mark"
             style={{
-              minWidth: '2rem',
-              padding: '0.25rem 0.5rem',
-              border: '1px solid transparent',
-              borderRadius: '0.25rem',
-              backgroundColor: 'transparent',
-              cursor: mode === 'preview' ? 'default' : 'pointer',
-              opacity: mode === 'preview' ? 0.4 : 1,
               fontWeight: mark.label === 'B' ? 700 : 400,
               fontStyle: mark.label === 'I' ? 'italic' : 'normal',
-              textDecoration: mark.label === 'S' ? 'line-through' : 'none',
-              fontSize: '0.875rem'
+              textDecoration: mark.label === 'S' ? 'line-through' : 'none'
             }}
           >
             {mark.label}
@@ -248,36 +228,18 @@ export default function MarkdownEditor({
           title="Insert media"
           onClick={() => setPicking(true)}
           disabled={mode === 'preview'}
-          style={{
-            minWidth: '2rem',
-            padding: '0.25rem 0.5rem',
-            border: '1px solid transparent',
-            borderRadius: '0.25rem',
-            backgroundColor: 'transparent',
-            cursor: mode === 'preview' ? 'default' : 'pointer',
-            opacity: mode === 'preview' ? 0.4 : 1,
-            fontSize: '0.875rem'
-          }}
+          className="markdown-editor-mark"
         >
           🖼
         </button>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem' }}>
+        <div className="markdown-editor-tabs">
           {(['write', 'preview'] as Mode[]).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setMode(tab)}
-              style={{
-                padding: '0.25rem 0.75rem',
-                border: '1px solid #d1d5db',
-                borderRadius: '0.25rem',
-                backgroundColor: mode === tab ? '#ffffff' : 'transparent',
-                fontWeight: mode === tab ? 600 : 400,
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                textTransform: 'capitalize'
-              }}
+              className={`markdown-editor-tab ${mode === tab ? 'active' : ''}`}
             >
               {tab}
             </button>
@@ -292,35 +254,24 @@ export default function MarkdownEditor({
           value={value}
           onChange={onChange}
           onKeyDown={handleKeyDown}
-          className="admin-textarea"
-          style={{
-            minHeight,
-            borderRadius: '0 0 0.375rem 0.375rem',
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            fontSize: '0.875rem',
-            lineHeight: 1.6
-          }}
+          className="admin-textarea markdown-editor-input"
+          style={{ minHeight }}
           placeholder={placeholder}
           required={required}
         />
       ) : (
         <div
           className="markdown-editor-preview"
-          style={{
-            minHeight,
-            padding: '0.75rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '0 0 0.375rem 0.375rem',
-            backgroundColor: '#ffffff',
-            overflowWrap: 'break-word'
-          }}
+          style={{ minHeight }}
           // The HTML here came from renderContentSync, which sanitizes against
           // the same allowlist the server uses before storing anything.
-          dangerouslySetInnerHTML={{ __html: preview || '<p style="color:#9ca3af">Nothing to preview yet.</p>' }}
+          dangerouslySetInnerHTML={{
+            __html: preview || '<p class="markdown-editor-empty">Nothing to preview yet.</p>'
+          }}
         />
       )}
 
-      <p style={{ margin: '0.375rem 0 0', color: '#6b7280', fontSize: '0.8125rem' }}>
+      <p className="markdown-editor-hint">
         Markdown supported — headings, lists, links, tables, and fenced code.
         HTML is shown as text rather than rendered.
       </p>
