@@ -38,7 +38,7 @@ import { fileURLToPath } from 'node:url'
 import { SCOPES } from '@basicbenframework/core/auth/api-tokens'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const TEMPLATE = join(ROOT, 'apps/cms')
+const TEMPLATE = ROOT
 
 const MODEL = join(TEMPLATE, 'src/models/PublicContent.ts')
 const ROUTES = join(TEMPLATE, 'src/routes/api/v1.ts')

@@ -25,7 +25,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { HOOKS } from '@basicbenframework/core/hooks'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 // Both sides, still. Most hooks are declared and fired inside the framework
 // (server.starting, request.before, mail.sending); the CMS fires the content
@@ -33,7 +33,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 // as dead, which is a false alarm rather than a finding. The published package
 // ships its source, so the installed copy is scannable — this survives core
 // living in another repository.
-const SOURCE_ROOTS = ['apps/cms/src', 'node_modules/@basicbenframework/core/src']
+const SOURCE_ROOTS = ['src', 'node_modules/@basicbenframework/core/src']
 
 /** Every hook name, paired with the constant path that names it. */
 function declaredHooks(obj = HOOKS, path = []) {
@@ -96,7 +96,7 @@ describe('hook coverage', () => {
     // The Extending page states the count. Counts in prose go stale silently —
     // the entry-point list on the Testing page said nineteen for two releases
     // after it became eighteen — so the number is asserted rather than trusted.
-    const page = join(ROOT, 'apps/cms/src/client/pages/Extending.tsx')
+    const page = join(ROOT, 'src/client/pages/Extending.tsx')
     const quoted = readFileSync(page, 'utf-8').match(/All (\d+), by family/)
 
     assert.ok(quoted, 'the Extending docs page no longer states a hook count')

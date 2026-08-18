@@ -19,11 +19,11 @@ import assert from 'node:assert'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { generate, OUTPUT, parseInterface, parseRoutes } from '../../../scripts/generate-api-reference.js'
-import { compareShape, SHAPES } from '../../../scripts/api-reference-shapes.mjs'
+import { generate, OUTPUT, parseInterface, parseRoutes } from '../scripts/generate-api-reference.js'
+import { compareShape, SHAPES } from '../scripts/api-reference-shapes.mjs'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
-const DOCS = join(ROOT, 'apps/cms/src/client/pages/Headless.tsx')
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const DOCS = join(ROOT, 'src/client/pages/Headless.tsx')
 
 describe('the generated API reference', () => {
   test('the checked-in file is what the generator produces', () => {

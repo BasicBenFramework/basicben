@@ -19,10 +19,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-# The CMS lives at apps/cms and the scaffolder at packages/create. The framework
-# is no longer in this repository — it is installed from npm like any consumer
-# gets it, which is why CORE_TGZ below is a download rather than a pack.
-CREATE_DIR="$ROOT_DIR/packages/create"
+# The CMS is this repository. The scaffolder is a separate package inside it,
+# and the framework is installed from npm like any consumer gets it — which is
+# why CORE_TGZ below is a download rather than a pack.
+CREATE_DIR="$ROOT_DIR/create"
 WORK_DIR="$(mktemp -d)"
 PORT="${SMOKE_PORT:-3987}"
 SERVER_PID=""
@@ -59,7 +59,7 @@ if [ -n "${SMOKE_CORE_TGZ:-}" ]; then
   CORE_TGZ="$(basename "$SMOKE_CORE_TGZ")"
   echo "Using local core: $SMOKE_CORE_TGZ"
 else
-  CORE_VERSION="$(node -p "require('$ROOT_DIR/apps/cms/package.json').dependencies['@basicbenframework/core']" | tr -d '^~')"
+  CORE_VERSION="$(node -p "require('$ROOT_DIR/package.json').dependencies['@basicbenframework/core']" | tr -d '^~')"
   (cd "$WORK_DIR" && npm pack "@basicbenframework/core@$CORE_VERSION" > /dev/null 2>&1) \
     || fail "could not download @basicbenframework/core@$CORE_VERSION from npm"
   CORE_TGZ="basicbenframework-core-$CORE_VERSION.tgz"
@@ -70,11 +70,11 @@ CREATE_TGZ="$(npm pack --pack-destination "$WORK_DIR" 2>/dev/null | tail -1)"
 
 # The create package must ship its templates. Publishing without them produced a
 # CLI that created an empty directory and reported success.
-TEMPLATE_COUNT="$(find "$ROOT_DIR/apps/cms/src" -type f | wc -l | tr -d ' ')"
+TEMPLATE_COUNT="$(find "$ROOT_DIR/src" -type f | wc -l | tr -d ' ')"
 if [ "$TEMPLATE_COUNT" -lt 50 ]; then
-  fail "apps/cms has only $TEMPLATE_COUNT source files — the CMS is missing"
+  fail "only $TEMPLATE_COUNT source files under src/ — the CMS is missing"
 fi
-pass "apps/cms carries the CMS ($TEMPLATE_COUNT source files)"
+pass "the CMS is present ($TEMPLATE_COUNT source files)"
 
 # --- Scaffold ----------------------------------------------------------------
 

@@ -1,17 +1,19 @@
 # Publishing to npm
 
-Two packages are published from this workspace:
+One package is published from this repository:
 
 | Package | Source | Notes |
 |---|---|---|
-| `@basicbenframework/core` | `packages/core` | The framework. |
-| `@basicbenframework/create` | `packages/create` | The scaffolder. Its `prepack` copies `apps/cms` into `./template-ts` so the tarball is self-contained; that snapshot is generated at publish time and gitignored, so the repo keeps exactly one copy of the CMS. |
+| `@basicbenframework/create` | `create/` | The scaffolder. Its `prepack` copies the repository root into `./template-ts` so the tarball is self-contained; that snapshot is generated at publish time and gitignored, so there is still exactly one copy of the CMS. |
 
-`apps/cms` is private and never published — it is the CMS itself, and people get
-it by cloning this repo or by running the scaffolder.
+The CMS itself — this repository — is private and never published. People get it
+by cloning, or by running the scaffolder.
 
-Publish by workspace name. A bare `npm publish` at the repository root targets
-the private workspace root rather than a package, which is a confusing failure.
+`@basicbenframework/core` is published from
+[its own repository](https://github.com/BasicBenFramework/core).
+
+Publish from the `create/` directory, not the root: the root package is the CMS
+and is marked private.
 
 ## Quick Release
 
@@ -41,10 +43,9 @@ Packages must exist before configuring Trusted Publishing.
 # Login to npm
 npm login
 
-# Publish both, by workspace name. A bare `npm publish` at the repository
-# root would target the private workspace root, not a package.
-npm publish --workspace @basicbenframework/core --access public
-npm publish --workspace @basicbenframework/create --access public
+# The scaffolder is published from its own directory. The repository root is
+# the CMS and is marked private, so publishing there fails by design.
+cd create && npm publish --access public
 ```
 
 ## Setup Trusted Publishing

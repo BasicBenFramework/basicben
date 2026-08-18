@@ -46,17 +46,12 @@ jobs:
           node-version: '25'
           registry-url: 'https://registry.npmjs.org'
 
-      # Published by workspace name. The repository root is private and is not
-      # a publishable package, so a bare `npm publish` here would target it.
-      #
-      # `create` bundles apps/cms into itself via its prepack script, which npm
-      # runs as part of publishing — so the tarball is self-contained while the
-      # repo keeps exactly one copy of the CMS.
-      - name: Install workspace
+      # The scaffolder is the only package published from this repository; the
+      # framework has its own. `prepack` copies the CMS into ./template-ts as
+      # part of publishing, so the tarball is self-contained.
+      - name: Install
         run: npm ci
 
-      - name: Publish @basicbenframework/core
-        run: npm publish --workspace @basicbenframework/core --access public --provenance
-
       - name: Publish @basicbenframework/create
-        run: npm publish --workspace @basicbenframework/create --access public --provenance
+        working-directory: ./create
+        run: npm publish --access public --provenance

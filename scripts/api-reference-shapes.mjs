@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 const REFERENCE = join(
   dirname(fileURLToPath(import.meta.url)),
-  '../apps/cms/src/client/pages/api-reference.ts'
+  '../src/client/pages/api-reference.ts'
 )
 
 export const { SHAPES } = await import(REFERENCE)
