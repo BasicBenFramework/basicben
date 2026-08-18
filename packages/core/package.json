@@ -5,11 +5,12 @@
   "author": "ctmakes",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/BasicBenFramework/core.git"
+    "url": "git+https://github.com/BasicBenFramework/basicben.git",
+    "directory": "packages/core"
   },
-  "homepage": "https://github.com/BasicBenFramework/core#readme",
+  "homepage": "https://github.com/BasicBenFramework/basicben#readme",
   "bugs": {
-    "url": "https://github.com/BasicBenFramework/core/issues"
+    "url": "https://github.com/BasicBenFramework/basicben/issues"
   },
   "type": "module",
   "bin": {
