@@ -158,6 +158,7 @@ Navigate to `/admin` to access:
 - Comment moderation
 - Media library
 - Plugin management
+- API tokens for the headless content API
 - Site settings
 
 ---
@@ -470,8 +471,8 @@ rejects it rather than adapting.
 export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE widgets (
-      id ${'${grammar.autoIncrementPrimaryKey()}'},
-      created_at ${'${grammar.timestampType()}'} DEFAULT CURRENT_TIMESTAMP
+      id ${grammar.autoIncrementPrimaryKey()},
+      created_at ${grammar.timestampType()} DEFAULT CURRENT_TIMESTAMP
     )
   `)
 }
@@ -1446,18 +1447,26 @@ export default {
   // Server port (API)
   port: 3001,
 
-  // CORS settings
+  // CORS settings.
+  //
+  // '*' with credentials: true is refused by browsers, so the framework warns
+  // and drops the credentials header. Name your origins to allow credentialed
+  // cross-origin requests:
+  //
+  //   origin: ['https://blog.example.com'],
+  //   credentials: true
   cors: {
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    credentials: true
+    credentials: false
   },
 
-  // Body parser
-  // Routes needing the raw bytes — webhook signature verification is the
-  // usual case — opt out with `skip`, which leaves the stream unread.
+  // Body parser. `skip` takes a path prefix, a list of them, or a predicate,
+  // and leaves the request stream unread — which is what a route needing the
+  // raw bytes requires. Webhook signature verification is the usual case.
   bodyParser: {
-    limit: '1mb'
+    limit: '1mb',
+    skip: ['/api/webhooks/']
   },
 
   // Static files
@@ -1475,6 +1484,11 @@ export default {
     driver: 'sqlite',
     url: process.env.DATABASE_URL || './data.db'
   },
+
+  // Plugins. An array of imported plugin objects, or true to rely on the
+  // directory scan alone. pluginsDir: false turns the scan off.
+  plugins: [],
+  pluginsDir: 'plugins',
 
   // Auto-load routes from src/routes (default: true)
   autoloadRoutes: true,

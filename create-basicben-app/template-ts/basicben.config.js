@@ -9,10 +9,20 @@ export default {
   port: 3001,
 
   // CORS configuration
+  //
+  // The bundled SPA is same-origin and authenticates with `Authorization:
+  // Bearer`, not cookies, so it needs no credentials. Leaving `credentials:
+  // true` alongside `origin: '*'` was a pairing browsers reject outright — the
+  // framework warned about it and dropped the header on every boot.
+  //
+  // A cross-origin consumer that does need credentials names its origins:
+  //
+  //   origin: ['https://blog.example.com'],
+  //   credentials: true
   cors: {
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    credentials: true
+    credentials: false
   },
 
   // Body parser options
