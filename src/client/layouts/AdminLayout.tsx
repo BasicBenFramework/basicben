@@ -111,10 +111,14 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
         </nav>
 
         <div className="admin-sidebar-footer">
-          <a href="/" className="admin-nav-item" title={sidebarOpen ? undefined : 'View site'}>
-            <AdminIcon name="site" />
-            {sidebarOpen && <span className="admin-nav-label">View site</span>}
-          </a>
+          {/* There is no site to view without a public one, and `/` is the
+              dashboard you are already looking at. */}
+          {!__DISABLE_PUBLIC_SITE__ && (
+            <a href="/" className="admin-nav-item" title={sidebarOpen ? undefined : 'View site'}>
+              <AdminIcon name="site" />
+              {sidebarOpen && <span className="admin-nav-label">View site</span>}
+            </a>
+          )}
           <button
             className="admin-nav-item admin-collapse"
             onClick={() => setSidebarOpen(!sidebarOpen)}

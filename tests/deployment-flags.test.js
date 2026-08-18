@@ -144,19 +144,70 @@ describe('DISABLE_PUBLIC_SITE', () => {
 
     assert.match(
       app,
-      /__DISABLE_PUBLIC_SITE__ \? \{ '\/': \{ component: Auth/,
-      'with no public site, / should reach sign-in rather than 404'
+      /__DISABLE_PUBLIC_SITE__\s*\?\s*\{ '\/': \{ component: AdminDashboard[^}]*auth: true/,
+      'with no public site, / should lead somewhere rather than 404'
     )
+  })
+
+  test('the root path is not a guest route', () => {
+    // This shipped broken. The router sends a signed-in visitor away from a
+    // guest route by navigating to '/', so making '/' itself a guest route
+    // loops it against itself and renders null — a blank page, and only once
+    // you are logged in, which is the worst time to find out.
+    //
+    // An auth route works from both sides: the same guard sends a signed-out
+    // visitor to /login.
+    const app = read('src/routes/App.tsx')
+    const root = app.match(/__DISABLE_PUBLIC_SITE__[\s\S]{0,160}?'\/': \{[^}]*\}/)
+
+    assert.ok(root, 'the guarded root route should be findable')
+    assert.doesNotMatch(
+      root[0],
+      /guest:\s*true/,
+      "'/' must not be a guest route: the router redirects guests to '/', which is itself"
+    )
+  })
+
+  test('the root path does not render the auth page', () => {
+    // Auth infers which form to show from the path — `isLogin = path ===
+    // '/login'` — so mounting it anywhere else shows the *register* form. At
+    // '/' that meant a site with registration disabled greeted visitors with a
+    // sign-up form that the API would then refuse.
+    //
+    // Two bugs from one mapping: this, and the guest-route loop above.
+    const app = read('src/routes/App.tsx')
+    const auth = read('src/client/pages/Auth.tsx')
+
+    assert.match(auth, /const isLogin = path === '\/login'/,
+      'if Auth stops inferring from the path, this test is measuring the wrong thing')
+
+    for (const [, body] of app.matchAll(/'\/': (\{[^}]*\})/g)) {
+      assert.doesNotMatch(body, /component: Auth\b/,
+        "'/' must not mount Auth: it would render the register form, not sign-in")
+    }
+  })
+
+  test('no route redirects to itself', () => {
+    // The general form of the bug above. The router's guest guard always
+    // navigates to '/', so any guest route mapped to '/' is a loop.
+    const app = read('src/routes/App.tsx')
+
+    for (const [, body] of app.matchAll(/'\/': (\{[^}]*\})/g)) {
+      assert.doesNotMatch(body, /guest:\s*true/, "'/' is a guest route, which loops")
+    }
   })
 
   test('the nav does not point at pages that were removed', () => {
     for (const file of [
       'src/client/components/Nav/DesktopNav.tsx',
-      'src/client/components/Nav/MobileNav.tsx'
+      'src/client/components/Nav/MobileNav.tsx',
+      // The admin sidebar's "View site" is the easy one to miss: it is not in
+      // the public nav, so it survives every check aimed there.
+      'src/client/layouts/AdminLayout.tsx'
     ]) {
       const source = read(file)
 
-      for (const dead of ["'/docs'", "'/feed'"]) {
+      for (const dead of ["'/docs'", "'/feed'", 'View site']) {
         if (!source.includes(dead)) continue
 
         assert.match(

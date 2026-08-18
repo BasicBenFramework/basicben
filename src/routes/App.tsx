@@ -99,9 +99,19 @@ export default createClientApp({
     ...authRoutes,
 
     // With no public site, `/` would otherwise 404 for someone who simply
-    // opened the domain. Sending them to the one page that does exist is
-    // friendlier than a dead end, and it is where they were going anyway.
-    ...(__DISABLE_PUBLIC_SITE__ ? { '/': { component: Auth, layout: AuthLayout, guest: true } } : {}),
+    // opened the domain, so it points at the admin instead.
+    //
+    // `auth: true` and not `guest: true`, which is what this was first and was
+    // wrong: the router sends a signed-in visitor away from a guest route by
+    // navigating to `/`, so making `/` itself a guest route looped it against
+    // itself and rendered nothing. A blank page, only once you were logged in.
+    //
+    // As an auth route it works from both sides — the same guard sends a
+    // signed-out visitor to /login, and a signed-in one lands where they were
+    // going anyway.
+    ...(__DISABLE_PUBLIC_SITE__
+      ? { '/': { component: AdminDashboard, layout: NoLayout, auth: true } }
+      : {}),
 
     '/posts': { component: Posts, auth: true },
     '/posts/new': { component: PostForm, auth: true },
