@@ -14,7 +14,9 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$ROOT_DIR"
 
 # Get current version
-CURRENT_VERSION=$(node -p "require('./package.json').version")
+# The repository root is a private workspace with no version of its own; core
+# is the package whose number this release names.
+CURRENT_VERSION=$(node -p "require('./packages/core/package.json').version")
 
 echo -e "${YELLOW}Current version: ${NC}$CURRENT_VERSION"
 echo ""
@@ -82,27 +84,26 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
   fi
 fi
 
-# Update version in root package.json
-echo -e "${GREEN}Updating version in package.json...${NC}"
-node -e "
+# Update every versioned package. apps/cms is private and never published, but
+# it is the CMS this release ships, so it carries the same number rather than
+# drifting into meaninglessness.
+for TARGET in packages/core packages/create apps/cms; do
+  echo -e "${GREEN}Updating version in $TARGET/package.json...${NC}"
+  node -e "
 const fs = require('fs');
-const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+const path = './$TARGET/package.json';
+const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
 pkg.version = '$NEW_VERSION';
-fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
 "
+done
 
-# Update version in create-basicben-app/package.json
-echo -e "${GREEN}Updating version in create-basicben-app/package.json...${NC}"
-node -e "
-const fs = require('fs');
-const pkg = JSON.parse(fs.readFileSync('./create-basicben-app/package.json', 'utf8'));
-pkg.version = '$NEW_VERSION';
-fs.writeFileSync('./create-basicben-app/package.json', JSON.stringify(pkg, null, 2) + '\n');
-"
+# The lockfile records workspace versions, so it moves with them.
+npm install --package-lock-only > /dev/null 2>&1 || true
 
 # Commit
 echo -e "${GREEN}Committing changes...${NC}"
-git add package.json create-basicben-app/package.json
+git add packages/core/package.json packages/create/package.json apps/cms/package.json package-lock.json
 git commit -m "v$NEW_VERSION"
 
 # Tag
