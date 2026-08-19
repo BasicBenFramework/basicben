@@ -17,6 +17,15 @@ jobs:
         with:
           node-version: '25'
 
+      # The tests read the framework's own source: hook coverage scans the
+      # installed core for call sites, and the API reference generator imports
+      # SCOPES from it. Both were satisfied by the vendored copy until core
+      # became an installed dependency, which is when this job started failing.
+      # Production dependencies are enough — nothing here needs tsc or the
+      # React types.
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
       - name: Run tests
         run: npm test
 
@@ -30,10 +39,10 @@ jobs:
         with:
           node-version: '25'
 
-      # Only the smoke test needs these: it regenerates the committed
-      # declarations to check they still match the JSDoc, which needs the
-      # framework's own tsc and React types.
-      - name: Install dev dependencies
+      # The smoke test is the only job needing the *dev* dependencies: it
+      # regenerates the committed declarations to check they still match the
+      # JSDoc, which needs the framework's own tsc and React types.
+      - name: Install all dependencies
         run: npm ci
 
       - name: Scaffold, build and boot a real app
