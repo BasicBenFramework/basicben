@@ -55,6 +55,12 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M12 12h9M17 12v3M21 12v2" />
     </>
   ),
+  profile: (
+    <>
+      <path d="M20 21v-1.5a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4V21" />
+      <circle cx="12" cy="7" r="3.5" />
+    </>
+  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />
@@ -79,6 +85,10 @@ const byPath: Record<string, string> = {
   '/admin/comments': 'comments',
   '/admin/media': 'media',
   '/admin/tokens': 'tokens',
+  // Outside /admin, because it is the one screen every account has, admin area
+  // or not. It still belongs in this map — an item without one falls back to
+  // the emoji the server supplied, which is the look these icons replaced.
+  '/profile': 'profile',
   '/admin/settings': 'settings'
 }
 

@@ -82,6 +82,82 @@ describe('navigation does not reload the document', () => {
   })
 })
 
+describe('the sidebar does not flicker on the way between screens', () => {
+  const layout = read('src/client/layouts/AdminLayout.tsx')
+  const controller = read('src/controllers/AdminController.ts')
+
+  /**
+   * The path, label and section of every item in a hard-coded menu, in order.
+   *
+   * Cut from `= [` rather than the first bracket: the client's list is typed
+   * `MenuItem[]`, and slicing at that `]` reads an empty menu and passes by
+   * comparing nothing to nothing. Fields are read by name rather than by
+   * position, because the server carries an icon between the label and the
+   * section and the client does not.
+   */
+  const menuIn = (source, marker) => {
+    const list = source.slice(source.indexOf(marker))
+    const body = list.slice(list.indexOf('= ['))
+
+    return [...body.slice(0, body.indexOf(']')).matchAll(/\{([^}]*)\}/g)].map(([, entry]) => {
+      const field = (name) => (entry.match(new RegExp(`${name}: '([^']*)'`)) || [, ''])[1]
+
+      return `${field('path')} ${field('label')} ${field('section') || '(top)'}`
+    })
+  }
+
+  test('the client fallback and the server menu are the same list', () => {
+    // A fallback that differs from the answer is not a fallback, it is a
+    // flicker: the sidebar draws one, the request lands, and whatever only the
+    // server knew about appears a moment later. Profile did exactly that.
+    assert.deepStrictEqual(
+      menuIn(layout, 'const DEFAULT_MENU'),
+      menuIn(controller, 'const DEFAULT_MENU'),
+      'the two menus disagree — an item in one and not the other blinks on every navigation'
+    )
+  })
+
+  test('the fetched menu survives the next screen', () => {
+    // Every admin page renders its own AdminLayout, so navigation remounts it.
+    // Without something outside the component the state resets to the fallback
+    // and the request starts again, on every click.
+    assert.match(layout, /^let lastMenu: MenuItem\[\] \| null = null$/m)
+    assert.match(layout, /useState<MenuItem\[\]>\(lastMenu \?\? DEFAULT_MENU\)/)
+    assert.match(layout, /lastMenu = data\.menu/)
+  })
+
+  test('the sections group by name, so a hook joins one rather than repeating it', () => {
+    // Adjacency grouping would give an appended { section: 'Content' } a second
+    // Content heading at the bottom of the sidebar.
+    assert.match(layout, /groups\.find\(\(group\) => group\.title === item\.section\)/)
+  })
+
+  test('a heading becomes a divider when the rail collapses', () => {
+    // There is no room for a word on a 56px rail, and links with nothing
+    // between them read as one list again. Both the toggle and the
+    // narrow-screen breakpoint have to do it — the media query collapses the
+    // sidebar without touching the toggle's state.
+    assert.match(layout, /\.admin-sidebar\.closed \.admin-nav-section-label \{ display: none; \}/)
+    assert.match(layout, /\.admin-sidebar \.admin-nav-section-label,/)
+  })
+
+  test('every menu path has an icon of its own', () => {
+    // An unmapped path falls back to the emoji the server supplies, which is
+    // the look these icons were drawn to replace — so a new item is visibly
+    // not one of the others.
+    const icons = read('src/client/components/admin/AdminIcons.tsx')
+    const mapped = icons.slice(icons.indexOf('const byPath'))
+    const known = new Set(
+      [...mapped.slice(0, mapped.indexOf('}')).matchAll(/'([^']+)':/g)].map(([, path]) => path)
+    )
+
+    for (const entry of menuIn(layout, 'const DEFAULT_MENU')) {
+      const [path] = entry.split(' ')
+      assert.ok(known.has(path), `${path} has no icon, so it renders the server's emoji`)
+    }
+  })
+})
+
 describe("the admin's vertical rhythm", () => {
   const layout = read('src/client/layouts/AdminLayout.tsx')
 

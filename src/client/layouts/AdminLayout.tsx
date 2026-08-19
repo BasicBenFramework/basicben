@@ -8,6 +8,68 @@ interface MenuItem {
   path: string
   label: string
   icon?: string
+  /** The heading it sits under. Omitted items sit at the top, ungrouped. */
+  section?: string
+}
+
+/*
+  The menu comes from the server, because that is the realm hooks run in.
+  Firing admin.menu in the browser would consult a registry nothing has
+  registered with, so a listener could never add a nav item.
+
+  The same list is hard-coded as a fallback: the sidebar must render even if the
+  request fails, and it must not flash empty while the request is in flight.
+  Keep the two in step — `admin-navigation.test.js` fails when they disagree,
+  because a difference is not a fallback, it is a flicker. Profile was added to
+  the server's list alone, so every navigation drew the sidebar without it and
+  then put it back a moment later.
+*/
+const DEFAULT_MENU: MenuItem[] = [
+  { path: '/admin', label: 'Dashboard' },
+  { path: '/admin/posts', label: 'Posts', section: 'Content' },
+  { path: '/admin/pages', label: 'Pages', section: 'Content' },
+  { path: '/admin/categories', label: 'Categories', section: 'Content' },
+  { path: '/admin/tags', label: 'Tags', section: 'Content' },
+  { path: '/admin/comments', label: 'Comments', section: 'Content' },
+  { path: '/admin/media', label: 'Media', section: 'Content' },
+  { path: '/admin/tokens', label: 'API tokens', section: 'Site' },
+  { path: '/admin/settings', label: 'Settings', section: 'Site' },
+  { path: '/profile', label: 'Profile', section: 'Account' },
+]
+
+/*
+  The last menu the server gave us, kept for the life of the tab.
+
+  Every admin screen renders its own AdminLayout, so navigating unmounts this
+  component and mounts a new one: state starts from the fallback again and the
+  request is made again. Anything the server adds — a hook's item, Profile —
+  therefore vanished and came back on every single navigation.
+
+  Module scope rather than state, because the point is to survive the unmount.
+  It is a cache of one request per tab, not a store; the fetch still runs, so a
+  menu that changes underneath still arrives.
+*/
+let lastMenu: MenuItem[] | null = null
+
+/**
+ * The menu split into its sections, in the order they first appear.
+ *
+ * Grouped by name rather than by adjacency, so an item a hook appends joins the
+ * heading it names instead of starting a second one with the same words. Items
+ * without a section share the leading group, which has no heading at all — the
+ * dashboard is not a category of one.
+ */
+function bySection(items: MenuItem[]): Array<{ title?: string; items: MenuItem[] }> {
+  const groups: Array<{ title?: string; items: MenuItem[] }> = []
+
+  for (const item of items) {
+    const existing = groups.find((group) => group.title === item.section)
+
+    if (existing) existing.items.push(item)
+    else groups.push({ title: item.section, items: [item] })
+  }
+
+  return groups
 }
 
 interface AdminLayoutProps {
@@ -48,36 +110,17 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     logout()
   }
 
-  /*
-    The menu comes from the server, because that is the realm hooks run in.
-    Firing admin.menu in the browser would consult a registry nothing has
-    registered with, so a listener could never add a nav item.
-
-    The same list is hard-coded as a fallback: the sidebar must render even if
-    the request fails, and it must not flash empty while the request is in
-    flight.
-  */
-  const DEFAULT_MENU: MenuItem[] = [
-    { path: '/admin', label: 'Dashboard' },
-    { path: '/admin/posts', label: 'Posts' },
-    { path: '/admin/pages', label: 'Pages' },
-    { path: '/admin/categories', label: 'Categories' },
-    { path: '/admin/tags', label: 'Tags' },
-    { path: '/admin/comments', label: 'Comments' },
-    { path: '/admin/media', label: 'Media' },
-    { path: '/admin/tokens', label: 'API tokens' },
-    { path: '/admin/settings', label: 'Settings' },
-  ]
-
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(DEFAULT_MENU)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(lastMenu ?? DEFAULT_MENU)
 
   useEffect(() => {
     let cancelled = false
 
     api.get<{ menu: MenuItem[] }>('/api/admin/menu')
       .then((data) => {
-        if (!cancelled && Array.isArray(data?.menu) && data.menu.length > 0) {
-          setMenuItems(data.menu)
+        if (Array.isArray(data?.menu) && data.menu.length > 0) {
+          // Remembered across mounts, not merely across renders: see lastMenu.
+          lastMenu = data.menu
+          if (!cancelled) setMenuItems(data.menu)
         }
       })
       .catch(() => { /* the built-in menu is already showing */ })
@@ -104,16 +147,31 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
         </div>
 
         <nav className="admin-nav">
-          {menuItems.map(item => (
-            <Link
-              key={item.path}
-              href={item.path}
-              className={`admin-nav-item ${currentPath === item.path ? 'active' : ''}`}
-              title={sidebarOpen ? undefined : item.label}
-            >
-              <AdminIcon path={item.path} fallback={item.icon} />
-              {sidebarOpen && <span className="admin-nav-label">{item.label}</span>}
-            </Link>
+          {bySection(menuItems).map(group => (
+            <div className="admin-nav-group" key={group.title ?? 'top'}>
+              {/* Collapsed, the heading becomes the rule it already was: there
+                  is no room for a word on a 56px rail, and a group of links
+                  with nothing between them reads as one list again. CSS does
+                  it rather than a second branch here, because the narrow-screen
+                  breakpoint collapses the rail without touching this state. */}
+              {group.title && (
+                <div className="admin-nav-section">
+                  <span className="admin-nav-section-label">{group.title}</span>
+                </div>
+              )}
+
+              {group.items.map(item => (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={`admin-nav-item ${currentPath === item.path ? 'active' : ''}`}
+                  title={sidebarOpen ? undefined : item.label}
+                >
+                  <AdminIcon path={item.path} fallback={item.icon} />
+                  {sidebarOpen && <span className="admin-nav-label">{item.label}</span>}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -346,6 +404,35 @@ const adminStyles = `
     display: flex;
     flex-direction: column;
     gap: 1px;
+  }
+
+  .admin-nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  /* A heading over each group. Small, muted and lettered wide, so it reads as
+     a label for what follows rather than as another thing to click. */
+  .admin-nav-section {
+    padding: 14px 10px 4px;
+    color: var(--fg-subtle);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  /* Collapsed to the icon rail, the word has nowhere to go — so the heading
+     becomes the divider it was already acting as. Both the toggle and the
+     narrow-screen breakpoint land here, so the rail is never left with a
+     wrapped word in it. */
+  .admin-sidebar.closed .admin-nav-section-label { display: none; }
+  .admin-sidebar.closed .admin-nav-section {
+    height: 0;
+    padding: 0;
+    margin: 9px 6px 8px;
+    border-top: 1px solid var(--border);
   }
 
   .admin-nav-item {
@@ -1062,7 +1149,14 @@ const adminStyles = `
   @media (max-width: 700px) {
     .admin-sidebar { width: var(--sidebar-w-closed); }
     .admin-sidebar .admin-nav-label,
+    .admin-sidebar .admin-nav-section-label,
     .admin-sidebar .admin-logo-text { display: none; }
+    .admin-sidebar .admin-nav-section {
+      height: 0;
+      padding: 0;
+      margin: 9px 6px 8px;
+      border-top: 1px solid var(--border);
+    }
     .admin-main { margin-left: var(--sidebar-w-closed); }
     .admin-content { padding: 16px; }
     .admin-header { padding: 0 16px; }

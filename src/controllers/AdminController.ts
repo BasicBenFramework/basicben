@@ -20,27 +20,40 @@ import { Comment } from '../models/Comment'
 import { Media } from '../models/Media'
 import type { Request, Response } from '../types'
 
-/** The menu the admin ships with. Listeners filter it, they do not replace it. */
+/**
+ * The menu the admin ships with. Listeners filter it, they do not replace it.
+ *
+ * `section` is the heading an item sits under in the sidebar. Ten flat links
+ * read as a list to be scanned; grouped, the shape of the admin is visible from
+ * the nav — what you write, what you configure, and what is yours. An item
+ * without a section sits at the top with the dashboard.
+ *
+ * The client keeps an identical copy as its fallback, and a test fails when the
+ * two disagree — a difference is not a fallback, it is a flicker on every
+ * navigation.
+ */
 const DEFAULT_MENU = [
   { path: '/admin', label: 'Dashboard', icon: '📊' },
-  { path: '/admin/posts', label: 'Posts', icon: '📝' },
-  { path: '/admin/pages', label: 'Pages', icon: '📄' },
-  { path: '/admin/categories', label: 'Categories', icon: '📁' },
-  { path: '/admin/tags', label: 'Tags', icon: '🏷️' },
-  { path: '/admin/comments', label: 'Comments', icon: '💬' },
-  { path: '/admin/media', label: 'Media', icon: '🖼️' },
-  { path: '/admin/tokens', label: 'API tokens', icon: '🔑' },
+  { path: '/admin/posts', label: 'Posts', icon: '📝', section: 'Content' },
+  { path: '/admin/pages', label: 'Pages', icon: '📄', section: 'Content' },
+  { path: '/admin/categories', label: 'Categories', icon: '📁', section: 'Content' },
+  { path: '/admin/tags', label: 'Tags', icon: '🏷️', section: 'Content' },
+  { path: '/admin/comments', label: 'Comments', icon: '💬', section: 'Content' },
+  { path: '/admin/media', label: 'Media', icon: '🖼️', section: 'Content' },
+  { path: '/admin/tokens', label: 'API tokens', icon: '🔑', section: 'Site' },
+  { path: '/admin/settings', label: 'Settings', icon: '⚙️', section: 'Site' },
   // Where an author edits their own byline. It lives outside /admin because it
   // is the one screen every account has, admin area or not — but the people
   // writing posts are in here, so the way to it has to be too.
-  { path: '/profile', label: 'Profile', icon: '👤' },
-  { path: '/admin/settings', label: 'Settings', icon: '⚙️' }
+  { path: '/profile', label: 'Profile', icon: '👤', section: 'Account' }
 ]
 
 interface MenuItem {
   path: string
   label: string
   icon?: string
+  /** The heading it sits under. Omitted items sit at the top, ungrouped. */
+  section?: string
 }
 
 export const AdminController = {
@@ -50,8 +63,12 @@ export const AdminController = {
    * @example
    * hooks.on('admin.menu', (items) => [
    *   ...items,
-   *   { path: '/admin/seo', label: 'SEO', icon: '🔍' }
+   *   { path: '/admin/seo', label: 'SEO', icon: '🔍', section: 'Site' }
    * ])
+   *
+   * An item joins the section it names, wherever in the list it is added, and
+   * creates that heading if it is a new one. Leave `section` off and it sits at
+   * the top beside the dashboard.
    */
   async menu(req: Request, res: Response) {
     const items = await hooks.filter(HOOKS.ADMIN_MENU, [...DEFAULT_MENU], { req })
