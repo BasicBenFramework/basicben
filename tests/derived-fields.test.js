@@ -173,4 +173,29 @@ describe('the editor knows which thing it is editing', () => {
   test('the slug that will be generated is visible before the save', () => {
     assert.match(editor, /placeholder=\{slugify\(formData\.title\)/)
   })
+
+  test('the slug sits under the title, not in an SEO panel below the fold', () => {
+    // It is the post's address, derived from the title as you type it — so it
+    // belongs next to the title rather than three cards further down, and there
+    // is only one field for it either way.
+    const title = editor.indexOf('placeholder={`Enter ${noun.toLowerCase()} title`}')
+    const slug = editor.indexOf('className="admin-slug"')
+    const seo = editor.indexOf('SEO Settings')
+
+    assert.ok(slug > title && slug < seo, 'the slug field is not between the title and the SEO card')
+    assert.strictEqual(editor.split('name="slug"').length - 1, 1, 'two fields are bound to the slug')
+  })
+
+  test('the selection is visible without scrolling a list to find it', () => {
+    // Ticked boxes eight rows down a scrolling list are not a selection you can
+    // read. Both taxonomies show what is on the post as removable chips, above
+    // the control rather than below it.
+    assert.match(editor, /formData\.category_ids\.length > 0 && \(\s*\n\s*<div className="admin-term-chips">/)
+    assert.match(editor, /formData\.tags\.length > 0 && \(\s*\n\s*<div className="admin-term-chips">/)
+
+    const layout = read('src/client/layouts/AdminLayout.tsx')
+    const chips = layout.slice(layout.indexOf('.admin-term-chips {'))
+
+    assert.match(chips.slice(0, chips.indexOf('}')), /margin-bottom/)
+  })
 })

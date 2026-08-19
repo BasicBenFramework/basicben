@@ -468,7 +468,7 @@ const adminStyles = `
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 20px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
   }
 
   .admin-card-header {
@@ -495,29 +495,44 @@ const adminStyles = `
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 16px 18px;
+    padding: 18px 20px;
   }
 
+  /* The label sits *under* the value in the markup, so its bottom margin was
+     padding the card rather than separating the two — the number and its name
+     were tight against each other and the card was bottom-heavy. */
   .admin-stat-label {
     color: var(--fg-muted);
     font-size: 12.5px;
-    margin: 0 0 6px;
+    margin: 0;
   }
 
   .admin-stat-value {
     font-size: 26px;
     font-weight: 600;
     letter-spacing: -0.02em;
-    margin: 0;
+    margin: 0 0 4px;
     font-variant-numeric: tabular-nums;
   }
 
   /* --- Grid -------------------------------------------------------------- */
 
-  .admin-grid { display: grid; gap: 16px; }
+  /* A grid is a section like a card is, so it carries the same space beneath
+     it: without this the stats row sat flush against whatever followed, while
+     the gap below a card was 20px. The rhythm down the page is now one number.
+
+     Cards *inside* a grid are spaced by the gap, so their own margin would add
+     a second, uneven one. Only direct children are reset — a column of stacked
+     cards, which is what the editor's sidebar is, still needs its margins. */
+  .admin-grid { display: grid; gap: 16px; margin-bottom: 20px; }
+  .admin-grid > .admin-card { margin-bottom: 0; }
   .admin-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .admin-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* A column of buttons or fields inside a card. The title above it already
+     leaves 16px, so this adds nothing of its own at the top. */
+  .admin-stack { display: flex; flex-direction: column; gap: 8px; }
 
   @media (max-width: 900px) {
     .admin-grid-2, .admin-grid-3, .admin-grid-4 { grid-template-columns: minmax(0, 1fr); }
@@ -573,6 +588,53 @@ const adminStyles = `
   .admin-inline-add .admin-input { flex: 1; min-width: 0; }
   .admin-inline-add .admin-btn:disabled { opacity: 0.45; cursor: default; }
 
+  /* The permalink, under the title where you write it rather than in an SEO
+     panel further down the page. Quieter than the title in every way — smaller,
+     muted, monospaced — because it is derived from it and mostly read, not
+     typed. */
+  .admin-slug {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--fg-muted);
+    font-size: 12.5px;
+  }
+
+  .admin-slug-input {
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    transition: border-color 0.12s;
+  }
+
+  .admin-slug-input::placeholder { color: var(--fg-subtle); }
+  .admin-slug-input:focus { outline: none; border-color: var(--border-strong); }
+  .admin-slug-note { white-space: nowrap; }
+
+  /* Who the post is filed under, when there is nobody else to file it under.
+     A menu of one is a control that cannot be used. */
+  .admin-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+  }
+
+  .admin-author-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    object-fit: cover;
+  }
+
   /* A checkbox list that scrolls rather than pushing the rest of the sidebar
      off the screen. A site with eighty categories is normal. */
   .admin-term-list {
@@ -614,13 +676,17 @@ const adminStyles = `
 
   .admin-term-add:hover { text-decoration: underline; }
 
-  /* The tags actually on the post, each removable — so the selection is
-     visible without opening anything. */
+  /* What is actually on the post, each removable — so the selection is visible
+     without opening anything, and without scrolling a list to find the four
+     boxes that happen to be ticked.
+
+     Above the control rather than below it: the answer comes first, the way to
+     change it second. */
   .admin-term-chips {
     display: flex;
     flex-wrap: wrap;
     gap: 0.375rem;
-    margin-top: 0.625rem;
+    margin-bottom: 0.625rem;
   }
 
   .admin-term-chip {

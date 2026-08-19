@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useParams, usePath } from '@basicbenframework/core/client'
+import { useAuth, useNavigate, useParams, usePath } from '@basicbenframework/core/client'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
@@ -44,6 +44,7 @@ export default function AdminPostEditor() {
   const navigate = useNavigate()
   const params = useParams()
   const path = usePath()
+  const { user } = useAuth()
 
   const isPage = path.startsWith('/admin/pages')
   const resource = isPage ? 'pages' : 'posts'
@@ -57,6 +58,9 @@ export default function AdminPostEditor() {
   const [categories, setCategories] = useState<Category[]>([])
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [authors, setAuthors] = useState<AuthorProfile[]>([])
+  // Who the post is filed under when there is no menu to show — the name the
+  // API joined for an existing post, or whoever is signed in for a new one.
+  const [authorName, setAuthorName] = useState('')
 
   const [formData, setFormData] = useState({
     title: '',
@@ -82,6 +86,11 @@ export default function AdminPostEditor() {
     loadData()
   }, [postId])
 
+  // A new post is yours until somebody reassigns it.
+  useEffect(() => {
+    if (!isEditing && user?.name) setAuthorName(user.name)
+  }, [isEditing, user?.name])
+
   const loadData = async () => {
     try {
       if (!isPage) await loadPostFurniture()
@@ -106,6 +115,8 @@ export default function AdminPostEditor() {
             featured_image_url: record.featured_image_url ?? null,
             user_id: record.user_id ?? ''
           }))
+
+          if (record.author_name) setAuthorName(record.author_name)
         }
       }
     } catch (error) {
@@ -288,6 +299,10 @@ export default function AdminPostEditor() {
     }))
   }
 
+  // The profile behind the byline, when the list happens to hold it — the
+  // avatar is a nicety, and its absence is not worth a request of its own.
+  const currentAuthor = authors.find(author => author.id === Number(formData.user_id))
+
   if (loading) {
     return (
       <AdminLayout title={`${isEditing ? 'Edit' : 'New'} ${noun}`}>
@@ -314,6 +329,28 @@ export default function AdminPostEditor() {
                   placeholder={`Enter ${noun.toLowerCase()} title`}
                   required
                 />
+
+                {/* The permalink, where you can see it while writing the title
+                    it comes from. It used to live in an SEO panel below the
+                    fold, which is a strange place for the post's address.
+                    Leaving it blank keeps the placeholder — the slug the
+                    server will derive. */}
+                <div className="admin-slug">
+                  <label htmlFor="slug">Slug</label>
+                  <input
+                    id="slug"
+                    type="text"
+                    name="slug"
+                    value={formData.slug}
+                    onChange={handleChange}
+                    className="admin-slug-input"
+                    placeholder={slugify(formData.title) || `${noun.toLowerCase()}-url-slug`}
+                  />
+                  {/* Blank is a request for a fresh one, on an existing post
+                      as much as a new one — so the note says the same thing in
+                      both cases, because the server does the same thing. */}
+                  {!formData.slug.trim() && <span className="admin-slug-note">from the title</span>}
+                </div>
               </div>
 
               <div className="admin-form-group">
@@ -348,21 +385,6 @@ export default function AdminPostEditor() {
             {/* SEO Settings */}
             <div className="admin-card">
               <h3 className="admin-card-title">SEO Settings</h3>
-              <div className="admin-form-group">
-                <label className="admin-label">Slug</label>
-                {/* The placeholder is what the server will derive from the
-                    title if this is left empty, so the URL is visible before
-                    the save rather than after it. */}
-                <input
-                  type="text"
-                  name="slug"
-                  value={formData.slug}
-                  onChange={handleChange}
-                  className="admin-input"
-                  placeholder={slugify(formData.title) || `${resource.replace(/s$/, '')}-url-slug`}
-                />
-              </div>
-
               <div className="admin-form-group">
                 <label className="admin-label">Meta Title</label>
                 <input
@@ -436,27 +458,38 @@ export default function AdminPostEditor() {
               }
             />
 
-            {/* The author menu, when there is anyone to choose between and the
-                server was willing to say who. Reassigning is `post.edit` — an
-                author writes under their own name and nobody else's. */}
-            {!isPage && authors.length > 1 && (
+            {/* Who the post is filed under. Always shown, because "who wrote
+                this" is part of what you are editing — but a menu only when
+                there is somebody to choose between. Reassigning is `post.edit`:
+                an author writes under their own name and nobody else's, so on
+                a one-author site, or for an author, this is a statement rather
+                than a control. */}
+            {!isPage && (
               <div className="admin-card">
                 <h3 className="admin-card-title">Author</h3>
-                <select
-                  name="user_id"
-                  value={formData.user_id}
-                  onChange={handleChange}
-                  className="admin-input"
-                >
-                  <option value="">
-                    {isEditing ? 'Unchanged' : 'Me'}
-                  </option>
-                  {authors.map(author => (
-                    <option key={author.id} value={author.id}>
-                      {author.name}
-                    </option>
-                  ))}
-                </select>
+
+                {authors.length > 1 ? (
+                  <select
+                    name="user_id"
+                    value={formData.user_id}
+                    onChange={handleChange}
+                    className="admin-input"
+                  >
+                    <option value="">{isEditing ? 'Unchanged' : 'Me'}</option>
+                    {authors.map(author => (
+                      <option key={author.id} value={author.id}>
+                        {author.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="admin-author">
+                    {currentAuthor?.avatar_url && (
+                      <img src={currentAuthor.avatar_url} alt="" className="admin-author-avatar" />
+                    )}
+                    <span>{authorName || 'Unknown'}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -469,6 +502,30 @@ export default function AdminPostEditor() {
                     rather than pushing the rest of the sidebar off the screen. */}
                 <div className="admin-card">
                   <h3 className="admin-card-title">Categories</h3>
+
+                  {/* What the post is filed under, without scrolling the list
+                      to find the ticked boxes. Removable here too, so the
+                      common correction does not mean hunting for a checkbox. */}
+                  {formData.category_ids.length > 0 && (
+                    <div className="admin-term-chips">
+                      {formData.category_ids.map(id => {
+                        const category = categories.find(c => c.id === id)
+
+                        return (
+                          <span key={id} className="admin-term-chip">
+                            {category?.name ?? `#${id}`}
+                            <button
+                              type="button"
+                              aria-label={`Remove ${category?.name ?? 'category'}`}
+                              onClick={() => handleCategoryToggle(id)}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
 
                   {categories.length === 0 ? (
                     <p className="admin-term-empty">No categories yet.</p>
@@ -531,6 +588,27 @@ export default function AdminPostEditor() {
                 <div className="admin-card">
                   <h3 className="admin-card-title">Tags</h3>
 
+                  {formData.tags.length > 0 && (
+                    <div className="admin-term-chips">
+                      {formData.tags.map(id => {
+                        const tag = allTags.find(t => t.id === id)
+
+                        return (
+                          <span key={id} className="admin-term-chip">
+                            {tag?.name ?? `#${id}`}
+                            <button
+                              type="button"
+                              aria-label={`Remove ${tag?.name ?? 'tag'}`}
+                              onClick={() => handleTagToggle(id)}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+
                   <div className="admin-inline-add">
                     <input
                       type="text"
@@ -554,27 +632,6 @@ export default function AdminPostEditor() {
                       Add
                     </button>
                   </div>
-
-                  {formData.tags.length > 0 && (
-                    <div className="admin-term-chips">
-                      {formData.tags.map(id => {
-                        const tag = allTags.find(t => t.id === id)
-
-                        return (
-                          <span key={id} className="admin-term-chip">
-                            {tag?.name ?? `#${id}`}
-                            <button
-                              type="button"
-                              aria-label={`Remove ${tag?.name ?? 'tag'}`}
-                              onClick={() => handleTagToggle(id)}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )
-                      })}
-                    </div>
-                  )}
 
                   {allTags.length > 0 && (
                     <details className="admin-term-details">

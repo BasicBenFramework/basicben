@@ -123,7 +123,7 @@ export default function AdminDashboard() {
       <div className="admin-grid admin-grid-3">
         <div className="admin-card">
           <h3 className="admin-card-title">Content</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+          <div className="admin-stack">
             <Link href="/admin/posts/new" className="admin-btn admin-btn-secondary">
               New Post
             </Link>
@@ -138,7 +138,7 @@ export default function AdminDashboard() {
 
         <div className="admin-card">
           <h3 className="admin-card-title">Extend</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+          <div className="admin-stack">
             <Link href="/admin/settings" className="admin-btn admin-btn-secondary">
               Settings
             </Link>
@@ -147,7 +147,7 @@ export default function AdminDashboard() {
 
         <div className="admin-card">
           <h3 className="admin-card-title">Help</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+          <div className="admin-stack">
             <Link href="https://basicben.com/docs" target="_blank" rel="noopener noreferrer" className="admin-btn admin-btn-secondary">
               Documentation
             </Link>

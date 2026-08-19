@@ -145,11 +145,25 @@ describe('what a reader gets', () => {
 })
 
 describe('the interfaces that show it', () => {
-  test('the editor offers an author menu only where reassignment is possible', () => {
+  test('the author is always shown, and the menu only where it can be used', () => {
+    // Who wrote this is part of what you are editing, so a one-author site
+    // still sees it — as a statement rather than a menu of one, which is a
+    // control that cannot be operated.
     const editor = read('src/client/pages/admin/PostEditor.tsx')
 
-    assert.match(editor, /!isPage && authors\.length > 1/)
+    assert.match(editor, /\{!isPage && \(\s*\n\s*<div className="admin-card">\s*\n\s*<h3 className="admin-card-title">Author/)
+    assert.match(editor, /authors\.length > 1 \? \(/)
     assert.match(editor, /api\.get<\{ authors: AuthorProfile\[\] \}>\('\/api\/authors'\)/)
+  })
+
+  test('the name comes from the server for a post and the session for a draft', () => {
+    // A post can belong to someone who is not signed in, so the editor cannot
+    // assume the current user — but a post that does not exist yet is yours.
+    assert.match(read('src/models/Post.ts'), /users\.name AS author_name/)
+    assert.match(
+      read('src/client/pages/admin/PostEditor.tsx'),
+      /if \(!isEditing && user\?\.name\) setAuthorName\(user\.name\)/
+    )
   })
 
   test('a refused author list is an answer, not a crash', () => {

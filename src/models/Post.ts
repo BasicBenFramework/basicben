@@ -109,12 +109,13 @@ export const Post = {
     const db = await getDb()
 
     // Joined rather than a bare `SELECT *` so the editor gets a URL for the
-    // featured image instead of the media id it stores — which is what it
-    // needs to show the picture it is about to save.
+    // featured image instead of the media id it stores, and a name for the
+    // author instead of a number — both of which it has to show.
     const row = await db.get(
-      `SELECT posts.*, media.path AS featured_image_path
+      `SELECT posts.*, media.path AS featured_image_path, users.name AS author_name
        FROM posts
        LEFT JOIN media ON media.id = posts.featured_image
+       LEFT JOIN users ON users.id = posts.user_id
        WHERE posts.id = ?`,
       [id]
     )

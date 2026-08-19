@@ -82,6 +82,34 @@ describe('navigation does not reload the document', () => {
   })
 })
 
+describe("the admin's vertical rhythm", () => {
+  const layout = read('src/client/layouts/AdminLayout.tsx')
+
+  test('a grid is spaced beneath like a card is', () => {
+    // The stats row sat flush against the card below it, because only cards
+    // carried a bottom margin. Two numbers down one page is one too many.
+    const grid = layout.slice(layout.indexOf('.admin-grid {'))
+
+    assert.match(grid.slice(0, grid.indexOf('}')), /margin-bottom: 20px/)
+    assert.match(layout, /\.admin-card \{[^}]*margin-bottom: 20px/)
+  })
+
+  test('cards inside a grid are spaced by the gap, not by both', () => {
+    // Only direct children: the editor's sidebar is a column of stacked cards
+    // inside a grid cell, and those still need their own margins.
+    assert.match(layout, /\.admin-grid > \.admin-card \{ margin-bottom: 0; \}/)
+  })
+
+  test('a column of buttons in a card is a class, not four inline copies', () => {
+    assert.match(layout, /\.admin-stack \{ display: flex; flex-direction: column; gap: 8px; \}/)
+    assert.doesNotMatch(
+      read('src/client/pages/admin/Dashboard.tsx'),
+      /flexDirection: 'column'/,
+      'the dashboard is still hand-spacing its button columns'
+    )
+  })
+})
+
 describe('admin listings page on the server', () => {
   test('the window is clamped, so no caller can ask for the whole table', () => {
     const pagination = read('src/models/pagination.ts')
