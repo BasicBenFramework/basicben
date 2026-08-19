@@ -1,7 +1,8 @@
 import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
+import { can } from '@basicbenframework/core/auth/permissions'
 import { Post } from '../models/Post'
-import type { Request, Response } from '../types'
+import type { Post as PostType, Request, Response } from '../types'
 import { paginationFrom, meta } from '../models/pagination'
 
 /**
@@ -19,7 +20,16 @@ import { paginationFrom, meta } from '../models/pagination'
 export const PostController = {
   async index(req: Request, res: Response) {
     const { page, perPage, offset } = paginationFrom(req.query as Record<string, string>)
-    const { posts, total } = await Post.pageByUser(req.userId!, { perPage, offset })
+
+    // An editor or an admin sees the whole site; an author sees their own work.
+    // The listing was scoped to the signed-in user unconditionally, so the
+    // people with `post.edit` — the ones responsible for everyone else's posts
+    // — could not see a single one of them.
+    const { posts, total } = await Post.paginate({
+      perPage,
+      offset,
+      userId: can(req.user, 'post.edit') ? undefined : req.userId
+    })
 
     // `posts` stays where it was so nothing reading this breaks; `meta` is
     // added alongside, in the same shape /api/v1 uses.
@@ -28,7 +38,7 @@ export const PostController = {
 
   async show(req: Request, res: Response) {
     const post = await Post.find(parseInt(req.params.id))
-    if (!post || post.user_id !== req.userId) {
+    if (!post || !mayEdit(req, post)) {
       return res.json({ error: 'Post not found' }, 404)
     }
 
@@ -49,13 +59,14 @@ export const PostController = {
       return res.json({ errors: result.errors }, 422)
     }
 
-    const { title, content, published } = req.body as { title: string; content: string; published?: boolean }
-
     const draft = await hooks.filter(HOOKS.POST_CREATING, {
-      user_id: req.userId!,
-      title,
-      content,
-      published: published || false
+      // Attribution. Anyone may write as themselves; assigning a post to
+      // someone else is `post.edit`, the same capability that lets you edit
+      // their work — the WordPress rule, where only an editor can hand a post
+      // to another author.
+      user_id: authorFor(req),
+      ...editableFields(req.body),
+      published: Boolean((req.body as { published?: boolean }).published)
     }, { req })
 
     if (draft?.cancel) {
@@ -77,7 +88,7 @@ export const PostController = {
 
   async update(req: Request, res: Response) {
     const post = await Post.find(parseInt(req.params.id))
-    if (!post || post.user_id !== req.userId) {
+    if (!post || !mayEdit(req, post)) {
       return res.json({ error: 'Post not found' }, 404)
     }
 
@@ -90,12 +101,16 @@ export const PostController = {
       return res.json({ errors: result.errors }, 422)
     }
 
-    const { title, content, published } = req.body as { title: string; content: string; published?: boolean }
+    const reassigned = authorFor(req, post.user_id)
+
+    const published = (req.body as { published?: boolean }).published
 
     const changes = await hooks.filter(HOOKS.POST_UPDATING, {
-      title,
-      content,
-      published: published ? 1 : 0
+      ...editableFields(req.body),
+      ...(reassigned === post.user_id ? {} : { user_id: reassigned }),
+      // Absent means "leave it as it is". Coercing an absent key to 0 turned
+      // every request that did not mention publishing into an unpublish.
+      ...(published === undefined ? {} : { published: published ? 1 : 0 })
     }, { req, post })
 
     if (changes?.cancel) {
@@ -113,7 +128,7 @@ export const PostController = {
 
   async destroy(req: Request, res: Response) {
     const post = await Post.find(parseInt(req.params.id))
-    if (!post || post.user_id !== req.userId) {
+    if (!post || !mayEdit(req, post)) {
       return res.json({ error: 'Post not found' }, 404)
     }
 
@@ -142,6 +157,60 @@ export const PostController = {
     }
     res.json({ post })
   }
+}
+
+/**
+ * May this request act on this post?
+ *
+ * Its author always may, which is what every check here used to test on its
+ * own. `post.edit` is the capability for everyone else's work, so an editor and
+ * an admin stop getting "Post not found" for a post that plainly exists.
+ */
+function mayEdit(req: Request, post: PostType): boolean {
+  return post.user_id === req.userId || can(req.user, 'post.edit')
+}
+
+/**
+ * Who the post belongs to.
+ *
+ * A `user_id` in the body is honoured only for a caller who can edit anyone's
+ * posts; for everyone else it is ignored rather than refused, because a body
+ * that carries the author it already had should not fail a save.
+ */
+function authorFor(req: Request, fallback?: number): number {
+  const requested = Number((req.body as { user_id?: unknown }).user_id)
+  const current = fallback ?? req.userId!
+
+  if (!Number.isInteger(requested) || requested === current) return current
+
+  return can(req.user, 'post.edit') ? requested : current
+}
+
+/**
+ * The fields the editor sends and the post row stores.
+ *
+ * Everything but title, content and published used to be dropped here: the SEO
+ * panel, the excerpt and the featured image were all accepted by the API and
+ * written nowhere. Absent keys stay absent so a caller changing one field does
+ * not blank the rest; a blank slug or excerpt is a request to derive one, which
+ * the model does.
+ */
+function editableFields(body: unknown): Record<string, unknown> {
+  const payload = (body ?? {}) as Record<string, unknown>
+  const fields: Record<string, unknown> = {}
+
+  for (const key of ['title', 'content', 'slug', 'excerpt', 'meta_title', 'meta_description', 'publish_at']) {
+    if (key in payload) fields[key] = payload[key]
+  }
+
+  // An id or nothing. The empty string an unset <select> sends would otherwise
+  // become a foreign key of '' and fail the write.
+  if ('featured_image' in payload) {
+    const id = Number(payload.featured_image)
+    fields.featured_image = Number.isInteger(id) && id > 0 ? id : null
+  }
+
+  return fields
 }
 
 /**

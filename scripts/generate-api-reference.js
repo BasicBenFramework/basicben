@@ -47,7 +47,7 @@ const CONTROLLER = join(TEMPLATE, 'src/controllers/PublicApiController.ts')
 const OUTPUT = join(TEMPLATE, 'src/client/pages/api-reference.ts')
 
 /** The shapes worth documenting, in the order a reader meets them. */
-const SHAPES = ['PublicPost', 'PublicPage', 'PublicCategory', 'PublicTag', 'PublicMedia']
+const SHAPES = ['PublicPost', 'PublicPage', 'PublicAuthor', 'PublicCategory', 'PublicTag', 'PublicMedia']
 
 /**
  * What each controller action returns, and whether it is a collection.
@@ -62,6 +62,8 @@ const ACTIONS = {
   post: { shape: 'PublicPost', collection: false, summary: 'One published post, by slug or id.' },
   pages: { shape: 'PublicPage', collection: true, summary: 'Published pages, newest first.' },
   page: { shape: 'PublicPage', collection: false, summary: 'One published page, by slug or id.' },
+  authors: { shape: 'PublicAuthor', collection: false, summary: 'Every author with something published.' },
+  author: { shape: 'PublicAuthor', collection: false, summary: 'One author, by slug or id.' },
   categories: { shape: 'PublicCategory', collection: false, summary: 'Every category, with post counts.' },
   tags: { shape: 'PublicTag', collection: false, summary: 'Every tag, with post counts.' },
   media: { shape: 'PublicMedia', collection: false, summary: 'One media item, by id.' }
@@ -80,6 +82,7 @@ const PARAMS = {
   per_page: 'Results per page. Defaults to 10, clamped to 100.',
   category: 'Filter posts by category slug or id.',
   tag: 'Filter posts by tag slug or id.',
+  author: 'Filter posts by author slug or id — an author archive.',
   search: 'Filter posts whose title or excerpt contains this text.',
   format: '`markdown` returns the source. Anything else returns rendered HTML.'
 }

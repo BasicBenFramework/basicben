@@ -30,6 +30,10 @@ const DEFAULT_MENU = [
   { path: '/admin/comments', label: 'Comments', icon: '💬' },
   { path: '/admin/media', label: 'Media', icon: '🖼️' },
   { path: '/admin/tokens', label: 'API tokens', icon: '🔑' },
+  // Where an author edits their own byline. It lives outside /admin because it
+  // is the one screen every account has, admin area or not — but the people
+  // writing posts are in here, so the way to it has to be too.
+  { path: '/profile', label: 'Profile', icon: '👤' },
   { path: '/admin/settings', label: 'Settings', icon: '⚙️' }
 ]
 

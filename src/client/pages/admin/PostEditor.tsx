@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useParams } from '@basicbenframework/core/client'
+import { useNavigate, useParams, usePath } from '@basicbenframework/core/client'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
+import { excerpt, slugify } from '@basicbenframework/core/content'
+import FeaturedImageBox from '../../components/admin/FeaturedImageBox'
 
-import type { Post } from '../../../types'
+import type { AuthorProfile, Page, Post } from '../../../types'
 import { Link } from '../../components/Link'
 
 interface Category {
@@ -17,9 +19,36 @@ interface Tag {
   name: string
 }
 
+/**
+ * What the server would write as the excerpt, shown as a placeholder.
+ *
+ * The same function it uses, so the preview cannot promise one summary and
+ * store another. Trimmed harder than the stored one: this is a hint in a box,
+ * not the summary itself.
+ */
+function summaryOf(content: string) {
+  return excerpt(content || '', 120)
+}
+
+/**
+ * The editor, for a post or for a page.
+ *
+ * `/admin/pages/new` has always opened this component, and this component has
+ * always saved to `/api/posts` — so creating a page from the Pages screen
+ * created a post, which then did not appear in the list you came from. The
+ * content type is taken from the path instead, the way the router already
+ * distinguishes them, and the boxes that only make sense for a post are hidden
+ * for a page: a page has no categories, tags, author byline or excerpt.
+ */
 export default function AdminPostEditor() {
   const navigate = useNavigate()
   const params = useParams()
+  const path = usePath()
+
+  const isPage = path.startsWith('/admin/pages')
+  const resource = isPage ? 'pages' : 'posts'
+  const noun = isPage ? 'Page' : 'Post'
+
   const postId = params.id ? parseInt(params.id) : null
   const isEditing = !!postId
 
@@ -27,6 +56,7 @@ export default function AdminPostEditor() {
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [allTags, setAllTags] = useState<Tag[]>([])
+  const [authors, setAuthors] = useState<AuthorProfile[]>([])
 
   const [formData, setFormData] = useState({
     title: '',
@@ -37,7 +67,15 @@ export default function AdminPostEditor() {
     tags: [] as number[],
     meta_title: '',
     meta_description: '',
-    published: false
+    published: false,
+    // The media id that gets saved, and the URL that gets shown. The server
+    // resolves the second from the first, because only it knows where files
+    // are served from.
+    featured_image: null as number | null,
+    featured_image_url: null as string | null,
+    // Empty means "leave it alone": the author menu only appears for people who
+    // may reassign, and everyone else must not send a user_id at all.
+    user_id: '' as number | ''
   })
 
   useEffect(() => {
@@ -46,29 +84,28 @@ export default function AdminPostEditor() {
 
   const loadData = async () => {
     try {
-      const [catRes, tagRes] = await Promise.all([
-        api.get<{ categories: Category[] }>('/api/categories'),
-        api.get<{ tags: Tag[] }>('/api/tags')
-      ])
-
-      setCategories(catRes?.categories || [])
-      setAllTags(tagRes?.tags || [])
+      if (!isPage) await loadPostFurniture()
 
       if (postId) {
-        const postRes = await api.get<{ post: Post }>(`/api/posts/${postId}`)
-        const post = postRes?.post
-        if (post) {
-          setFormData({
-            title: post.title || '',
-            content: post.content || '',
-            excerpt: post.excerpt || '',
-            slug: post.slug || '',
-            category_ids: post.category_ids || [],
-            tags: post.tags?.map((t: Tag) => t.id) || [],
-            meta_title: post.meta_title || '',
-            meta_description: post.meta_description || '',
-            published: post.published || false
-          })
+        const res = await api.get<{ post?: Post; page?: Page }>(`/api/${resource}/${postId}`)
+        const record = (isPage ? res?.page : res?.post) as (Post & Page) | undefined
+
+        if (record) {
+          setFormData(prev => ({
+            ...prev,
+            title: record.title || '',
+            content: record.content || '',
+            excerpt: record.excerpt || '',
+            slug: record.slug || '',
+            category_ids: record.category_ids || [],
+            tags: record.tag_ids || record.tags?.map((t: Tag) => t.id) || [],
+            meta_title: record.meta_title || '',
+            meta_description: record.meta_description || '',
+            published: record.published || false,
+            featured_image: record.featured_image ?? null,
+            featured_image_url: record.featured_image_url ?? null,
+            user_id: record.user_id ?? ''
+          }))
         }
       }
     } catch (error) {
@@ -78,24 +115,65 @@ export default function AdminPostEditor() {
     }
   }
 
+  /**
+   * Categories, tags and the author menu — the boxes only a post has.
+   *
+   * The author list is refused to anyone who cannot write, so a failure here is
+   * an answer rather than an error: no menu, and the post stays attributed to
+   * whoever it already belongs to.
+   */
+  const loadPostFurniture = async () => {
+    const [catRes, tagRes] = await Promise.all([
+      api.get<{ categories: Category[] }>('/api/categories'),
+      api.get<{ tags: Tag[] }>('/api/tags')
+    ])
+
+    setCategories(catRes?.categories || [])
+    setAllTags(tagRes?.tags || [])
+
+    try {
+      const authorRes = await api.get<{ authors: AuthorProfile[] }>('/api/authors')
+      setAuthors(authorRes?.authors || [])
+    } catch {
+      setAuthors([])
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
 
     try {
-      // Sent as-is: category_ids and tags are both arrays the server syncs.
-      const payload = { ...formData }
+      // `featured_image_url` is the server's answer, not the editor's input —
+      // sending it back would be asking the API to store a URL in a column that
+      // holds a media id.
+      const { featured_image_url, user_id, category_ids, tags, excerpt, ...common } = formData
+
+      // category_ids and tags are arrays the server syncs; a page has neither,
+      // and no excerpt column to put an excerpt in.
+      const payload = isPage
+        ? common
+        : {
+            ...common,
+            excerpt,
+            category_ids,
+            tags,
+            // Only when the menu was shown and a choice was made. Sending it
+            // otherwise would ask the server to reassign a post to its own
+            // author, which it ignores, but there is no reason to ask.
+            ...(user_id === '' ? {} : { user_id })
+          }
 
       if (isEditing) {
-        await api.put(`/api/posts/${postId}`, payload)
+        await api.put(`/api/${resource}/${postId}`, payload)
       } else {
-        await api.post('/api/posts', payload)
+        await api.post(`/api/${resource}`, payload)
       }
 
-      navigate('/admin/posts')
+      navigate(`/admin/${resource}`)
     } catch (error: any) {
-      console.error('Failed to save post:', error)
-      alert(error.message || 'Failed to save post')
+      console.error(`Failed to save ${resource}:`, error)
+      alert(error.message || `Failed to save ${noun.toLowerCase()}`)
     } finally {
       setSaving(false)
     }
@@ -212,14 +290,14 @@ export default function AdminPostEditor() {
 
   if (loading) {
     return (
-      <AdminLayout title={isEditing ? 'Edit Post' : 'New Post'}>
+      <AdminLayout title={`${isEditing ? 'Edit' : 'New'} ${noun}`}>
         <div className="admin-loading">Loading...</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title={isEditing ? 'Edit Post' : 'New Post'}>
+    <AdminLayout title={`${isEditing ? 'Edit' : 'New'} ${noun}`}>
       <form onSubmit={handleSubmit}>
         <div className="admin-grid admin-grid-2" style={{ gridTemplateColumns: '2fr 1fr' }}>
           {/* Main Content */}
@@ -233,7 +311,7 @@ export default function AdminPostEditor() {
                   value={formData.title}
                   onChange={handleChange}
                   className="admin-input"
-                  placeholder="Enter post title"
+                  placeholder={`Enter ${noun.toLowerCase()} title`}
                   required
                 />
               </div>
@@ -250,17 +328,21 @@ export default function AdminPostEditor() {
                 />
               </div>
 
-              <div className="admin-form-group">
-                <label className="admin-label">Excerpt</label>
-                <textarea
-                  name="excerpt"
-                  value={formData.excerpt}
-                  onChange={handleChange}
-                  className="admin-textarea"
-                  style={{ minHeight: '100px' }}
-                  placeholder="Brief summary of the post"
-                />
-              </div>
+              {/* Pages have no excerpt column, so the field would have been a
+                  box that quietly discarded whatever was typed into it. */}
+              {!isPage && (
+                <div className="admin-form-group">
+                  <label className="admin-label">Excerpt</label>
+                  <textarea
+                    name="excerpt"
+                    value={formData.excerpt}
+                    onChange={handleChange}
+                    className="admin-textarea"
+                    style={{ minHeight: '100px' }}
+                    placeholder={summaryOf(formData.content) || 'Written for you from the content if you leave this blank'}
+                  />
+                </div>
+              )}
             </div>
 
             {/* SEO Settings */}
@@ -268,13 +350,16 @@ export default function AdminPostEditor() {
               <h3 className="admin-card-title">SEO Settings</h3>
               <div className="admin-form-group">
                 <label className="admin-label">Slug</label>
+                {/* The placeholder is what the server will derive from the
+                    title if this is left empty, so the URL is visible before
+                    the save rather than after it. */}
                 <input
                   type="text"
                   name="slug"
                   value={formData.slug}
                   onChange={handleChange}
                   className="admin-input"
-                  placeholder="post-url-slug"
+                  placeholder={slugify(formData.title) || `${resource.replace(/s$/, '')}-url-slug`}
                 />
               </div>
 
@@ -330,142 +415,187 @@ export default function AdminPostEditor() {
                 >
                   {saving ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
                 </button>
-                <Link href="/admin/posts" className="admin-btn admin-btn-secondary">
+                <Link href={`/admin/${resource}`} className="admin-btn admin-btn-secondary">
                   Cancel
                 </Link>
               </div>
             </div>
 
-            {/* Categories: a checkbox list, the way every CMS people arrive
-                from presents them. Scrolls once there are more than a handful
-                rather than pushing the rest of the sidebar off the screen. */}
-            <div className="admin-card">
-              <h3 className="admin-card-title">Categories</h3>
+            {/* Both posts and pages carry one now. A page could only ever get a
+                hero image by writing the Markdown for it into the body, which
+                puts it in the content rather than beside it. */}
+            <FeaturedImageBox
+              value={formData.featured_image}
+              url={formData.featured_image_url}
+              onChange={image =>
+                setFormData(prev => ({
+                  ...prev,
+                  featured_image: image?.id ?? null,
+                  featured_image_url: image?.url ?? null
+                }))
+              }
+            />
 
-              {categories.length === 0 ? (
-                <p className="admin-term-empty">No categories yet.</p>
-              ) : (
-                <div className="admin-term-list">
-                  {categories.map(cat => (
-                    <label key={cat.id} className="admin-term-option">
-                      <input
-                        type="checkbox"
-                        checked={formData.category_ids.includes(cat.id)}
-                        onChange={() => handleCategoryToggle(cat.id)}
-                      />
-                      <span>{cat.name}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {addingCategory ? (
-                <div className="admin-inline-add">
-                  <input
-                    type="text"
-                    className="admin-input"
-                    placeholder="New category name"
-                    value={newCategory}
-                    autoFocus
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    // Enter must not reach the surrounding form, or adding a
-                    // category would submit the post instead.
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') return setAddingCategory(false)
-                      if (e.key !== 'Enter') return
-                      e.preventDefault()
-                      createCategory()
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-secondary"
-                    onClick={createCategory}
-                    disabled={!newCategory.trim() || creating !== null}
-                  >
-                    Add
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="admin-term-add"
-                  onClick={() => setAddingCategory(true)}
-                >
-                  + Add New Category
-                </button>
-              )}
-            </div>
-
-            {/* Tags: typed, not picked. You should not have to create a tag
-                somewhere else before you can use it, and a site accumulates far
-                too many for a list of every one to stay useful. */}
-            <div className="admin-card">
-              <h3 className="admin-card-title">Tags</h3>
-
-              <div className="admin-inline-add">
-                <input
-                  type="text"
+            {/* The author menu, when there is anyone to choose between and the
+                server was willing to say who. Reassigning is `post.edit` — an
+                author writes under their own name and nobody else's. */}
+            {!isPage && authors.length > 1 && (
+              <div className="admin-card">
+                <h3 className="admin-card-title">Author</h3>
+                <select
+                  name="user_id"
+                  value={formData.user_id}
+                  onChange={handleChange}
                   className="admin-input"
-                  placeholder="Add tags, separated by commas"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Comma commits too, which is what the placeholder implies.
-                    if (e.key !== 'Enter' && e.key !== ',') return
-                    e.preventDefault()
-                    addTags(newTag)
-                  }}
-                />
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-secondary"
-                  onClick={() => addTags(newTag)}
-                  disabled={!newTag.trim() || creating !== null}
                 >
-                  Add
-                </button>
+                  <option value="">
+                    {isEditing ? 'Unchanged' : 'Me'}
+                  </option>
+                  {authors.map(author => (
+                    <option key={author.id} value={author.id}>
+                      {author.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+            )}
 
-              {formData.tags.length > 0 && (
-                <div className="admin-term-chips">
-                  {formData.tags.map(id => {
-                    const tag = allTags.find(t => t.id === id)
+            {/* A page has no taxonomy: filing one under a category would put
+                it in a listing that only ever shows posts. */}
+            {!isPage && (
+              <>
+                {/* Categories: a checkbox list, the way every CMS people arrive
+                    from presents them. Scrolls once there are more than a handful
+                    rather than pushing the rest of the sidebar off the screen. */}
+                <div className="admin-card">
+                  <h3 className="admin-card-title">Categories</h3>
 
-                    return (
-                      <span key={id} className="admin-term-chip">
-                        {tag?.name ?? `#${id}`}
-                        <button
-                          type="button"
-                          aria-label={`Remove ${tag?.name ?? 'tag'}`}
-                          onClick={() => handleTagToggle(id)}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    )
-                  })}
+                  {categories.length === 0 ? (
+                    <p className="admin-term-empty">No categories yet.</p>
+                  ) : (
+                    <div className="admin-term-list">
+                      {categories.map(cat => (
+                        <label key={cat.id} className="admin-term-option">
+                          <input
+                            type="checkbox"
+                            checked={formData.category_ids.includes(cat.id)}
+                            onChange={() => handleCategoryToggle(cat.id)}
+                          />
+                          <span>{cat.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {addingCategory ? (
+                    <div className="admin-inline-add">
+                      <input
+                        type="text"
+                        className="admin-input"
+                        placeholder="New category name"
+                        value={newCategory}
+                        autoFocus
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        // Enter must not reach the surrounding form, or adding a
+                        // category would submit the post instead.
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') return setAddingCategory(false)
+                          if (e.key !== 'Enter') return
+                          e.preventDefault()
+                          createCategory()
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-secondary"
+                        onClick={createCategory}
+                        disabled={!newCategory.trim() || creating !== null}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-term-add"
+                      onClick={() => setAddingCategory(true)}
+                    >
+                      + Add New Category
+                    </button>
+                  )}
                 </div>
-              )}
 
-              {allTags.length > 0 && (
-                <details className="admin-term-details">
-                  <summary>Choose from existing tags</summary>
-                  <div className="admin-term-list">
-                    {allTags.map(tag => (
-                      <label key={tag.id} className="admin-term-option">
-                        <input
-                          type="checkbox"
-                          checked={formData.tags.includes(tag.id)}
-                          onChange={() => handleTagToggle(tag.id)}
-                        />
-                        <span>{tag.name}</span>
-                      </label>
-                    ))}
+                {/* Tags: typed, not picked. You should not have to create a tag
+                    somewhere else before you can use it, and a site accumulates far
+                    too many for a list of every one to stay useful. */}
+                <div className="admin-card">
+                  <h3 className="admin-card-title">Tags</h3>
+
+                  <div className="admin-inline-add">
+                    <input
+                      type="text"
+                      className="admin-input"
+                      placeholder="Add tags, separated by commas"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      onKeyDown={(e) => {
+                        // Comma commits too, which is what the placeholder implies.
+                        if (e.key !== 'Enter' && e.key !== ',') return
+                        e.preventDefault()
+                        addTags(newTag)
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-secondary"
+                      onClick={() => addTags(newTag)}
+                      disabled={!newTag.trim() || creating !== null}
+                    >
+                      Add
+                    </button>
                   </div>
-                </details>
-              )}
-            </div>
+
+                  {formData.tags.length > 0 && (
+                    <div className="admin-term-chips">
+                      {formData.tags.map(id => {
+                        const tag = allTags.find(t => t.id === id)
+
+                        return (
+                          <span key={id} className="admin-term-chip">
+                            {tag?.name ?? `#${id}`}
+                            <button
+                              type="button"
+                              aria-label={`Remove ${tag?.name ?? 'tag'}`}
+                              onClick={() => handleTagToggle(id)}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {allTags.length > 0 && (
+                    <details className="admin-term-details">
+                      <summary>Choose from existing tags</summary>
+                      <div className="admin-term-list">
+                        {allTags.map(tag => (
+                          <label key={tag.id} className="admin-term-option">
+                            <input
+                              type="checkbox"
+                              checked={formData.tags.includes(tag.id)}
+                              onChange={() => handleTagToggle(tag.id)}
+                            />
+                            <span>{tag.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </form>

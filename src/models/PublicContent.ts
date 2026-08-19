@@ -43,6 +43,8 @@ export interface PublicPost {
   featured_image_url: string | null
   /** The author's display name. Never their address. */
   author: string | null
+  /** The author's profile — biography, link and avatar. Null if the account is gone. */
+  author_profile: { id: number; name: string; slug: string | null; bio: string | null; website: string | null; avatar_url: string | null } | null
   /** Every category on the post. Empty when uncategorised. */
   categories: Array<{ id: number; name: string; slug: string }>
   /** Every tag on the post. Empty when untagged. */
@@ -65,7 +67,12 @@ interface PostRow {
   content: string
   content_html: string | null
   featured_image_path: string | null
+  author_id: number | null
   author_name: string | null
+  author_slug: string | null
+  author_bio: string | null
+  author_website: string | null
+  author_avatar_path: string | null
   meta_title: string | null
   meta_description: string | null
   created_at: string
@@ -84,7 +91,12 @@ const POST_COLUMNS = `
   posts.meta_description,
   posts.created_at,
   posts.updated_at,
+  users.id AS author_id,
   users.name AS author_name,
+  users.slug AS author_slug,
+  users.bio AS author_bio,
+  users.website AS author_website,
+  avatars.path AS author_avatar_path,
   media.path AS featured_image_path
 `
 
@@ -92,6 +104,26 @@ const POST_JOINS = `
   FROM posts
   JOIN users ON posts.user_id = users.id
   LEFT JOIN media ON media.id = posts.featured_image
+  LEFT JOIN media AS avatars ON avatars.id = users.avatar_id
+`
+
+/** The same for pages, which carry a featured image of their own now. */
+const PAGE_COLUMNS = `
+  pages.id,
+  pages.slug,
+  pages.title,
+  pages.content,
+  pages.content_html,
+  pages.meta_title,
+  pages.meta_description,
+  pages.created_at,
+  pages.updated_at,
+  media.path AS featured_image_path
+`
+
+const PAGE_JOINS = `
+  FROM pages
+  LEFT JOIN media ON media.id = pages.featured_image
 `
 
 const MAX_PER_PAGE = 100
@@ -125,12 +157,13 @@ export const PublicContent = {
       offset?: number
       category?: string
       tag?: string
+      author?: string
       search?: string
       format?: ContentFormat
     } = {}
   ): Promise<{ posts: PublicPost[]; total: number }> {
     const db = await getDb()
-    const { perPage = 10, offset = 0, category, tag, search, format = 'html' } = options
+    const { perPage = 10, offset = 0, category, tag, author, search, format = 'html' } = options
 
     const where: string[] = ['posts.published = 1']
     const params: unknown[] = []
@@ -155,6 +188,14 @@ export const PublicContent = {
         WHERE tags.slug = ? OR tags.id = ?
       )`)
       params.push(tag, Number(tag) || -1)
+    }
+
+    if (author) {
+      // An author archive: every post by one person. Slug or id, for the same
+      // reason categories accept either — a consumer holding one should not
+      // have to look up the other first.
+      where.push('(users.slug = ? OR users.id = ?)')
+      params.push(author, Number(author) || -1)
     }
 
     if (search) {
@@ -214,15 +255,14 @@ export const PublicContent = {
     )) as { total: number } | undefined
 
     const rows = (await db.all(
-      `SELECT id, slug, title, content, content_html, meta_title, meta_description,
-              created_at, updated_at
-       FROM pages WHERE published = 1
-       ORDER BY created_at DESC
+      `SELECT ${PAGE_COLUMNS} ${PAGE_JOINS}
+       WHERE pages.published = 1
+       ORDER BY pages.created_at DESC
        LIMIT ? OFFSET ?`,
       [perPage, offset]
     )) as PageRow[]
 
-    return { pages: rows.map((row) => shapePage(row, format)), total: Number(counted?.total) || 0 }
+    return { pages: await shapePages(rows, format), total: Number(counted?.total) || 0 }
   },
 
   /** One published page, by slug or id. */
@@ -230,13 +270,12 @@ export const PublicContent = {
     const db = await getDb()
 
     const row = (await db.get(
-      `SELECT id, slug, title, content, content_html, meta_title, meta_description,
-              created_at, updated_at
-       FROM pages WHERE published = 1 AND (slug = ? OR id = ?)`,
+      `SELECT ${PAGE_COLUMNS} ${PAGE_JOINS}
+       WHERE pages.published = 1 AND (pages.slug = ? OR pages.id = ?)`,
       [identifier, Number(identifier) || -1]
     )) as PageRow | undefined
 
-    return row ? shapePage(row, format) : null
+    return row ? (await shapePages([row], format))[0] : null
   },
 
   /**
@@ -279,6 +318,52 @@ export const PublicContent = {
     return rows.map((row) => ({ ...row, post_count: Number(row.post_count) || 0 }))
   },
 
+  /**
+   * Every author with something published, newest names first by post count.
+   *
+   * Only people who have published: an account with no posts is a user, not an
+   * author, and listing one exposes that the account exists to anyone who asks
+   * for the author index. Counts come from the same `published = 1` filter the
+   * post listing uses, so an archive link never leads to an empty page.
+   */
+  async authors(): Promise<PublicAuthor[]> {
+    const db = await getDb()
+
+    const rows = (await db.all(`
+      SELECT users.id, users.name, users.slug, users.bio, users.website,
+             avatars.path AS avatar_path,
+             COUNT(posts.id) AS post_count
+      FROM users
+      JOIN posts ON posts.user_id = users.id AND posts.published = 1
+      LEFT JOIN media AS avatars ON avatars.id = users.avatar_id
+      GROUP BY users.id, users.name, users.slug, users.bio, users.website, avatars.path
+      ORDER BY users.name ASC
+    `)) as AuthorRow[]
+
+    return shapeAuthors(rows)
+  },
+
+  /** One author, by slug or id. Null when they have published nothing. */
+  async author(identifier: string): Promise<PublicAuthor | null> {
+    const db = await getDb()
+
+    const row = (await db.get(
+      `SELECT users.id, users.name, users.slug, users.bio, users.website,
+              avatars.path AS avatar_path,
+              COUNT(posts.id) AS post_count
+       FROM users
+       JOIN posts ON posts.user_id = users.id AND posts.published = 1
+       LEFT JOIN media AS avatars ON avatars.id = users.avatar_id
+       WHERE users.slug = ? OR users.id = ?
+       GROUP BY users.id, users.name, users.slug, users.bio, users.website, avatars.path`,
+      [identifier, Number(identifier) || -1]
+    )) as AuthorRow | undefined
+
+    if (!row) return null
+
+    return (await shapeAuthors([row]))[0]
+  },
+
   /** One media item. */
   async media(id: number): Promise<PublicMedia | null> {
     const db = await getDb()
@@ -318,6 +403,8 @@ export interface PublicPage {
   content: string
   /** What `content` actually is — not what you asked for. See `?format=`. */
   format: ContentFormat
+  /** Absolute URL of the featured image, or null. */
+  featured_image_url: string | null
   /** SEO title override, if set. */
   meta_title: string | null
   /** SEO description override, if set. */
@@ -355,6 +442,29 @@ export interface PublicTag {
 }
 
 /**
+ * An author, as a byline and an archive page need them.
+ *
+ * The address, the role and everything else on the account stay behind the
+ * admin API. What is here is what a reader is meant to see.
+ */
+export interface PublicAuthor {
+  /** Stable identifier. Accepted anywhere a slug is. */
+  id: number
+  /** Display name, as it appears on a byline. */
+  name: string
+  /** URL segment for the author's archive. Accepted by `?author=`. */
+  slug: string | null
+  /** The biography they wrote, if any. */
+  bio: string | null
+  /** Their own site, if they gave one. */
+  website: string | null
+  /** Absolute URL of their avatar, or null. */
+  avatar_url: string | null
+  /** How many published posts they have. Never zero — unpublished authors are not listed. */
+  post_count: number
+}
+
+/**
  * A media item.
  *
  * `uploaded_by` and the original filename stay internal — a consumer needs the
@@ -381,10 +491,22 @@ interface PageRow {
   title: string
   content: string
   content_html: string | null
+  featured_image_path: string | null
   meta_title: string | null
   meta_description: string | null
   created_at: string
   updated_at: string
+}
+
+/** An author row as the archive queries return it: the profile, plus a count. */
+interface AuthorRow {
+  id: number
+  name: string
+  slug: string | null
+  bio: string | null
+  website: string | null
+  avatar_path: string | null
+  post_count: number | string
 }
 
 /** Warned about once per process; a per-request warning would be a log flood. */
@@ -471,7 +593,9 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
     )) as Array<{ post_id: number; id: number; name: string; slug: string }>
   )
 
-  const storage = rows.some((row) => row.featured_image_path) ? await getStorage() : null
+  const storage = rows.some((row) => row.featured_image_path || row.author_avatar_path)
+    ? await getStorage()
+    : null
 
   return rows.map((row) => ({
     id: row.id,
@@ -482,6 +606,11 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
     featured_image_url:
       row.featured_image_path && storage ? mediaUrl(storage, row.featured_image_path) : null,
     author: row.author_name,
+    // `author` stays the display name it has always been — changing its type
+    // would break every consumer reading a byline — and the profile arrives
+    // beside it, so a static build can render a face and a biography without a
+    // second request per post.
+    author_profile: shapeAuthor(row, storage),
     categories: categoriesByPost.get(row.id) ?? [],
     tags: tagsByPost.get(row.id) ?? [],
     meta_title: row.meta_title,
@@ -491,17 +620,61 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
   }))
 }
 
-function shapePage(row: PageRow, format: ContentFormat): PublicPage {
-  return {
+/** Pages, with their featured image resolved in one adapter lookup per batch. */
+async function shapePages(rows: PageRow[], format: ContentFormat): Promise<PublicPage[]> {
+  const storage = rows.some((row) => row.featured_image_path) ? await getStorage() : null
+
+  return rows.map((row) => ({
     id: row.id,
     slug: row.slug,
     title: row.title,
     ...contentFor(row.content, row.content_html, format),
+    featured_image_url:
+      row.featured_image_path && storage ? mediaUrl(storage, row.featured_image_path) : null,
     meta_title: row.meta_title,
     meta_description: row.meta_description,
     published_at: row.created_at,
     updated_at: row.updated_at
+  }))
+}
+
+/**
+ * The author columns a post query joins, as one object.
+ *
+ * Returns null when the join produced no author at all, which the shape
+ * documents: a post whose account was deleted still has words worth serving.
+ */
+function shapeAuthor(
+  row: PostRow,
+  storage: { publicUrl: (key: string) => string } | null
+): PublicPost['author_profile'] {
+  if (row.author_id === null || row.author_id === undefined) return null
+
+  return {
+    id: row.author_id,
+    name: row.author_name ?? '',
+    slug: row.author_slug,
+    bio: row.author_bio,
+    website: row.author_website,
+    avatar_url:
+      row.author_avatar_path && storage ? mediaUrl(storage, row.author_avatar_path) : null
   }
+}
+
+/** Author archive rows, with avatars resolved and counts made numbers. */
+async function shapeAuthors(rows: AuthorRow[]): Promise<PublicAuthor[]> {
+  const storage = rows.some((row) => row.avatar_path) ? await getStorage() : null
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    bio: row.bio,
+    website: row.website,
+    avatar_url: row.avatar_path && storage ? mediaUrl(storage, row.avatar_path) : null,
+    // Postgres returns bigint counts as strings rather than lose precision.
+    post_count: Number(row.post_count) || 0
+  }))
 }
 
 /**

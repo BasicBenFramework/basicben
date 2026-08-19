@@ -25,6 +25,7 @@ export const PublicApiController = {
       offset,
       category: req.query.category,
       tag: req.query.tag,
+      author: req.query.author,
       search: req.query.search,
       format: contentFormat(req.query)
     })
@@ -70,6 +71,20 @@ export const PublicApiController = {
 
   async page(req: Request, res: Response) {
     const found = await PublicContent.page(req.params.slug, contentFormat(req.query))
+
+    if (!found) {
+      return res.json({ error: 'Not found' }, 404)
+    }
+
+    res.json({ data: found })
+  },
+
+  async authors(_req: Request, res: Response) {
+    res.json({ data: await PublicContent.authors() })
+  },
+
+  async author(req: Request, res: Response) {
+    const found = await PublicContent.author(req.params.slug)
 
     if (!found) {
       return res.json({ error: 'Not found' }, 404)

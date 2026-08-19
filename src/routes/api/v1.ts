@@ -25,6 +25,10 @@ export default (router: Router) => {
   router.get('/api/v1/pages', publicApiLimit, content, cacheable, PublicApiController.pages)
   router.get('/api/v1/pages/:slug', publicApiLimit, content, cacheable, PublicApiController.page)
 
+  // Author archives: the profile, and `/api/v1/posts?author=` for their work.
+  router.get('/api/v1/authors', publicApiLimit, content, cacheable, PublicApiController.authors)
+  router.get('/api/v1/authors/:slug', publicApiLimit, content, cacheable, PublicApiController.author)
+
   router.get('/api/v1/categories', publicApiLimit, content, cacheable, PublicApiController.categories)
   router.get('/api/v1/tags', publicApiLimit, content, cacheable, PublicApiController.tags)
 

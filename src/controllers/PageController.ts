@@ -59,6 +59,7 @@ export const PageController = {
       title,
       slug,
       content,
+      featured_image,
       template,
       published,
       parent_id,
@@ -69,6 +70,7 @@ export const PageController = {
       title: string
       slug?: string
       content?: string
+      featured_image?: number | null
       template?: string
       published?: boolean
       parent_id?: number
@@ -89,6 +91,9 @@ export const PageController = {
       title,
       slug,
       content,
+      // A page can carry a hero image now, the way a post always could. It
+      // arrives as a media id; an unset picker sends nothing rather than ''.
+      featured_image: mediaId(featured_image),
       template,
       published,
       parent_id,
@@ -126,6 +131,7 @@ export const PageController = {
       title,
       slug,
       content,
+      featured_image,
       template,
       published,
       parent_id,
@@ -136,6 +142,7 @@ export const PageController = {
       title: string
       slug?: string
       content?: string
+      featured_image?: number | null
       template?: string
       published?: boolean
       parent_id?: number
@@ -161,6 +168,10 @@ export const PageController = {
       title,
       slug,
       content,
+      // Only when the request mentioned it. Sending null unconditionally would
+      // mean any client that does not know about featured images strips the one
+      // a page already has.
+      ...('featured_image' in req.body ? { featured_image: mediaId(featured_image) } : {}),
       template,
       published,
       parent_id,
@@ -212,4 +223,17 @@ export const PageController = {
     await Page.reorder(pages)
     res.json({ message: 'Pages reordered' })
   }
+}
+
+/**
+ * A media id, or nothing.
+ *
+ * The picker clears itself by sending null, and an empty <select> sends the
+ * empty string — which would be written as a foreign key of '' and fail on
+ * Postgres rather than mean "no image".
+ */
+function mediaId(value: number | null | undefined): number | null {
+  const id = Number(value)
+
+  return Number.isInteger(id) && id > 0 ? id : null
 }

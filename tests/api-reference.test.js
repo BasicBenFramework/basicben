@@ -126,12 +126,15 @@ describe('the route parser', () => {
 
   test('an undocumented route fails generation', () => {
     // Adding an endpoint without saying what it returns should stop the build,
-    // not ship a reference that omits it.
+    // not ship a reference that omits it. The fixture names an action that does
+    // not exist — `authors` stood here until it became a real endpoint, at
+    // which point this test passed for the wrong reason for exactly as long as
+    // it took to run.
     assert.throws(
       () =>
         parseRoutes(`
           const content = requireScope(SCOPES.CONTENT_READ)
-          router.get('/api/v1/authors', content, PublicApiController.authors)
+          router.get('/api/v1/widgets', content, PublicApiController.widgets)
         `),
       /not documented in ACTIONS/
     )

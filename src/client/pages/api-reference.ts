@@ -41,6 +41,22 @@ export const ENDPOINTS = [
   },
   {
     method: 'GET',
+    path: '/api/v1/authors',
+    scope: 'content:read',
+    shape: 'PublicAuthor',
+    collection: false,
+    summary: 'Every author with something published.'
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/authors/:slug',
+    scope: 'content:read',
+    shape: 'PublicAuthor',
+    collection: false,
+    summary: 'One author, by slug or id.'
+  },
+  {
+    method: 'GET',
     path: '/api/v1/categories',
     scope: 'content:read',
     shape: 'PublicCategory',
@@ -66,6 +82,7 @@ export const ENDPOINTS = [
 ]
 
 export const QUERY_PARAMS = [
+  { name: 'author', description: 'Filter posts by author slug or id — an author archive.' },
   { name: 'category', description: 'Filter posts by category slug or id.' },
   { name: 'format', description: '`markdown` returns the source. Anything else returns rendered HTML.' },
   { name: 'page', description: 'Which page of results. Defaults to 1.' },
@@ -87,6 +104,7 @@ export const SHAPES = [
       { name: 'format', type: '\'html\' | \'markdown\'', description: 'What `content` actually is — not what you asked for. See `?format=`.' },
       { name: 'featured_image_url', type: 'string | null', description: 'Absolute URL of the featured image, or null.' },
       { name: 'author', type: 'string | null', description: 'The author\'s display name. Never their address.' },
+      { name: 'author_profile', type: '{ id: number; name: string; slug: string | null; bio: string | null; website: string | null; avatar_url: string | null } | null', description: 'The author\'s profile — biography, link and avatar. Null if the account is gone.' },
       { name: 'categories', type: 'Array<{ id: number; name: string; slug: string }>', description: 'Every category on the post. Empty when uncategorised.' },
       { name: 'tags', type: 'Array<{ id: number; name: string; slug: string }>', description: 'Every tag on the post. Empty when untagged.' },
       { name: 'meta_title', type: 'string | null', description: 'SEO title override, if set.' },
@@ -104,10 +122,24 @@ export const SHAPES = [
       { name: 'title', type: 'string', description: 'Plain text, never markup.' },
       { name: 'content', type: 'string', description: 'The body, in whichever `format` this item reports.' },
       { name: 'format', type: '\'html\' | \'markdown\'', description: 'What `content` actually is — not what you asked for. See `?format=`.' },
+      { name: 'featured_image_url', type: 'string | null', description: 'Absolute URL of the featured image, or null.' },
       { name: 'meta_title', type: 'string | null', description: 'SEO title override, if set.' },
       { name: 'meta_description', type: 'string | null', description: 'SEO description override, if set.' },
       { name: 'published_at', type: 'string', description: 'When it was created, ISO 8601.' },
       { name: 'updated_at', type: 'string', description: 'When it last changed, ISO 8601.' }
+    ]
+  },
+  {
+    name: 'PublicAuthor',
+    description: 'An author, as a byline and an archive page need them.',
+    fields: [
+      { name: 'id', type: 'number', description: 'Stable identifier. Accepted anywhere a slug is.' },
+      { name: 'name', type: 'string', description: 'Display name, as it appears on a byline.' },
+      { name: 'slug', type: 'string | null', description: 'URL segment for the author\'s archive. Accepted by `?author=`.' },
+      { name: 'bio', type: 'string | null', description: 'The biography they wrote, if any.' },
+      { name: 'website', type: 'string | null', description: 'Their own site, if they gave one.' },
+      { name: 'avatar_url', type: 'string | null', description: 'Absolute URL of their avatar, or null.' },
+      { name: 'post_count', type: 'number', description: 'How many published posts they have. Never zero — unpublished authors are not listed.' }
     ]
   },
   {

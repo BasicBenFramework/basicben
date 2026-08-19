@@ -5,9 +5,34 @@ export interface User {
   email: string
   password: string
   role: string
+  /** Author archive segment, e.g. `jane-doe`. Unique; set at registration. */
+  slug?: string | null
+  /** The author's biography, shown on a byline and an archive page. */
+  bio?: string | null
+  /** The author's own site. */
+  website?: string | null
+  /** Foreign key into `media`. Not a filename — resolved into `AuthorProfile`. */
+  avatar_id?: number | null
   email_verified?: number
   email_verified_at?: string | null
   created_at: string
+}
+
+/**
+ * A user as a reader meets them: the byline, not the account.
+ *
+ * Deliberately excludes the address, the password and the role. This shape
+ * travels to public pages, so anything that must not be published cannot be on
+ * it in the first place.
+ */
+export interface AuthorProfile {
+  id: number
+  name: string
+  slug: string | null
+  bio: string | null
+  website: string | null
+  /** Resolved through the storage adapter, so buckets can move. */
+  avatar_url: string | null
 }
 
 /** The authenticated principal, taken from the JWT. Capability checks read this. */
@@ -28,7 +53,7 @@ export interface Post {
   slug?: string
   excerpt?: string
   /** Foreign key into `media`. Not a filename — see `featured_image_url`. */
-  featured_image?: number
+  featured_image?: number | null
   /** Resolved by the model through the storage adapter. */
   featured_image_url?: string | null
   /**
@@ -43,13 +68,15 @@ export interface Post {
   category_ids?: number[]
   /** Every tag on the post, same contract as `category_ids`. */
   tag_ids?: number[]
-  meta_title?: string
-  meta_description?: string
-  publish_at?: string
+  meta_title?: string | null
+  meta_description?: string | null
+  publish_at?: string | null
   published: boolean
   created_at: string
   updated_at: string
   author_name?: string
+  /** The author's profile, when the query asked for one. */
+  author?: AuthorProfile | null
   category_name?: string
   tags?: Tag[]
 }
@@ -85,6 +112,10 @@ export interface Page {
   published: boolean
   parent_id?: number
   menu_order: number
+  /** Foreign key into `media`. Not a filename — see `featured_image_url`. */
+  featured_image?: number | null
+  /** Resolved by the model through the storage adapter. */
+  featured_image_url?: string | null
   meta_title?: string
   meta_description?: string
   created_at: string
@@ -178,6 +209,8 @@ export interface PostFormData {
   slug?: string
   excerpt?: string
   featured_image?: number
+  /** Who the post is attributed to. Only honoured for `post.edit` holders. */
+  user_id?: number
   category_id?: number
   tags?: number[]
   meta_title?: string
@@ -190,6 +223,7 @@ export interface PageFormData {
   title: string
   slug?: string
   content?: string
+  featured_image?: number | null
   template?: string
   parent_id?: number
   menu_order?: number

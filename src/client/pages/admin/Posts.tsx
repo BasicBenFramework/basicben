@@ -10,6 +10,8 @@ interface Post {
   title: string
   published: boolean
   created_at: string
+  /** Joined by the listing. An editor sees everyone's posts, so it matters. */
+  author_name?: string
   categories?: Array<{ id: number; name: string; slug: string }>
 }
 
@@ -85,6 +87,7 @@ export default function AdminPosts() {
             <thead>
               <tr>
                 <th>Title</th>
+                <th>Author</th>
                 <th>Categories</th>
                 <th>Status</th>
                 <th>Date</th>
@@ -99,6 +102,7 @@ export default function AdminPosts() {
                       {post.title}
                     </Link>
                   </td>
+                  <td>{post.author_name || '—'}</td>
                   <td>
                     {post.categories?.length
                       ? post.categories.map(c => c.name).join(', ')

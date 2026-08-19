@@ -13,12 +13,19 @@ export async function seed() {
   // Set the role explicitly. The column defaults to 'subscriber', and the
   // migration that promotes the first account runs before this seeder, when
   // the table is still empty — so an admin created here has to say so.
+  //
+  // The author profile is seeded too: a byline with a face and a biography is
+  // what the feed is meant to look like, and an empty one looks like the
+  // feature is missing rather than unfilled.
   await (await db.table('users'))
     .insert({
       name: 'Admin User',
       email: 'admin@example.com',
       password,
-      role: ROLES.ADMIN
+      role: ROLES.ADMIN,
+      slug: 'admin-user',
+      bio: 'Runs this site, and writes most of what is on it.',
+      website: 'https://example.com'
     })
 
   // Create test user
@@ -27,7 +34,8 @@ export async function seed() {
       name: 'Test User',
       email: 'test@example.com',
       password,
-      role: DEFAULT_ROLE
+      role: DEFAULT_ROLE,
+      slug: 'test-user'
     })
 
   console.log('Seeded 2 users (password: password123)')

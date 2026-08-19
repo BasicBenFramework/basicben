@@ -108,14 +108,17 @@ describe('admin listings page on the server', () => {
     // created_at alone is not unique — rows land in the same second routinely.
     // An unspecified order is untidy until you paginate it, and then
     // LIMIT/OFFSET can serve a row on two pages and never serve another.
+    // Both listings join now — a post carries its author, a page its featured
+    // image — so the columns are table-qualified and the match allows either
+    // spelling. What is being checked is the ordering, not the prefix.
     for (const [file, table] of [['src/models/Post.ts', 'posts'], ['src/models/Page.ts', 'pages']]) {
       const source = read(file)
-      const paged = source.match(new RegExp(`SELECT \\* FROM ${table}[^']*LIMIT \\? OFFSET \\?`))
+      const paged = source.match(/[`'][^`']*LIMIT \? OFFSET \?/)
 
       assert.ok(paged, `${file} should have a windowed query`)
       assert.match(
         paged[0],
-        /ORDER BY created_at DESC, id DESC/,
+        new RegExp(`ORDER BY (?:${table}\\.)?created_at DESC, (?:${table}\\.)?id DESC`),
         `${file}: paginating an unstable order skips and duplicates rows`
       )
     }

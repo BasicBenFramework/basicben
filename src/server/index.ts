@@ -18,6 +18,7 @@ import twoFactorRoutes from '../routes/api/two-factor'
 import passkeyRoutes from '../routes/api/passkeys'
 import postsRoutes from '../routes/api/posts'
 import profileRoutes from '../routes/api/profile'
+import authorsRoutes from '../routes/api/authors'
 import categoriesRoutes from '../routes/api/categories'
 import tagsRoutes from '../routes/api/tags'
 import pagesRoutes from '../routes/api/pages'
@@ -50,6 +51,7 @@ twoFactorRoutes(router)
 passkeyRoutes(router)
 postsRoutes(router)
 profileRoutes(router)
+authorsRoutes(router)
 categoriesRoutes(router)
 tagsRoutes(router)
 pagesRoutes(router)

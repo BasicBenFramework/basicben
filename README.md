@@ -54,8 +54,10 @@ migrations shipped here: Postgres refuses `CREATE INDEX CONCURRENTLY` and
 
 ## The headless API
 
-`/api/v1/{posts,pages,categories,tags,media}`, read-only, authenticated with a
-scoped `bb_` token or served anonymously if you turn on public reads. The
+`/api/v1/{posts,pages,authors,categories,tags,media}`, read-only, authenticated
+with a scoped `bb_` token or served anonymously if you turn on public reads.
+Posts filter by `?category=`, `?tag=` and `?author=`, each taking a slug or an
+id, so an author archive is one request. The
 response shapes are documented at `/docs/headless` in the running app, and that
 page is **generated** from the interfaces in `src/models/PublicContent.ts` — so
 the field list cannot drift from the code. Re-run it after changing a shape:
@@ -77,6 +79,36 @@ fetches one post per slug makes one request per post and will cross the ceiling
 somewhere past a hundred posts. Fetch pages of 100 and slice locally: a whole
 site becomes a handful of requests.
 
+## Authors
+
+Every account is an author profile: a display name, a biography, a link, an
+avatar, and a slug that addresses them at `?author=`. People edit their own at
+`/profile`; the avatar goes through the same upload the media library uses, so
+it is an ordinary media row.
+
+A post is attributed to whoever wrote it. Reassigning one to somebody else needs
+`post.edit` — the capability an editor and an admin hold and an author does not,
+which is the WordPress rule: you write under your own name, and an editor may
+hand a post to another writer. The editor's Author menu appears only for
+accounts that hold it.
+
+`author` on a post in the content API is still the display name it always was.
+The profile arrives beside it as `author_profile`, so a static build renders a
+byline with a face and a biography without a request per post.
+
+## Slugs, excerpts and featured images
+
+Leave the slug or the excerpt blank and the server writes one — the slug from
+the title, numbered if it is taken, the excerpt from the content. Both are
+derived once, on write: a slug computed per request is not a permalink, and
+would follow the title around, breaking every link to the post the first time
+someone fixed a typo in a headline. Clearing either field asks for a fresh one;
+a request that does not mention them leaves what is there.
+
+Posts and pages both carry a featured image. It is stored as a media id and
+resolved through the storage adapter on read, so moving buckets or putting a CDN
+in front of one does not mean rewriting rows.
+
 ## Migrating from WordPress
 
 ```bash
@@ -92,9 +124,13 @@ already has and served through `publicUrl`, so images resolve when storage
 points at the host already serving them. If your WordPress media sits on the
 WordPress host rather than object storage, move the files first.
 
-WordPress allows many categories per post and this schema allows one: the first
-becomes the category and the rest become tags, which are many-to-many here and
-so lose nothing.
+Categories are many-to-many here, so a post keeps every one it had; the first
+is recorded as its primary category, which is what a breadcrumb or a canonical
+URL names.
+
+Every post is attributed to the first admin account. WordPress authors are not
+imported as separate users — if the site has several, create the accounts and
+reassign the posts from the editor's Author menu.
 
 ## Deploying
 

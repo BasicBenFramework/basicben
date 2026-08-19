@@ -14,22 +14,32 @@ export async function seed() {
     return
   }
 
+  // Slugs and excerpts are spelled out here because a seeder writes rows
+  // directly rather than through the model that derives them. A seeded post
+  // with a null slug is only reachable by id, which is not what a fresh install
+  // should demonstrate.
   const posts = [
     {
       user_id: user.id,
       title: 'Welcome to BasicBen',
+      slug: 'welcome-to-basicben',
+      excerpt: 'BasicBen makes it easy to build full-stack React applications with minimal dependencies.',
       content: 'This is your first blog post. BasicBen makes it easy to build full-stack React applications with minimal dependencies.',
       published: 1
     },
     {
       user_id: user.id,
       title: 'Getting Started with Migrations',
+      slug: 'getting-started-with-migrations',
+      excerpt: 'Migrations help you version control your database schema.',
       content: 'Migrations help you version control your database schema. Run `basicben make:migration` to create a new migration.',
       published: 1
     },
     {
       user_id: user.id,
       title: 'Draft Post Example',
+      slug: 'draft-post-example',
+      excerpt: 'This is a draft post that is not yet published.',
       content: 'This is a draft post that is not yet published.',
       published: 0
     }
