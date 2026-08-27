@@ -5,6 +5,7 @@ import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
 import { excerpt, slugify } from '@basicbenframework/core/content'
 import FeaturedImageBox from '../../components/admin/FeaturedImageBox'
+import TermPicker from '../../components/admin/TermPicker'
 
 import type { AuthorProfile, Page, Post } from '../../../types'
 import { Link } from '../../components/Link'
@@ -203,15 +204,13 @@ export default function AdminPostEditor() {
   // Creating a term without leaving the editor. Going to /admin/categories to
   // add one and coming back meant losing an unsaved draft, which is a poor
   // trade for a word you already knew you wanted.
-  const [newCategory, setNewCategory] = useState('')
-  const [addingCategory, setAddingCategory] = useState(false)
-  const [newTag, setNewTag] = useState('')
   const [creating, setCreating] = useState<'category' | 'tag' | null>(null)
 
-  const createCategory = async () => {
-    const name = newCategory.trim()
-
-    if (!name || creating) return
+  // Whether it landed, so the field knows to clear itself — a name that was
+  // refused stays in the box to be corrected rather than vanishing behind an
+  // alert.
+  const createCategory = async (name: string) => {
+    if (!name || creating) return false
 
     setCreating('category')
 
@@ -223,12 +222,13 @@ export default function AdminPostEditor() {
         setCategories(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
         // Selected straight away: you created it while filing this post.
         setFormData(prev => ({ ...prev, category_ids: [...prev.category_ids, created.id] }))
-        setNewCategory('')
-        setAddingCategory(false)
       }
+
+      return Boolean(created)
     } catch (error) {
       console.error('Failed to create category:', error)
       alert('Could not create that category. It may already exist.')
+      return false
     } finally {
       setCreating(null)
     }
@@ -248,7 +248,7 @@ export default function AdminPostEditor() {
       .map(name => name.trim())
       .filter(Boolean)
 
-    if (names.length === 0 || creating) return
+    if (names.length === 0 || creating) return false
 
     setCreating('tag')
 
@@ -272,10 +272,11 @@ export default function AdminPostEditor() {
         }
       }
 
-      setNewTag('')
+      return true
     } catch (error) {
       console.error('Failed to add tags:', error)
       alert('Could not add those tags.')
+      return false
     } finally {
       setCreating(null)
     }
@@ -494,163 +495,41 @@ export default function AdminPostEditor() {
             )}
 
             {/* A page has no taxonomy: filing one under a category would put
-                it in a listing that only ever shows posts. */}
+                it in a listing that only ever shows posts.
+
+                Both boxes are the same control: search what exists, tick what
+                you want, and add what is missing from the field you searched
+                in. They used to differ — categories were a checkbox list with
+                an add button, tags a free-text field with the list folded away
+                behind a disclosure — which meant two ways to do one thing and
+                neither of them usable on a site with four hundred tags. */}
             {!isPage && (
               <>
-                {/* Categories: a checkbox list, the way every CMS people arrive
-                    from presents them. Scrolls once there are more than a handful
-                    rather than pushing the rest of the sidebar off the screen. */}
-                <div className="admin-card">
-                  <h3 className="admin-card-title">Categories</h3>
+                <TermPicker
+                  title="Categories"
+                  noun="category"
+                  terms={categories}
+                  selected={formData.category_ids}
+                  onToggle={handleCategoryToggle}
+                  onAdd={createCategory}
+                  busy={creating !== null}
+                  emptyText="No categories yet."
+                />
 
-                  {/* What the post is filed under, without scrolling the list
-                      to find the ticked boxes. Removable here too, so the
-                      common correction does not mean hunting for a checkbox. */}
-                  {formData.category_ids.length > 0 && (
-                    <div className="admin-term-chips">
-                      {formData.category_ids.map(id => {
-                        const category = categories.find(c => c.id === id)
-
-                        return (
-                          <span key={id} className="admin-term-chip">
-                            {category?.name ?? `#${id}`}
-                            <button
-                              type="button"
-                              aria-label={`Remove ${category?.name ?? 'category'}`}
-                              onClick={() => handleCategoryToggle(id)}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {categories.length === 0 ? (
-                    <p className="admin-term-empty">No categories yet.</p>
-                  ) : (
-                    <div className="admin-term-list">
-                      {categories.map(cat => (
-                        <label key={cat.id} className="admin-term-option">
-                          <input
-                            type="checkbox"
-                            checked={formData.category_ids.includes(cat.id)}
-                            onChange={() => handleCategoryToggle(cat.id)}
-                          />
-                          <span>{cat.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-
-                  {addingCategory ? (
-                    <div className="admin-inline-add">
-                      <input
-                        type="text"
-                        className="admin-input"
-                        placeholder="New category name"
-                        value={newCategory}
-                        autoFocus
-                        onChange={(e) => setNewCategory(e.target.value)}
-                        // Enter must not reach the surrounding form, or adding a
-                        // category would submit the post instead.
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') return setAddingCategory(false)
-                          if (e.key !== 'Enter') return
-                          e.preventDefault()
-                          createCategory()
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-secondary"
-                        onClick={createCategory}
-                        disabled={!newCategory.trim() || creating !== null}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="admin-term-add"
-                      onClick={() => setAddingCategory(true)}
-                    >
-                      + Add New Category
-                    </button>
-                  )}
-                </div>
-
-                {/* Tags: typed, not picked. You should not have to create a tag
-                    somewhere else before you can use it, and a site accumulates far
-                    too many for a list of every one to stay useful. */}
-                <div className="admin-card">
-                  <h3 className="admin-card-title">Tags</h3>
-
-                  {formData.tags.length > 0 && (
-                    <div className="admin-term-chips">
-                      {formData.tags.map(id => {
-                        const tag = allTags.find(t => t.id === id)
-
-                        return (
-                          <span key={id} className="admin-term-chip">
-                            {tag?.name ?? `#${id}`}
-                            <button
-                              type="button"
-                              aria-label={`Remove ${tag?.name ?? 'tag'}`}
-                              onClick={() => handleTagToggle(id)}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  <div className="admin-inline-add">
-                    <input
-                      type="text"
-                      className="admin-input"
-                      placeholder="Add tags, separated by commas"
-                      value={newTag}
-                      onChange={(e) => setNewTag(e.target.value)}
-                      onKeyDown={(e) => {
-                        // Comma commits too, which is what the placeholder implies.
-                        if (e.key !== 'Enter' && e.key !== ',') return
-                        e.preventDefault()
-                        addTags(newTag)
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-secondary"
-                      onClick={() => addTags(newTag)}
-                      disabled={!newTag.trim() || creating !== null}
-                    >
-                      Add
-                    </button>
-                  </div>
-
-                  {allTags.length > 0 && (
-                    <details className="admin-term-details">
-                      <summary>Choose from existing tags</summary>
-                      <div className="admin-term-list">
-                        {allTags.map(tag => (
-                          <label key={tag.id} className="admin-term-option">
-                            <input
-                              type="checkbox"
-                              checked={formData.tags.includes(tag.id)}
-                              onChange={() => handleTagToggle(tag.id)}
-                            />
-                            <span>{tag.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                </div>
+                {/* A comma commits, because a run of tags is conventionally
+                    typed as one — and `addTags` splits it, reusing the ones
+                    that already exist rather than making near-duplicates. */}
+                <TermPicker
+                  title="Tags"
+                  noun="tag"
+                  terms={allTags}
+                  selected={formData.tags}
+                  onToggle={handleTagToggle}
+                  onAdd={addTags}
+                  busy={creating !== null}
+                  emptyText="No tags yet."
+                  commitOnComma
+                />
               </>
             )}
           </div>

@@ -4,47 +4,85 @@ import AdminLayout from '../../layouts/AdminLayout'
 import type { Post, Page } from '../../../types'
 import { Link } from '../../components/Link'
 
+/**
+ * A count the signed-in account is allowed to see, or `null` because it is not.
+ *
+ * Nothing here is optional to the person who can see all four; the nullability
+ * is about permission, not about loading.
+ */
 interface Stats {
-  posts: number
-  pages: number
-  comments: number
-  pendingComments: number
-  media: number
+  posts: number | null
+  pages: number | null
+  pendingComments: number | null
+  media: number | null
 }
+
+/** What a paginated listing returns beside its rows. */
+interface Meta {
+  total: number
+}
+
+/**
+ * A request whose refusal is an answer rather than a failure.
+ *
+ * The four went out as one `Promise.all`, so a single 403 rejected the lot: an
+ * author holds neither `page.edit` nor `comment.moderate`, and those two
+ * refusals left the whole dashboard — the post count included — reading zero.
+ */
+const settle = <T,>(request: Promise<T>): Promise<T | null> =>
+  request.catch(() => null)
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
-  const [recentPosts, setRecentPosts] = useState<any[]>([])
+  const [recentPosts, setRecentPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadDashboardData()
   }, [])
 
+  /**
+   * The counts, and the five most recent posts.
+   *
+   * `/api/posts` and `/api/pages` are paginated, so the rows they return are
+   * one page of rows. Counting that array reported the page size rather than
+   * the total, and any site past its twentieth post sat at "20" for ever.
+   * `meta.total` is the count the database did, which is what a stat card is
+   * asking for.
+   *
+   * Five rows are shown, so five are asked for: this was fetching twenty posts
+   * and twenty pages, bodies and all, to render two numbers and a short table.
+   */
   const loadDashboardData = async () => {
-    try {
-      const [postsRes, pagesRes, commentsRes, mediaRes] = await Promise.all([
-        api.get<{ posts: Post[] }>('/api/posts'),
-        api.get<{ pages: Page[] }>('/api/pages'),
-        api.get<{ count: number }>('/api/comments/pending'),
-        api.get<{ stats: { total: number } }>('/api/media/stats')
-      ])
+    const [postsRes, pagesRes, commentsRes, mediaRes] = await Promise.all([
+      settle(api.get<{ posts: Post[]; meta?: Meta }>('/api/posts?per_page=5')),
+      settle(api.get<{ pages: Page[]; meta?: Meta }>('/api/pages?per_page=1')),
+      settle(api.get<{ count: number }>('/api/comments/pending')),
+      settle(api.get<{ stats: { total: number } }>('/api/media/stats'))
+    ])
 
-      setStats({
-        posts: postsRes?.posts?.length || 0,
-        pages: pagesRes?.pages?.length || 0,
-        comments: 0,
-        pendingComments: commentsRes?.count || 0,
-        media: mediaRes?.stats?.total || 0
-      })
+    setStats({
+      posts: postsRes?.meta?.total ?? null,
+      pages: pagesRes?.meta?.total ?? null,
+      pendingComments: commentsRes?.count ?? null,
+      media: mediaRes?.stats?.total ?? null
+    })
 
-      setRecentPosts((postsRes?.posts || []).slice(0, 5))
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error)
-    } finally {
-      setLoading(false)
-    }
+    setRecentPosts(postsRes?.posts ?? [])
+    setLoading(false)
   }
+
+  /**
+   * One card per stat that came back. A refused one is left out rather than
+   * shown as zero — "0 Pending Comments" to somebody who may not moderate them
+   * is a number the dashboard has no way to know.
+   */
+  const cards = [
+    { label: 'Posts', value: stats?.posts },
+    { label: 'Pages', value: stats?.pages },
+    { label: 'Pending Comments', value: stats?.pendingComments },
+    { label: 'Media Files', value: stats?.media }
+  ].filter((card): card is { label: string; value: number } => typeof card.value === 'number')
 
   if (loading) {
     return (
@@ -56,25 +94,18 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout title="Dashboard">
-      {/* Stats Grid */}
-      <div className="admin-grid admin-grid-4">
-        <div className="admin-stat-card">
-          <div className="admin-stat-value">{stats?.posts || 0}</div>
-          <div className="admin-stat-label">Posts</div>
+      {/* Stats Grid. The column count follows the number of cards, so the two
+          an author can see are not two cards and two empty quarters. */}
+      {cards.length > 0 && (
+        <div className={`admin-grid admin-grid-${Math.min(4, Math.max(2, cards.length))}`}>
+          {cards.map(card => (
+            <div key={card.label} className="admin-stat-card">
+              <div className="admin-stat-value">{card.value}</div>
+              <div className="admin-stat-label">{card.label}</div>
+            </div>
+          ))}
         </div>
-        <div className="admin-stat-card">
-          <div className="admin-stat-value">{stats?.pages || 0}</div>
-          <div className="admin-stat-label">Pages</div>
-        </div>
-        <div className="admin-stat-card">
-          <div className="admin-stat-value">{stats?.pendingComments || 0}</div>
-          <div className="admin-stat-label">Pending Comments</div>
-        </div>
-        <div className="admin-stat-card">
-          <div className="admin-stat-value">{stats?.media || 0}</div>
-          <div className="admin-stat-label">Media Files</div>
-        </div>
-      </div>
+      )}
 
       {/* Recent Posts */}
       <div className="admin-card">

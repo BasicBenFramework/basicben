@@ -664,17 +664,6 @@ const adminStyles = `
 
   .admin-btn-secondary { background: var(--surface); color: var(--fg); }
 
-  /* Creating a category or tag from inside the post editor, so adding one does
-     not mean leaving an unsaved draft to visit another page. */
-  .admin-inline-add {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-  }
-
-  .admin-inline-add .admin-input { flex: 1; min-width: 0; }
-  .admin-inline-add .admin-btn:disabled { opacity: 0.45; cursor: default; }
-
   /* The permalink, under the title where you write it rather than in an SEO
      panel further down the page. Quieter than the title in every way — smaller,
      muted, monospaced — because it is derived from it and mostly read, not
@@ -745,6 +734,18 @@ const adminStyles = `
   .admin-term-option input { cursor: pointer; }
   .admin-term-option:hover { color: var(--accent); }
 
+  /* Searching a taxonomy and adding to it are the same field, so it is a
+     full-width input above the list rather than half of a row shared with a
+     button. The appearance is reset because WebKit styles type=search itself
+     otherwise, ignoring the height and padding every other admin input has —
+     and a backtick in here would end the template literal this lives in. */
+  .admin-term-search {
+    appearance: none;
+    margin-bottom: 0.5rem;
+  }
+
+  .admin-term-search::-webkit-search-cancel-button { cursor: pointer; }
+
   .admin-term-empty {
     margin: 0;
     color: var(--fg-muted);
@@ -762,6 +763,10 @@ const adminStyles = `
   }
 
   .admin-term-add:hover { text-decoration: underline; }
+
+  /* While the term is being created. Nothing to underline yet. */
+  .admin-term-add:disabled { opacity: 0.45; cursor: default; }
+  .admin-term-add:disabled:hover { text-decoration: none; }
 
   /* What is actually on the post, each removable — so the selection is visible
      without opening anything, and without scrolling a list to find the four
@@ -798,17 +803,6 @@ const adminStyles = `
   }
 
   .admin-term-chip button:hover { color: var(--danger); }
-
-  .admin-term-details { margin-top: 0.75rem; }
-
-  .admin-term-details summary {
-    color: var(--fg-muted);
-    font-size: 0.8125rem;
-    cursor: pointer;
-  }
-
-  .admin-term-details summary:hover { color: var(--accent); }
-  .admin-term-details .admin-term-list { margin-top: 0.5rem; }
 
   /* --- Markdown editor -------------------------------------------------------
      Every colour here was a hardcoded hex in the component's inline styles: a

@@ -189,9 +189,20 @@ describe('the editor knows which thing it is editing', () => {
   test('the selection is visible without scrolling a list to find it', () => {
     // Ticked boxes eight rows down a scrolling list are not a selection you can
     // read. Both taxonomies show what is on the post as removable chips, above
-    // the control rather than below it.
-    assert.match(editor, /formData\.category_ids\.length > 0 && \(\s*\n\s*<div className="admin-term-chips">/)
-    assert.match(editor, /formData\.tags\.length > 0 && \(\s*\n\s*<div className="admin-term-chips">/)
+    // the control rather than below it — from one component now, so the two
+    // cannot drift apart.
+    const picker = read('src/client/components/admin/TermPicker.tsx')
+
+    assert.match(picker, /selected\.length > 0 && \(\s*\n\s*<div className="admin-term-chips">/)
+    assert.ok(
+      picker.indexOf('admin-term-chips') < picker.indexOf('admin-term-search'),
+      'the chips are rendered below the field rather than above it'
+    )
+    assert.strictEqual(
+      editor.split('<TermPicker').length - 1,
+      2,
+      'categories and tags are not both drawn by the same control'
+    )
 
     const layout = read('src/client/layouts/AdminLayout.tsx')
     const chips = layout.slice(layout.indexOf('.admin-term-chips {'))
