@@ -1,6 +1,8 @@
 import { timingSafeEqual } from 'node:crypto'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
+import { getDb } from '@basicbenframework/core/db'
 import { Post } from '../models/Post'
+import { recordHeartbeat, HEARTBEATS } from './heartbeat'
 import type { Request, Response } from '../types'
 
 /**
@@ -29,6 +31,11 @@ export async function publishDue(): Promise<number> {
     const post = await Post.find(row.id)
     await hooks.fire(HOOKS.POST_UPDATED, { post, previous: row, userId: null, scheduled: true })
   }
+
+  // So the site health page can tell "nothing was due" from "nothing has been
+  // checking". At most one write a minute — this whole function is throttled
+  // to that — and best-effort: the announcements above already happened.
+  await recordHeartbeat((await getDb()) as any, HEARTBEATS.PUBLISH_DUE, { announced: due.length })
 
   return due.length
 }

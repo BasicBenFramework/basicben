@@ -22,7 +22,9 @@
     "import:json": "node --env-file-if-exists=.env scripts/import-json.mjs",
     "import:wxr": "node --env-file-if-exists=.env scripts/import-wxr.mjs",
     "import:ghost": "node --env-file-if-exists=.env scripts/import-ghost.mjs",
-    "import:wordpress": "node --env-file-if-exists=.env scripts/import-wordpress.mjs"
+    "import:wordpress": "node --env-file-if-exists=.env scripts/import-wordpress.mjs",
+    "backup": "node --env-file-if-exists=.env scripts/backup.mjs",
+    "restore": "node --env-file-if-exists=.env scripts/restore.mjs"
   },
   "dependencies": {
     "@basicbenframework/core": "^0.6.0",
