@@ -10,7 +10,7 @@ import { LISTING_FILTERS, type ListingFilter } from '../models/Post'
 import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/visibility'
 import { lockConflict } from './PostLockController'
 import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
-import { postPath } from '../helpers/content-paths'
+import { typeAndFields, saveTerms, publicPathOf, editorExtras } from '../helpers/content-model'
 
 /**
  * Hooks fire from here so an app can take part in the content lifecycle.
@@ -38,13 +38,17 @@ export const PostController = {
       : 'all'
     const search = query.search?.trim().slice(0, 200) || undefined
     const userId = can(req.user, 'post.edit') ? undefined : req.userId
+    // One content type at a time, `post` unless asked: the Posts screen and
+    // every client written before content types existed see only posts.
+    // `?type=any` lists every type.
+    const type = query.type === 'any' ? undefined : (query.type?.trim() || 'post')
 
-    const { posts, total } = await Post.paginate({ perPage, offset, userId, filter, search })
+    const { posts, total } = await Post.paginate({ perPage, offset, userId, filter, search, type })
 
     // `posts` stays where it was so nothing reading this breaks; `meta` is
     // added alongside, in the same shape /api/v1 uses. `counts` sizes the
     // status tabs.
-    res.json({ posts, meta: meta(page, perPage, total), counts: await Post.counts(userId) })
+    res.json({ posts, meta: meta(page, perPage, total), counts: await Post.counts(userId, type) })
   },
 
   async show(req: Request, res: Response) {
@@ -62,7 +66,7 @@ export const PostController = {
     const autosave = await PostRevision.pendingAutosave(post.id, req.userId!, String(post.updated_at ?? post.created_at))
 
     res.json({
-      post: { ...post, category_ids: taxonomy.categories, tag_ids: taxonomy.tags },
+      post: { ...post, category_ids: taxonomy.categories, tag_ids: taxonomy.tags, ...(await editorExtras(post)) },
       autosave: autosave ?? null
     })
   },
@@ -79,6 +83,11 @@ export const PostController = {
 
     const fields = editableFields(req.body)
     if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
+
+    // Content type and custom fields; see helpers/content-model.ts.
+    const typed = await typeAndFields(req.body, null)
+    if ('errors' in typed) return res.json({ errors: typed.errors }, 422)
+    Object.assign(fields.values, typed.values)
 
     const publishing = resolvePublishing(req, null)
     if ('error' in publishing) return res.json({ error: publishing.error }, publishing.status)
@@ -109,13 +118,14 @@ export const PostController = {
 
     // A live post on a path an old redirect still claims would never be
     // reached; pages release their path the same way.
-    if (post?.published && post.slug) await releasePath(postPath(post.slug))
+    if (post?.published && post.slug) await releasePath(await publicPathOf(post))
 
     // Categories and tags were accepted by the editor and dropped here — the
     // request carried them, nothing read them, and the selection silently did
     // nothing. They are persisted separately from the post row because both
     // are many-to-many.
     await saveTaxonomy(post.id, req.body)
+    await saveTerms(post.id, req.body)
 
     await hooks.fire(HOOKS.POST_CREATED, { post, userId: req.userId })
 
@@ -157,6 +167,10 @@ export const PostController = {
     const fields = editableFields(req.body)
     if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
 
+    const typed = await typeAndFields(req.body, post)
+    if ('errors' in typed) return res.json({ errors: typed.errors }, 422)
+    Object.assign(fields.values, typed.values)
+
     // Absent means "leave it as it is". Coercing an absent key to 0 turned
     // every request that did not mention publishing into an unpublish.
     const publishing = resolvePublishing(req, post)
@@ -188,6 +202,7 @@ export const PostController = {
     await PostRevision.clearAutosave(post.id, req.userId!)
 
     await saveTaxonomy(parseInt(req.params.id), req.body)
+    await saveTerms(post.id, req.body, updated?.post_type !== post.post_type)
 
     await hooks.fire(HOOKS.POST_UPDATED, { post: updated, previous: post, userId: req.userId })
 

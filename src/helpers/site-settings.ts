@@ -55,6 +55,12 @@ const integer = (min: number, max: number): Check => (value) => {
   return { value: String(n) }
 }
 
+/** One of a fixed list of values. Blank is allowed only if it is in the list. */
+const oneOf = (allowed: string[]): Check => (value) => {
+  const str = value === null || value === undefined ? '' : String(value).trim()
+  return allowed.includes(str) ? { value: str } : { error: `Must be one of: ${allowed.map((v) => v || '(blank)').join(', ')}` }
+}
+
 /**
  * An image reference: an absolute http(s) URL, or a path on this app such as
  * `/uploads/logo.png` (what the media library hands out with local storage).
@@ -160,6 +166,10 @@ export const SETTINGS: Record<string, SettingDefinition> = {
 
   posts_per_page: { group: 'reading', check: integer(1, 100) },
   robots_txt: { group: 'reading', check: text(10_000) },
+  // Whether this app renders the public site itself with the reference theme
+  // (`ssr`) or leaves it to the SPA / a headless front end (blank). The
+  // PUBLIC_THEME environment variable, when set, wins: `ssr` or `off`.
+  public_theme: { group: 'reading', check: oneOf(['', 'ssr']) },
 
   allow_comments: { group: 'discussion', check: flag },
   moderate_comments: { group: 'discussion', check: flag },

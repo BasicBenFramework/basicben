@@ -7,12 +7,82 @@
  * link and the redirect for the same post would point at different places.
  * They are named once, here.
  *
+ * Content types add one more shape — `${route_base}/${slug}` — through
+ * `entryPath`, which hands a plain post straight to `postPath`.
+ *
  * Nothing in this file touches the database, so tests import it directly.
  */
 
 /** A post's public path. Posts written before slugs existed answer to their id. */
 export function postPath(slug: string | null | undefined, id?: number): string {
   return `/blog/${slug || id}`
+}
+
+/**
+ * Where the built-in `post` type lives. Fixed: every feed, sitemap and
+ * automatic redirect already written says `/blog`, so the built-in type's
+ * route base is not editable (see migration 038).
+ */
+export const POST_ROUTE_BASE = '/blog'
+
+/**
+ * A post's public path, for any content type.
+ *
+ * `routeBase` is the type's `route_base` (`/recipes`). The built-in type — or
+ * a missing base, which is what a row written before content types existed
+ * effectively has — goes through `postPath`, so a plain post's path is
+ * computed exactly as it always was.
+ */
+export function entryPath(routeBase: string | null | undefined, slug: string | null | undefined, id?: number): string {
+  if (!routeBase || routeBase === POST_ROUTE_BASE) return postPath(slug, id)
+  return `${routeBase}/${slug || id}`
+}
+
+/** A tag archive's public path. */
+export function tagPath(slug: string): string {
+  return `/tag/${slug}`
+}
+
+/** An author archive's public path. */
+export function authorPath(slug: string): string {
+  return `/author/${slug}`
+}
+
+/** A custom taxonomy term's archive path on the reference theme. */
+export function termPath(taxonomy: string, slug: string): string {
+  return `/taxonomy/${taxonomy}/${slug}`
+}
+
+/**
+ * First path segments a content type may not claim as its route base.
+ *
+ * Each is already a server route, an admin or SPA route, a theme archive, or a
+ * static directory. A type at `/admin` would put recipes where the admin is;
+ * one at `/api` would shadow nothing (the API is matched first) but every link
+ * to it would be a JSON error. Checked case-insensitively.
+ */
+export const RESERVED_ROUTE_SEGMENTS = [
+  'admin', 'api', 'assets', 'uploads', 'feed', 'feed.xml', 'feed.json', 'sitemap.xml',
+  'robots.txt', 'oembed', 'blog', 'category', 'tag', 'author', 'page', 'taxonomy',
+  'login', 'register', 'logout', 'forgot-password', 'reset-password', 'invite',
+  'profile', 'posts', 'docs', 'favicon.svg', 'favicon.ico', 'index.html'
+]
+
+/**
+ * Normalise a route base: one leading slash, lowercase, a single segment of
+ * letters, digits and hyphens. Null when it is not one, or is reserved.
+ *
+ * One segment only, because the theme matches `/:base/:slug` — a base of
+ * `/a/b` would need a route shape nothing serves.
+ */
+export function normalizeRouteBase(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const segment = value.trim().replace(/^\/+|\/+$/g, '').toLowerCase()
+
+  if (!/^[a-z0-9][a-z0-9-]{0,49}$/.test(segment)) return null
+  if (RESERVED_ROUTE_SEGMENTS.includes(segment)) return null
+
+  return `/${segment}`
 }
 
 /** A page's public path. Pages always have a slug: the column is NOT NULL. */

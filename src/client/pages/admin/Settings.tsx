@@ -11,6 +11,7 @@ interface SiteSettings {
   public_api: string
   webhook_urls: string
   robots_txt: string
+  public_theme: string
   site_logo: string
   site_icon: string
   default_social_image: string
@@ -29,6 +30,7 @@ const DEFAULTS: SiteSettings = {
   public_api: 'false',
   webhook_urls: '',
   robots_txt: '',
+  public_theme: '',
   site_logo: '',
   site_icon: '',
   default_social_image: '',
@@ -252,6 +254,24 @@ export default function AdminSettings() {
               placeholder={'Blank uses the default:\nUser-agent: *\nDisallow: /admin\nDisallow: /api/\nAllow: /api/v1/\nSitemap: …/sitemap.xml'}
               style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '13px' }}
             />
+          </div>
+        </div>
+
+        {/* The server-rendered reference theme. Off by default, so a site
+            using its own front end (or the SPA) sees no change; the
+            PUBLIC_THEME environment variable overrides this either way. */}
+        <div className="admin-card">
+          <h3 className="admin-card-title">Public site</h3>
+          <div className="admin-form-group">
+            <label className="admin-label" htmlFor="public_theme">Render the public site</label>
+            <select id="public_theme" name="public_theme" value={settings.public_theme} onChange={handleChange} className="admin-input">
+              <option value="">No — a separate front end (or the built-in app) renders it</option>
+              <option value="ssr">Yes — with the built-in server-rendered theme</option>
+            </select>
+            <p style={hint}>
+              Serves the home page, posts, pages, archives and custom content types as HTML from this app,
+              with full SEO tags and oEmbed. Takes up to 30 seconds to apply.
+            </p>
           </div>
         </div>
 
