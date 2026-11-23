@@ -12,7 +12,7 @@
  * that a second instance cannot see, is not a lockout.
  */
 
-import { rateLimit, createLimiter, DatabaseStore } from '@basicbenframework/core/rate-limit'
+import { rateLimit, createLimiter, clientAddress, DatabaseStore } from '@basicbenframework/core/rate-limit'
 import { getDb } from '@basicbenframework/core/db'
 import type { Request } from '../types'
 
@@ -100,6 +100,30 @@ export const emailSendLimiter = createLimiter({
 export { address }
 
 /**
+ * The caller's address as every limiter here sees it.
+ *
+ * For checks that are not limits — the comment blocklist — but have to agree
+ * with them about who a client is: the same proxy trust, and the same
+ * normalisation (IPv4-mapped addresses as IPv4, IPv6 as its /64). Reading the
+ * socket directly would let a blocked commenter behind a trusted proxy
+ * through, and a raw IPv6 address would let them step around an entry by
+ * changing the last 64 bits.
+ */
+export const clientIp = (req: Request): string => clientAddress(req, trustProxy)
+
+/**
+ * An address key in a namespace of its own.
+ *
+ * Nothing for an unidentifiable caller, as the framework's default key does:
+ * one shared bucket for everyone without an address would let one of them
+ * lock out the rest.
+ */
+const addressIn = (namespace: string) => (req: Request) => {
+  const ip = clientIp(req)
+  return ip ? `${namespace}:${ip}` : null
+}
+
+/**
  * The public content API.
  *
  * `/api/v1` is the one surface that can be served to anyone — `public_api` in
@@ -160,8 +184,26 @@ export const commentLimit = rateLimit({
   window: '10m',
   blockFor: '10m',
   store,
-  trustProxy,
+  // Prefixed. Every limiter here shares one store, and one left on the bare
+  // address shares its bucket with every other bare-address limiter: a reader
+  // who posted five comments was locked out of the public API too, and the
+  // reverse. Same limit, same address, its own count.
+  key: addressIn('comment'),
   message: 'Too many comments. Please wait a few minutes.'
+})
+
+/**
+ * The unsubscribe link in reply notifications.
+ *
+ * Open to anyone, so limited; generous, because one reader may be clearing a
+ * week of mail. The token's signature is what stops guessing.
+ */
+export const unsubscribeLimit = rateLimit({
+  limit: 30,
+  window: '10m',
+  store,
+  key: addressIn('unsubscribe'),
+  message: 'Too many requests. Please try again shortly.'
 })
 
 /**

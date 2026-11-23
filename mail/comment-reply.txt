@@ -1,0 +1,14 @@
+Hi {{name}},
+
+{{replierName}} replied to your comment on "{{postTitle}}":
+
+{{content}}
+
+Read the conversation here:
+
+{{replyUrl}}
+
+You asked to be told about replies to this comment. To stop, open this link —
+no account needed:
+
+{{unsubscribeUrl}}

@@ -144,9 +144,21 @@ export interface Comment {
   author_name?: string
   author_email?: string
   content: string
+  /** Kept in step with `status`: true exactly when it is `approved`. */
   approved: boolean
+  /** pending, approved, spam or trash. Moderators only; the public list is all approved. */
+  status?: 'pending' | 'approved' | 'spam' | 'trash'
+  /** Why a check held it or called it spam. Moderators only. */
+  held_reason?: string | null
+  /** The rate limiter's view of the commenter's address. Moderators only. */
+  author_ip?: string | null
+  /** Whether the commenter asked to be emailed about replies. */
+  notify_replies?: boolean | number
+  reply_notified?: boolean | number
   created_at: string
   user?: User
+  /** 1 for a top-level comment; set on the trees the post thread returns. */
+  depth?: number
   replies?: Comment[]
 }
 
@@ -265,6 +277,12 @@ export interface CommentFormData {
   author_name?: string
   author_email?: string
   parent_id?: number
+  /** Email me when someone replies. Needs an address: the guest's, or the account's. */
+  notify_replies?: boolean
+  /** The signed timestamp from the comments response's `form.token`. */
+  form_token?: string
+  /** The honeypot. A person never fills it in. */
+  website?: string
 }
 
 export interface UserFormData {
