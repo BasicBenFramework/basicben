@@ -75,8 +75,9 @@ One JSON document:
 - A table that does not exist in the source is absent (not an empty array).
   `post_revisions` is present only when the export was asked for revisions
   (`--revisions`, or the checkbox in Tools).
-- `menus`, `menu_items` and `redirects` are exported when those features are
-  installed. Any other table the export does not know is listed in
+- `menus`, `menu_items`, `redirects` and `snippets` are exported when those
+  tables exist. Comments are exported without `author_ip` (a spam signal for
+  this install, and personal data), and edit locks (`post_locks`) never are. Any other table the export does not know is listed in
   `omitted.tables` — the list of exported tables is an allowlist, so a new
   table is never exported by accident.
 - Dates are whatever the database stored: ISO-8601 strings, or
@@ -119,12 +120,15 @@ target does not have and skip tables it does not have, with a note.
 - Term assignments are written for posts this run creates or updates.
   Revisions are imported only for posts this run creates.
 - Comments are matched on post, `created_at` and content.
-- Tables the importer does not know (menus, redirects, …) are imported
-  generically: matched on the first of `slug`, `key`, `from_path`,
-  `source_path`, `source`, `from`, `path`, `location` the table has; `*_id`
-  columns are remapped when they name a known table (`post_id` → posts,
-  `menu_id` → menus, `parent_id` → the same table). A table with no such
-  column is imported only into an empty target.
+- Menus, menu items, redirects and snippets go through a generic path:
+  matched on the first of `slug`, `key`, `from_path`, `source_path`,
+  `source`, `from`, `path`, `location`, `name` the table has; `*_id` columns
+  are remapped when they name a known table (`menu_id` → menus, `parent_id` →
+  the same table), and `created_by` → users. Menu links (`target_type` +
+  `target_id`) are remapped through the table `target_type` names, and an item
+  whose target was not imported is skipped rather than left pointing at
+  whatever row has the old id. A table with no such column (menu items) is
+  imported only into a target that has none yet, so re-running adds nothing.
 
 ## WordPress export file (WXR)
 
@@ -154,9 +158,9 @@ Content is the raw `post_content`, so classic-editor posts go through an
 already HTML. `[caption]` becomes a figure with its caption and `[embed]` a
 link; other shortcodes are left visible for an editor to replace.
 
-\* Spam: if the `comments` table has a `status`, `spam` or `is_spam` column,
-spam is imported and marked; otherwise it is skipped and counted, rather than
-dropped into the moderation queue looking like a real comment.
+\* Spam is imported with `status = 'spam'` (migration 030), so it lands in the
+admin's Spam tab rather than the moderation queue. Against an older schema with
+no status column it is skipped and counted instead.
 
 ## WordPress REST API
 

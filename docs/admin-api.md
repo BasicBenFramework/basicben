@@ -44,7 +44,7 @@ unknown, expired or revoked token, or one whose owner is disabled, gets **401**.
 | GET    | `/api/posts`      | Listing as the owner sees it in the admin (drafts included). `?status=`, `?search=`, `?page=`, `?per_page=` |
 | GET    | `/api/posts/:id`  | One post, with `category_ids` and `tag_ids` |
 | POST   | `/api/posts`      | Needs `post.create`. Body: `title`, `content` (Markdown), optional `slug`, `excerpt`, `status` (`draft`/`pending`/`published`), `publish_at`, `category_ids`, `tag_ids`, `featured_image`, SEO fields, `user_id` (honoured only for editors) |
-| PUT    | `/api/posts/:id`  | Same body; absent keys are left alone. Refused with **409** while a person holds the post's edit lock (below) |
+| PUT    | `/api/posts/:id`  | Same body. `title` and `content` are required on every update; other absent keys are left alone. Refused with **409** while a person holds the post's edit lock (below) |
 | DELETE | `/api/posts/:id`  | Moves the post to the trash. Deleting a post that is already in the trash (permanently) is **403** with a token: emptying the trash needs a session |
 
 Bulk actions, revisions, restore-from-trash, autosave and the edit lock are
