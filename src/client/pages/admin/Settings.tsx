@@ -11,19 +11,49 @@ interface SiteSettings {
   public_api: string
   webhook_urls: string
   robots_txt: string
+  site_logo: string
+  site_icon: string
+  default_social_image: string
+  timezone: string
+  locale: string
+  code_injection_head: string
+  code_injection_foot: string
 }
 
+const DEFAULTS: SiteSettings = {
+  site_name: '',
+  site_description: '',
+  posts_per_page: '10',
+  allow_comments: 'true',
+  moderate_comments: 'true',
+  public_api: 'false',
+  webhook_urls: '',
+  robots_txt: '',
+  site_logo: '',
+  site_icon: '',
+  default_social_image: '',
+  timezone: 'UTC',
+  locale: 'en',
+  code_injection_head: '',
+  code_injection_foot: ''
+}
+
+// The zones the runtime knows, for the picker. The server validates against
+// the same Intl data, so anything offered here is accepted there.
+const TIME_ZONES: string[] = (() => {
+  try {
+    return ['UTC', ...(Intl as any).supportedValuesOf('timeZone').filter((z: string) => z !== 'UTC')]
+  } catch {
+    return ['UTC']
+  }
+})()
+
+const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '13px' }
+const hint = { color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }
+
 export default function AdminSettings() {
-  const [settings, setSettings] = useState<SiteSettings>({
-    site_name: '',
-    site_description: '',
-    posts_per_page: '10',
-    allow_comments: 'true',
-    moderate_comments: 'true',
-    public_api: 'false',
-    webhook_urls: '',
-    robots_txt: ''
-  })
+  const [settings, setSettings] = useState<SiteSettings>(DEFAULTS)
+  const [siteUrl, setSiteUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -34,19 +64,18 @@ export default function AdminSettings() {
 
   const loadSettings = async () => {
     try {
-      const res = await api.get<{ settings: Partial<SiteSettings> }>('/api/settings')
+      const res = await api.get<{ settings: Partial<SiteSettings>; site_url?: string }>('/api/settings')
       if (res?.settings) {
-        setSettings({
-          site_name: res.settings.site_name || '',
-          site_description: res.settings.site_description || '',
-          posts_per_page: res.settings.posts_per_page || '10',
-          allow_comments: res.settings.allow_comments || 'true',
-          moderate_comments: res.settings.moderate_comments || 'true',
-          public_api: res.settings.public_api || 'false',
-          webhook_urls: res.settings.webhook_urls || '',
-          robots_txt: res.settings.robots_txt || ''
-        })
+        // Only the known keys, each falling back to its default: the response
+        // can also carry legacy rows the form has no field for, and sending
+        // those back would be refused as unknown settings.
+        const loaded = { ...DEFAULTS }
+        for (const key of Object.keys(DEFAULTS) as Array<keyof SiteSettings>) {
+          if (res.settings[key]) loaded[key] = res.settings[key] as string
+        }
+        setSettings(loaded)
       }
+      setSiteUrl(res?.site_url || '')
     } catch (error) {
       console.error('Failed to load settings:', error)
     } finally {
@@ -62,8 +91,9 @@ export default function AdminSettings() {
     try {
       await api.put('/api/settings', { settings })
       setMessage('Settings saved successfully!')
-    } catch (error) {
-      setMessage('Failed to save settings')
+    } catch (error: any) {
+      // The server names the setting it refused; say which.
+      setMessage(`Failed to save settings: ${error?.message || 'unknown error'}`)
     } finally {
       setSaving(false)
     }
@@ -111,6 +141,84 @@ export default function AdminSettings() {
               style={{ minHeight: '80px' }}
               placeholder="A brief description of your site"
             />
+          </div>
+        </div>
+
+        {/* Identity: what a front end shows in its header, tab and share cards. */}
+        <div className="admin-card">
+          <h3 className="admin-card-title">Site Identity</h3>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Site URL</label>
+            <input type="text" value={siteUrl} className="admin-input" readOnly disabled />
+            <p style={hint}>
+              Set by <code>SITE_URL</code> in the environment, not here. Feeds, the sitemap and
+              <code> /api/v1/site</code> link to it.
+            </p>
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Logo URL</label>
+            <input
+              type="text"
+              name="site_logo"
+              value={settings.site_logo}
+              onChange={handleChange}
+              className="admin-input"
+              placeholder="/uploads/logo.svg or https://…"
+            />
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Icon URL</label>
+            <input
+              type="text"
+              name="site_icon"
+              value={settings.site_icon}
+              onChange={handleChange}
+              className="admin-input"
+              placeholder="/uploads/icon.png — favicon and app icon"
+            />
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Default Social Image URL</label>
+            <input
+              type="text"
+              name="default_social_image"
+              value={settings.default_social_image}
+              onChange={handleChange}
+              className="admin-input"
+              placeholder="Used on share cards when a post or page has no image"
+            />
+            <p style={hint}>Paste a URL from the media library, or a path starting with /.</p>
+          </div>
+        </div>
+
+        {/* Locale & time */}
+        <div className="admin-card">
+          <h3 className="admin-card-title">Language & Time</h3>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Time Zone</label>
+            <select name="timezone" value={settings.timezone} onChange={handleChange} className="admin-select">
+              {!TIME_ZONES.includes(settings.timezone) && <option value={settings.timezone}>{settings.timezone}</option>}
+              {TIME_ZONES.map(zone => <option key={zone} value={zone}>{zone}</option>)}
+            </select>
+            <p style={hint}>Dates are stored in UTC; this is the zone the front end shows them in.</p>
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Locale</label>
+            <input
+              type="text"
+              name="locale"
+              value={settings.locale}
+              onChange={handleChange}
+              className="admin-input"
+              placeholder="en, en-GB, fr-CA"
+            />
+            <p style={hint}>A BCP 47 language tag, for <code>&lt;html lang&gt;</code> and date formatting.</p>
           </div>
         </div>
 
@@ -225,6 +333,41 @@ export default function AdminSettings() {
               Delivery is at-most-once: a failure is logged and dropped, with no retry queue. A
               consumer that cannot miss an event should poll as a backstop.
             </p>
+          </div>
+        </div>
+
+        {/* Code injection. Raw HTML, not sanitised — it exists to carry
+            <script> tags — which is why only admins can reach this page. */}
+        <div className="admin-card">
+          <h3 className="admin-card-title">Code Injection</h3>
+          <p style={{ ...hint, marginTop: 0, marginBottom: '1rem' }}>
+            HTML your front end inserts verbatim on every page — analytics, verification tags,
+            a font stylesheet. It is <strong>not sanitised</strong>: anything here runs on your site
+            for every visitor. Served to the front end at <code>/api/v1/site</code>.
+          </p>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Site header (inside &lt;head&gt;)</label>
+            <textarea
+              name="code_injection_head"
+              value={settings.code_injection_head}
+              onChange={handleChange}
+              className="admin-textarea"
+              rows={6}
+              style={mono}
+            />
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label">Site footer (before &lt;/body&gt;)</label>
+            <textarea
+              name="code_injection_foot"
+              value={settings.code_injection_foot}
+              onChange={handleChange}
+              className="admin-textarea"
+              rows={6}
+              style={mono}
+            />
           </div>
         </div>
 

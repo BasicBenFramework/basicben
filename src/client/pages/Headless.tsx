@@ -66,7 +66,9 @@ export function Headless() {
           <p className={`text-sm ${t.muted}`}>
             There is no <code>/api/v1</code> write surface. The admin API already has one, gated on
             roles, and a second path to the same mutations is a second place for an authorization
-            bug to live.
+            bug to live. Programs that write use that admin API with a <code>content:write</code>{' '}
+            or <code>media:write</code> token, which acts as its owner and can never exceed their
+            role; see <code>docs/admin-api.md</code>.
           </p>
         </Card>
 
@@ -127,6 +129,35 @@ export function Headless() {
             unauthenticated commenters, and a public feed of reader addresses is an incident rather
             than a feature.
           </p>
+        </Card>
+
+        <Card>
+          <h2 className="text-lg font-semibold mb-2">Site, navigation and redirects</h2>
+          <p className={`text-sm ${t.muted} mb-4`}>
+            Three more endpoints a front end needs to render a whole site, with the same token
+            scope (<code>content:read</code>), caching and rate limit as the ones above. They are
+            written here rather than generated, because they come from the settings, menus and
+            redirects models rather than <code>PublicContent</code>.
+          </p>
+          <ul className={`text-sm ${t.muted} space-y-2 list-disc pl-5`}>
+            <li>
+              <code>GET /api/v1/site</code> — name, description, URL, logo, icon, default social
+              image, time zone, locale, and the head and foot code injection. Code injection is
+              admin-authored HTML, deliberately not sanitized: insert it as-is or not at all.
+            </li>
+            <li>
+              <code>GET /api/v1/navigation</code> — every menu keyed by location (
+              <code>primary</code>, <code>secondary</code>, <code>footer</code>), or one with{' '}
+              <code>?location=</code>. Items linked to a post, page or category carry its current
+              path; a link to something unpublished is left out, with its children.
+            </li>
+            <li>
+              <code>GET /api/v1/redirects</code> — the whole redirect map, chains resolved to one
+              hop, for a build step or edge middleware. <code>?path=/old</code> looks up one path,
+              for front ends that only ask on a 404. A published post or page whose slug changes
+              gets a 301 from its old path automatically.
+            </li>
+          </ul>
         </Card>
 
         <Card>

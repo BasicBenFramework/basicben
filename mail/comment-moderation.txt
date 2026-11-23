@@ -1,0 +1,13 @@
+Hi {{name}},
+
+{{commenterName}} left a comment on "{{postTitle}}" that is waiting for
+moderation:
+
+{{content}}
+
+{{actionLabel}}:
+
+{{actionUrl}}
+
+You are receiving this because comment notifications on {{siteName}} are sent
+to {{audience}}. An administrator can change that on the Comments page.

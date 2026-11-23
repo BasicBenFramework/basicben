@@ -1,5 +1,5 @@
 import { TagController } from '../../controllers/TagController'
-import { auth } from '../../middleware/auth'
+import { authOrToken } from '../../middleware/api-auth'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {
@@ -15,8 +15,9 @@ export default (router: Router) => {
   router.get('/api/tags/slug/:slug', TagController.showBySlug)
   router.get('/api/tags/:id', TagController.show)
 
-  // Admin routes (authenticated)
-  router.post('/api/tags', auth, requireCapability('tag.manage'), TagController.store)
-  router.put('/api/tags/:id', auth, requireCapability('tag.manage'), TagController.update)
-  router.delete('/api/tags/:id', auth, requireCapability('tag.manage'), TagController.destroy)
+  // Admin routes: a session, or an API token holding content:write acting as
+  // its owner — the capability check after it applies either way.
+  router.post('/api/tags', authOrToken('content:write'), requireCapability('tag.manage'), TagController.store)
+  router.put('/api/tags/:id', authOrToken('content:write'), requireCapability('tag.manage'), TagController.update)
+  router.delete('/api/tags/:id', authOrToken('content:write'), requireCapability('tag.manage'), TagController.destroy)
 }

@@ -35,9 +35,13 @@ const DEFAULT_MENU: MenuItem[] = [
   { path: '/admin/tags', label: 'Tags', section: 'Content' },
   { path: '/admin/comments', label: 'Comments', section: 'Content' },
   { path: '/admin/media', label: 'Media', section: 'Content' },
+  { path: '/admin/snippets', label: 'Snippets', section: 'Content', capability: 'post.publish' },
   { path: '/admin/tokens', label: 'API tokens', section: 'Site' },
   { path: '/admin/settings', label: 'Settings', section: 'Site' },
+  { path: '/admin/navigation', label: 'Navigation', section: 'Site', capability: 'settings.manage' },
+  { path: '/admin/redirects', label: 'Redirects', section: 'Site', capability: 'settings.manage' },
   { path: '/admin/users', label: 'Users', section: 'Site', capability: 'user.manage' },
+  { path: '/admin/tools', label: 'Tools', section: 'Site', capability: 'user.manage' },
   { path: '/profile', label: 'Profile', section: 'Account' },
 ]
 

@@ -1,5 +1,6 @@
 import { PageController } from '../../controllers/PageController'
 import { auth } from '../../middleware/auth'
+import { authOrToken } from '../../middleware/api-auth'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {
@@ -18,9 +19,12 @@ export default (router: Router) => {
   router.get('/api/pages', auth, requireCapability('page.edit'), PageController.index)
   router.get('/api/pages/tree', auth, requireCapability('page.edit'), PageController.tree)
   router.get('/api/pages/:id', auth, requireCapability('page.edit'), PageController.show)
-  router.post('/api/pages', auth, requireCapability('page.create'), PageController.store)
+  // Creating and editing take an API token with content:write, as posts do
+  // (docs/admin-api.md). Delete stays session-only: a page delete is
+  // permanent, and no token may destroy content outright.
+  router.post('/api/pages', authOrToken('content:write'), requireCapability('page.create'), PageController.store)
   // Before /:id, which would otherwise match `reorder` as an id.
   router.put('/api/pages/reorder', auth, requireCapability('page.edit'), PageController.reorder)
-  router.put('/api/pages/:id', auth, requireCapability('page.edit'), PageController.update)
+  router.put('/api/pages/:id', authOrToken('content:write'), requireCapability('page.edit'), PageController.update)
   router.delete('/api/pages/:id', auth, requireCapability('page.delete'), PageController.destroy)
 }

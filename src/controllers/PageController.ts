@@ -2,6 +2,8 @@ import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Page } from '../models/Page'
 import { seoFields } from '../helpers/seo-fields'
+import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
+import { pagePath } from '../helpers/content-paths'
 import type { Request, Response } from '../types'
 import { paginationFrom, meta } from '../models/pagination'
 
@@ -113,6 +115,9 @@ export const PageController = {
 
     const page = await Page.create(draft)
 
+    // A redirect from this path would shadow the new page.
+    if (page?.published) await releasePath(pagePath(page.slug))
+
     await hooks.fire(HOOKS.PAGE_CREATED, { page, userId: req.userId })
 
     res.json({ page }, 201)
@@ -194,6 +199,9 @@ export const PageController = {
     }
 
     const updated = await Page.update(parseInt(req.params.id), changes)
+
+    // A published page whose slug changed keeps its old URL working (a 301).
+    await redirectIfSlugChanged('page', page, updated)
 
     await hooks.fire(HOOKS.PAGE_UPDATED, { page: updated, previous: page, userId: req.userId })
 

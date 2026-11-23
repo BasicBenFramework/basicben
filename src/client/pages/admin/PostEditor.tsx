@@ -6,6 +6,8 @@ import MarkdownEditor from '../../components/MarkdownEditor'
 import { excerpt, slugify } from '@basicbenframework/core/content'
 import FeaturedImageBox from '../../components/admin/FeaturedImageBox'
 import TermPicker from '../../components/admin/TermPicker'
+import SnippetPicker from '../../components/admin/SnippetPicker'
+import { usePostLock } from '../../hooks/usePostLock'
 
 import type { AuthorProfile, Page, Post } from '../../../types'
 import { Link } from '../../components/Link'
@@ -144,6 +146,11 @@ export default function AdminPostEditor() {
 
   const mayPublish = can(user as { role?: string; email_verified?: boolean } | null, 'post.publish')
 
+  // The soft edit lock, for an existing post. A new post has no id to lock and
+  // nobody else can have it open; pages are another controller's and unlocked.
+  const lock = usePostLock(postId, !isPage && isEditing)
+  const lockedOut = !lock.canSave
+
   useEffect(() => {
     loadData()
   }, [postId])
@@ -154,7 +161,7 @@ export default function AdminPostEditor() {
     if (isPage || !postId) return
 
     const timer = setInterval(async () => {
-      if (!dirty.current) return
+      if (!dirty.current || lockedOut) return
       dirty.current = false
       try {
         const res = await api.put<{ autosave: { created_at: string } }>(`/api/posts/${postId}/autosave`, {
@@ -163,13 +170,37 @@ export default function AdminPostEditor() {
           excerpt: formData.excerpt
         })
         setLastAutosaved(res?.autosave?.created_at ?? new Date().toISOString())
-      } catch {
+      } catch (error) {
         dirty.current = true
+        // Refused because someone else holds the lock: find out who, so the
+        // banner appears instead of autosave failing quietly every 30 seconds.
+        if (/is editing this post/.test((error as Error).message)) void lock.retry()
       }
     }, AUTOSAVE_EVERY)
 
     return () => clearInterval(timer)
-  }, [isPage, postId, formData.title, formData.content, formData.excerpt])
+  }, [isPage, postId, formData.title, formData.content, formData.excerpt, lockedOut])
+
+  /**
+   * Take the lock from whoever has it.
+   *
+   * Opening a post someone else is in shows their last *saved* text, which
+   * may be behind what they are about to save — so after taking over the post
+   * is reloaded, to edit what is really there. If the lock was taken from us
+   * mid-edit, the opposite: what is on screen is our unsaved work, and taking
+   * the lock back is choosing to keep it, so it is left alone.
+   */
+  const takeOver = async () => {
+    const reload = !lock.lostIt
+    await lock.takeOver()
+    if (reload) await loadData()
+  }
+
+  /** The other editor has left: load what they saved, then take the lock. */
+  const reloadAndEdit = async () => {
+    await loadData()
+    await lock.retry()
+  }
 
   // Leaving with unsaved changes asks first.
   useEffect(() => {
@@ -338,6 +369,8 @@ export default function AdminPostEditor() {
       navigate(`/admin/${resource}`)
     } catch (error: any) {
       console.error(`Failed to save ${resource}:`, error)
+      // Refused by the edit lock: refresh it so the banner shows who has it.
+      if (/is editing this post/.test(error?.message ?? '')) void lock.retry()
       alert(error.message || `Failed to save ${noun.toLowerCase()}`)
     } finally {
       setSaving(false)
@@ -347,6 +380,10 @@ export default function AdminPostEditor() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked
+
+    // Someone else holds the lock: the form is for reading until it is ours.
+    // Toolbar edits arrive here too, so this covers them as well as typing.
+    if (lockedOut) return
 
     dirty.current = true
     setFormData(prev => ({
@@ -482,6 +519,27 @@ export default function AdminPostEditor() {
   return (
     <AdminLayout title={`${isEditing ? 'Edit' : 'New'} ${noun}`}>
       <form onSubmit={handleSubmit}>
+        {/* The edit lock. Shown above everything, because it decides whether
+            anything below can be saved. */}
+        {lock.status === 'blocked' && (
+          <div className="admin-card" role="alert" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between', borderColor: 'var(--warning)', background: 'var(--tint-warning)' }}>
+            <span>
+              {lock.lostIt
+                ? <><strong>{lock.holder}</strong> has taken over editing this post. Your unsaved changes are still on screen, but cannot be saved unless you take it back.</>
+                : <><strong>{lock.holder}</strong> is editing this post. You can read it, but saving is paused so neither of you overwrites the other.</>}
+            </span>
+            <span style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="button" className="admin-btn admin-btn-primary" onClick={takeOver}>Take over</button>
+              <Link href="/admin/posts" className="admin-btn admin-btn-secondary">Back to posts</Link>
+            </span>
+          </div>
+        )}
+        {lock.status === 'free' && (
+          <div className="admin-card" role="status" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>{lock.holder || 'The other editor'} has finished editing. Reload to see their changes and start editing.</span>
+            <button type="button" className="admin-btn admin-btn-primary" onClick={reloadAndEdit}>Reload and edit</button>
+          </div>
+        )}
         {autosave && (
           <div className="admin-card" role="status" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>
@@ -541,6 +599,8 @@ export default function AdminPostEditor() {
                   minHeight="400px"
                   placeholder="Write your content here. Markdown is supported."
                   required
+                  readOnly={lockedOut}
+                  tools={(insert, disabled) => <SnippetPicker onInsert={insert} disabled={disabled} />}
                 />
               </div>
 
@@ -719,7 +779,8 @@ export default function AdminPostEditor() {
                 <button
                   type="submit"
                   className="admin-btn admin-btn-primary"
-                  disabled={saving}
+                  disabled={saving || lockedOut}
+                  title={lockedOut ? 'Someone else is editing this post' : undefined}
                   style={{ flex: 1 }}
                 >
                   {submitLabel}

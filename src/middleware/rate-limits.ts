@@ -12,7 +12,7 @@
  * that a second instance cannot see, is not a lockout.
  */
 
-import { rateLimit, createLimiter, DatabaseStore } from '@basicbenframework/core/rate-limit'
+import { rateLimit, createLimiter, clientAddress, DatabaseStore } from '@basicbenframework/core/rate-limit'
 import { getDb } from '@basicbenframework/core/db'
 import type { Request } from '../types'
 
@@ -35,6 +35,37 @@ const emailKey = (req: Request) => {
   return email ? `email:${String(email).toLowerCase()}` : null
 }
 
+export { address }
+
+/**
+ * The caller's address as every limiter here sees it.
+ *
+ * For checks that are not limits — the comment blocklist — but have to agree
+ * with them about who a client is: the same proxy trust, and the same
+ * normalisation (IPv4-mapped addresses as IPv4, IPv6 as its /64). Reading the
+ * socket directly would let a blocked commenter behind a trusted proxy
+ * through, and a raw IPv6 address would let them step around an entry by
+ * changing the last 64 bits.
+ */
+export const clientIp = (req: Request): string => clientAddress(req, trustProxy)
+
+/**
+ * An address key in a namespace of its own.
+ *
+ * Nothing for an unidentifiable caller, as the framework's default key does:
+ * one shared bucket for everyone without an address would let one of them
+ * lock out the rest.
+ */
+const addressIn = (namespace: string) => (req: Request) => {
+  const ip = clientIp(req)
+  return ip ? `${namespace}:${ip}` : null
+}
+
+// Every limiter below shares one store, so each keys into a namespace of its
+// own. On the bare address they were one bucket: a visitor blocked for failed
+// sign-ins was blocked from the content API, registration and password reset
+// too, and traffic on one limiter spent the allowance of all the others.
+
 /**
  * Password guessing from one address.
  *
@@ -46,7 +77,7 @@ export const loginByAddress = rateLimit({
   window: '15m',
   blockFor: '15m',
   store,
-  trustProxy,
+  key: addressIn('login'),
   message: 'Too many sign-in attempts. Please try again shortly.'
 })
 
@@ -65,7 +96,7 @@ export const registerLimit = rateLimit({
   limit: 5,
   window: '1h',
   store,
-  trustProxy,
+  key: addressIn('register'),
   message: 'Too many accounts created from here. Please try again later.'
 })
 
@@ -81,7 +112,7 @@ export const twoFactorLimit = rateLimit({
   window: '15m',
   blockFor: '15m',
   store,
-  trustProxy,
+  key: addressIn('two-factor'),
   message: 'Too many attempts. Please try again shortly.'
 })
 
@@ -96,8 +127,6 @@ export const emailSendLimiter = createLimiter({
   window: '15m',
   store
 })
-
-export { address }
 
 /**
  * The public content API.
@@ -129,7 +158,7 @@ export const publicApiLimit = rateLimit({
   window: '1m',
   blockFor: '1m',
   store,
-  trustProxy,
+  key: addressIn('public-api'),
   message: 'Too many requests. Please slow down.'
 })
 
@@ -160,8 +189,26 @@ export const commentLimit = rateLimit({
   window: '10m',
   blockFor: '10m',
   store,
-  trustProxy,
+  // Prefixed. Every limiter here shares one store, and one left on the bare
+  // address shares its bucket with every other bare-address limiter: a reader
+  // who posted five comments was locked out of the public API too, and the
+  // reverse. Same limit, same address, its own count.
+  key: addressIn('comment'),
   message: 'Too many comments. Please wait a few minutes.'
+})
+
+/**
+ * The unsubscribe link in reply notifications.
+ *
+ * Open to anyone, so limited; generous, because one reader may be clearing a
+ * week of mail. The token's signature is what stops guessing.
+ */
+export const unsubscribeLimit = rateLimit({
+  limit: 30,
+  window: '10m',
+  store,
+  key: addressIn('unsubscribe'),
+  message: 'Too many requests. Please try again shortly.'
 })
 
 /**
@@ -179,7 +226,7 @@ export const passwordResetLimit = rateLimit({
   window: '15m',
   blockFor: '15m',
   store,
-  trustProxy,
+  key: addressIn('password-reset'),
   message: 'Too many reset requests. Please try again shortly.'
 })
 
@@ -195,7 +242,7 @@ export const tokenRedeemLimit = rateLimit({
   window: '15m',
   blockFor: '15m',
   store,
-  trustProxy,
+  key: addressIn('token-redeem'),
   message: 'Too many attempts. Please try again shortly.'
 })
 
@@ -212,4 +259,28 @@ export const invitationLimit = rateLimit({
   store,
   key: (req: Request) => `invite:${req.userId ?? ''}`,
   message: 'Too many invitations sent. Please try again later.'
+})
+
+/**
+ * Writes made with an API token.
+ *
+ * Unlike `publicApiLimit` this keys on the token, which is safe here because
+ * it runs *after* the token has been verified — `authOrToken` consumes from it
+ * only once the hash matched a live token whose owner's account is usable, so
+ * a fabricated token never reaches it and cannot mint itself a bucket. Per
+ * token rather than per address because a write credential is the thing worth
+ * containing: a leaked one, or a sync job stuck in a loop, should run out of
+ * budget on its own without starving the CI box next to it.
+ *
+ * Reads through the same middleware are not counted; `/api/v1` is the place
+ * for bulk reads, and it has its own limit.
+ *
+ * Sixty a minute is a bulk import of a few hundred posts in a handful of
+ * minutes — slow enough to notice a runaway, fast enough for a real migration.
+ */
+export const tokenWriteLimiter = createLimiter({
+  limit: 60,
+  window: '1m',
+  blockFor: '1m',
+  store
 })

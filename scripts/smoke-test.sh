@@ -811,6 +811,92 @@ pass "a token is refused outside its scopes"
   || fail "an API token was allowed to manage tokens"
 pass "an API token cannot mint another"
 
+# --- Phase 2: site, navigation, redirects, Admin API, comments, export --------
+#
+# Before the content API flood below, which blocks this address from /api/v1
+# for a minute. Each feature is driven over HTTP because what breaks is the
+# wiring: a route left unregistered, a middleware in the wrong order.
+
+H="http://localhost:$PORT"
+json() { node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{try{const v=($1)(JSON.parse(s));process.stdout.write(v==null?'':String(v))}catch{}})"; }
+owner_json() { curl -s -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' "$@"; }
+
+code="$(owner_json -o /dev/null -w '%{http_code}' -X PUT "$H/api/settings" -d '{"settings":{"no_such_setting":"1"}}')"
+[ "$code" = "422" ] || fail "an unknown setting was accepted ($code)"
+code="$(owner_json -o /dev/null -w '%{http_code}' -X PUT "$H/api/settings" -d '{"settings":{"timezone":"Mars/Olympus"}}')"
+[ "$code" = "422" ] || fail "an invalid time zone was accepted ($code)"
+owner_json -o /dev/null -X PUT "$H/api/settings" -d '{"settings":{"timezone":"Asia/Taipei","site_logo":"/logo.png"}}'
+SITE="$(curl -s "$H/api/v1/site" -H "Authorization: Bearer $API_TOKEN")"
+case "$SITE" in
+  *'"Asia/Taipei"'*) pass "site settings are validated and published at /api/v1/site" ;;
+  *) echo "$SITE"; fail "/api/v1/site does not carry the saved settings" ;;
+esac
+
+P2_ID="$(owner_json -X POST "$H/api/posts" -d '{"title":"Phase two","slug":"p2-old","content":"Long enough to pass validation.","published":true}' | json 'd=>d.post.id')"
+[ -n "$P2_ID" ] || fail "could not create the phase 2 post"
+owner_json -o /dev/null -X PUT "$H/api/posts/$P2_ID" -d '{"title":"Phase two","content":"Long enough to pass validation.","slug":"p2-new"}'
+REDIRECTS="$(curl -s "$H/api/v1/redirects" -H "Authorization: Bearer $API_TOKEN")"
+case "$REDIRECTS" in
+  *'/blog/p2-old'*'/blog/p2-new'*) pass "changing a published slug records a 301 from the old path" ;;
+  *) echo "$REDIRECTS"; fail "no redirect was recorded for the slug change" ;;
+esac
+
+PRIMARY="$(owner_json "$H/api/navigation/menus" | json "d=>d.menus.find(m=>m.location==='primary').id")"
+owner_json -o /dev/null -X POST "$H/api/navigation/menus/$PRIMARY/items" \
+  -d "{\"label\":\"Phase two\",\"target_type\":\"post\",\"target_id\":$P2_ID}"
+code="$(owner_json -o /dev/null -w '%{http_code}' -X POST "$H/api/navigation/menus/$PRIMARY/items" -d '{"label":"x","url":"javascript:alert(1)"}')"
+[ "$code" = "422" ] || fail "a javascript: menu URL was accepted ($code)"
+NAV="$(curl -s "$H/api/v1/navigation?location=primary" -H "Authorization: Bearer $API_TOKEN")"
+case "$NAV" in
+  *'/blog/p2-new'*) pass "navigation resolves a linked post to its current path" ;;
+  *) echo "$NAV"; fail "/api/v1/navigation did not resolve the linked post" ;;
+esac
+
+WRITE_TOKEN="$(owner_json -X POST "$H/api/tokens" -d '{"name":"writer","scopes":["content:write"]}' | json 'd=>d.token')"
+[ -n "$WRITE_TOKEN" ] || fail "could not issue a content:write token"
+TOKEN_POST="$(curl -s -D "$WORK_DIR/token-headers" -X POST "$H/api/posts" \
+  -H "Authorization: Bearer $WRITE_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"title":"By token","content":"Long enough to pass validation.","published":false}')"
+TOKEN_POST_ID="$(printf '%s' "$TOKEN_POST" | json 'd=>d.post.id')"
+[ -n "$TOKEN_POST_ID" ] || { echo "$TOKEN_POST"; fail "a content:write token could not create a post"; }
+grep -qi '^x-basicben-token-id:' "$WORK_DIR/token-headers" || fail "a token write is not attributed"
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$H/api/posts" -H "Authorization: Bearer $API_TOKEN" -H 'Content-Type: application/json' -d '{"title":"x","content":"Long enough to pass validation."}')"
+[ "$code" = "403" ] || fail "a read-only token wrote a post ($code)"
+pass "a content:write token writes through the Admin API, and a read token cannot"
+
+# The Markdown author holds an edit lock on their own post; the owner's token
+# must not write through it.
+curl -s -o /dev/null -X POST "$H/api/posts/$POST_ID/lock" -H "Authorization: Bearer $MD_TOKEN"
+code="$(curl -s -o /dev/null -w '%{http_code}' -X PUT "$H/api/posts/$POST_ID" -H "Authorization: Bearer $WRITE_TOKEN" -H 'Content-Type: application/json' -d '{"title":"Overwritten","content":"Long enough to pass validation."}')"
+[ "$code" = "409" ] || fail "a token wrote through someone's edit lock ($code)"
+pass "an edit lock refuses a token write with 409"
+curl -s -o /dev/null -X DELETE "$H/api/posts/$POST_ID/lock" -H "Authorization: Bearer $MD_TOKEN"
+
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$H/api/snippets" -H "Authorization: Bearer $MD_TOKEN" -H 'Content-Type: application/json' -d '{"name":"Sign-off","content":"Thanks for reading."}')"
+case "$code" in 20*) ;; *) fail "an author could not create a snippet ($code)" ;; esac
+curl -s "$H/api/snippets" -H "Authorization: Bearer $MD_TOKEN" | grep -q 'Sign-off' || fail "the snippet is not listed"
+pass "authors can save and list snippets"
+
+FORM="$(curl -s "$H/api/posts/$POST_ID/comments")"
+HONEYPOT="$(printf '%s' "$FORM" | json 'd=>d.form.honeypot')"
+[ -n "$HONEYPOT" ] || { echo "$FORM"; fail "the comment form carries no honeypot"; }
+curl -s -o /dev/null -X POST "$H/api/posts/$POST_ID/comments" -H 'Content-Type: application/json' \
+  -d "{\"author_name\":\"Bot\",\"author_email\":\"bot@example.com\",\"content\":\"Buy things now please\",\"$HONEYPOT\":\"http://spam.example\"}"
+owner_json "$H/api/comments?status=spam" | grep -q 'Buy things now please' \
+  || fail "a filled honeypot did not land in spam"
+pass "a filled honeypot sends the comment to spam"
+
+EXPORT="$(owner_json "$H/api/export")"
+case "$EXPORT" in
+  *'"basicben-export"'*) ;;
+  *) echo "$EXPORT" | head -c 300; fail "the admin export is not an export" ;;
+esac
+printf '%s' "$EXPORT" | json 'd=>d.tables.users.some(u=>"password" in u)?"leak":"ok"' | grep -q '^ok$' \
+  || fail "the export carries password hashes"
+code="$(curl -s -o /dev/null -w '%{http_code}' "$H/api/export" -H "Authorization: Bearer $MD_TOKEN")"
+[ "$code" = "403" ] || fail "a non-admin downloaded the export ($code)"
+pass "the admin export downloads without secrets, and only for admins"
+
 V1_BODY="$(curl -s "http://localhost:$PORT/api/v1/posts" -H "Authorization: Bearer $API_TOKEN")"
 case "$V1_BODY" in
   *'"author"'*) pass "the content API returns author names" ;;

@@ -6,6 +6,7 @@ import { Avatar } from '../components/Avatar'
 import { BackLink } from '../components/BackLink'
 import { Link } from '../components/Link'
 import { Loading } from '../components/Loading'
+import { CommentThread } from '../components/CommentThread'
 import { api } from '../../helpers/api'
 import type { Post } from '../../types'
 
@@ -84,6 +85,11 @@ export function FeedPost() {
           </div>
         </Card>
       )}
+
+      {/* The approved thread and the form, threaded to the depth the server
+          allows. Only a published post reaches this page, and only a
+          published post takes comments. */}
+      <CommentThread postId={post.id} />
     </div>
   )
 }

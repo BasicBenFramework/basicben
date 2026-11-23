@@ -17,7 +17,12 @@
     "migrate:status": "basicben migrate:status",
     "make:migration": "basicben make:migration",
     "make:controller": "basicben make:controller",
-    "make:model": "basicben make:model"
+    "make:model": "basicben make:model",
+    "export": "node --env-file-if-exists=.env scripts/export.mjs",
+    "import:json": "node --env-file-if-exists=.env scripts/import-json.mjs",
+    "import:wxr": "node --env-file-if-exists=.env scripts/import-wxr.mjs",
+    "import:ghost": "node --env-file-if-exists=.env scripts/import-ghost.mjs",
+    "import:wordpress": "node --env-file-if-exists=.env scripts/import-wordpress.mjs"
   },
   "dependencies": {
     "@basicbenframework/core": "^0.6.0",
@@ -30,9 +35,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.5",
-    "he": "^1.2.0",
     "tailwindcss": "^4.3.3",
-    "turndown": "^7.2.2",
     "typescript": "^5.8",
     "vite": "^8.2.1"
   },

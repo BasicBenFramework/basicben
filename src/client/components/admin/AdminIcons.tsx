@@ -74,6 +74,30 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M22 21v-1.5a4 4 0 0 0-3-3.9M16 3.6a3.5 3.5 0 0 1 0 6.8" />
     </>
   ),
+  snippets: (
+    <>
+      <path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2" />
+    </>
+  ),
+  navigation: (
+    <>
+      <path d="M4 6h16M4 12h16M4 18h10" />
+    </>
+  ),
+  redirects: (
+    <>
+      <path d="M4 17V9a4 4 0 0 1 4-4h11" />
+      <path d="M15 1l4 4-4 4" />
+      <path d="M4 21h8" />
+    </>
+  ),
+  tools: (
+    <>
+      <path d="M12 3v12M7 10l5 5 5-5" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </>
+  ),
   site: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -92,12 +116,16 @@ const byPath: Record<string, string> = {
   '/admin/comments': 'comments',
   '/admin/media': 'media',
   '/admin/tokens': 'tokens',
+  '/admin/snippets': 'snippets',
+  '/admin/navigation': 'navigation',
+  '/admin/redirects': 'redirects',
   // Outside /admin, because it is the one screen every account has, admin area
   // or not. It still belongs in this map — an item without one falls back to
   // the emoji the server supplied, which is the look these icons replaced.
   '/profile': 'profile',
   '/admin/settings': 'settings',
-  '/admin/users': 'users'
+  '/admin/users': 'users',
+  '/admin/tools': 'tools'
 }
 
 interface AdminIconProps {

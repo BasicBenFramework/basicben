@@ -50,6 +50,10 @@ import AdminMedia from '../client/pages/admin/Media'
 import AdminTokens from '../client/pages/admin/Tokens'
 import AdminUsers from '../client/pages/admin/Users'
 import AdminSettings from '../client/pages/admin/Settings'
+import AdminNavigation from '../client/pages/admin/Navigation'
+import AdminRedirects from '../client/pages/admin/Redirects'
+import AdminSnippets from '../client/pages/admin/Snippets'
+import AdminTools from '../client/pages/admin/Tools'
 
 // Admin layout wrapper (no default layout)
 const NoLayout = ({ children }: { children: React.ReactNode }) => <>{children}</>
@@ -144,6 +148,10 @@ export default createClientApp({
     '/admin/media': { component: AdminMedia, layout: NoLayout, auth: true },
     '/admin/tokens': { component: AdminTokens, layout: NoLayout, auth: true },
     '/admin/settings': { component: AdminSettings, layout: NoLayout, auth: true },
+    '/admin/navigation': { component: AdminNavigation, layout: NoLayout, auth: true },
+    '/admin/redirects': { component: AdminRedirects, layout: NoLayout, auth: true },
+    '/admin/snippets': { component: AdminSnippets, layout: NoLayout, auth: true },
+    '/admin/tools': { component: AdminTools, layout: NoLayout, auth: true },
     '/admin/users': { component: AdminUsers, layout: NoLayout, auth: true },
   }
 })
