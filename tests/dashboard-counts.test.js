@@ -38,7 +38,7 @@ describe('the stat cards report totals, not page sizes', () => {
   test('the listings actually send the total the dashboard now reads', () => {
     // A count read from a key the server does not send is the same bug wearing
     // a different number.
-    assert.match(read('src/controllers/PostController.ts'), /res\.json\(\{ posts, meta: meta\(page, perPage, total\) \}\)/)
+    assert.match(read('src/controllers/PostController.ts'), /res\.json\(\{ posts, meta: meta\(page, perPage, total\), counts: /)
     assert.match(read('src/controllers/PageController.ts'), /res\.json\(\{ pages, meta: meta\(page, perPage, total\) \}\)/)
   })
 

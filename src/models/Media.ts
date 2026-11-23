@@ -9,6 +9,8 @@ interface CreateMediaData {
   mime_type?: string
   size?: number
   alt_text?: string
+  width?: number | null
+  height?: number | null
 }
 
 interface UpdateMediaData {
@@ -115,6 +117,8 @@ export const Media = {
       mime_type: data.mime_type || null,
       size: data.size || null,
       alt_text: data.alt_text || null,
+      width: data.width ?? null,
+      height: data.height ?? null,
       created_at: now
     })
 
@@ -127,6 +131,8 @@ export const Media = {
       mime_type: data.mime_type,
       size: data.size,
       alt_text: data.alt_text,
+      width: data.width ?? null,
+      height: data.height ?? null,
       created_at: now
     }
   },

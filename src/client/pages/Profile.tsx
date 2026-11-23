@@ -52,6 +52,9 @@ export function Profile() {
     url: null
   })
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '' })
+  // The address the account has now, to tell whether the form is changing it.
+  const [savedEmail, setSavedEmail] = useState(user?.email || '')
+  const [emailPassword, setEmailPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -69,6 +72,7 @@ export function Profile() {
           bio: data.user.bio || ''
         })
         setAvatar({ id: data.user.avatar_id ?? null, url: data.user.avatar_url ?? null })
+        setSavedEmail(data.user.email || '')
       })
       .catch(() => {
         // The form still works from what the session knows; a failed profile
@@ -82,11 +86,18 @@ export function Profile() {
     try {
       const data = await api<ProfileResponse>('/api/profile', {
         method: 'PUT',
-        body: JSON.stringify({ ...form, avatar_id: avatar.id })
+        body: JSON.stringify({
+          ...form,
+          avatar_id: avatar.id,
+          ...(form.email !== savedEmail ? { currentPassword: emailPassword } : {})
+        })
       })
-      setUser({ ...user, ...data.user })
+      const changed = (data as { emailChanged?: boolean }).emailChanged
+      setUser({ ...user, ...data.user, ...(changed ? { email_verified: false } : {}) })
       setForm(prev => ({ ...prev, slug: data.user.slug || prev.slug }))
-      toast.success('Profile updated')
+      setSavedEmail(data.user.email || '')
+      setEmailPassword('')
+      toast.success(changed ? 'Profile updated — check your new address for a verification link' : 'Profile updated')
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -126,7 +137,10 @@ export function Profile() {
     e.preventDefault()
     setLoading(true)
     try {
-      await api('/api/profile/password', { method: 'PUT', body: JSON.stringify(pwForm) })
+      const data = await api<{ token?: string }>('/api/profile/password', { method: 'PUT', body: JSON.stringify(pwForm) })
+      // Changing the password ends every session, this one included; the
+      // response carries its replacement.
+      if (data?.token) localStorage.setItem('token', data.token)
       setPwForm({ currentPassword: '', newPassword: '' })
       toast.success('Password changed')
     } catch (err) {
@@ -170,6 +184,15 @@ export function Profile() {
 
           <Input placeholder="Name" required value={form.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, name: e.target.value })} />
           <Input type="email" placeholder="Email" required value={form.email} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, email: e.target.value })} />
+          {form.email !== savedEmail && (
+            <Input
+              type="password"
+              placeholder="Current password, to change your email"
+              required
+              value={emailPassword}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailPassword(e.target.value)}
+            />
+          )}
 
           {/* The author archive segment. Blank asks for one derived from the
               name, which is how it was set at registration. */}

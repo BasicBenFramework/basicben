@@ -3,6 +3,7 @@ import { requireScope } from '../../middleware/api-auth'
 import { SCOPES } from '@basicbenframework/core/auth/api-tokens'
 import { cacheable } from '../../middleware/cache'
 import { publicApiLimit } from '../../middleware/rate-limits'
+import { publishDueOpportunistically } from '../../helpers/publish-due'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -19,8 +20,10 @@ export default (router: Router) => {
   const content = requireScope(SCOPES.CONTENT_READ)
   const media = requireScope(SCOPES.MEDIA_READ)
 
-  router.get('/api/v1/posts', publicApiLimit, content, cacheable, PublicApiController.posts)
-  router.get('/api/v1/posts/:slug', publicApiLimit, content, cacheable, PublicApiController.post)
+  // Post reads also announce any scheduled post whose time has come, at most
+  // once a minute — see helpers/publish-due.ts.
+  router.get('/api/v1/posts', publicApiLimit, content, publishDueOpportunistically, cacheable, PublicApiController.posts)
+  router.get('/api/v1/posts/:slug', publicApiLimit, content, publishDueOpportunistically, cacheable, PublicApiController.post)
 
   router.get('/api/v1/pages', publicApiLimit, content, cacheable, PublicApiController.pages)
   router.get('/api/v1/pages/:slug', publicApiLimit, content, cacheable, PublicApiController.page)

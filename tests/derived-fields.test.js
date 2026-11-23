@@ -87,7 +87,10 @@ describe('a post keeps what the editor sent it', () => {
   test('a request that says nothing about publishing does not unpublish', () => {
     // `published: body.published ? 1 : 0` turned every partial update into an
     // unpublish, which is a content outage rather than a bug report.
-    assert.match(controller, /published === undefined \? \{\} : \{ published: published \? 1 : 0 \}/)
+    // resolvePublishing leaves status alone unless `status` or `published`
+    // was actually sent: on update `finalStatus` is undefined otherwise.
+    assert.match(controller, /const finalStatus = status \?\? \(existing \? undefined : 'draft'\)/)
+    assert.match(controller, /if \(finalStatus !== undefined\) \{/)
     assert.match(read('src/models/Page.ts'), /if \(data\.published !== undefined\)/)
   })
 
@@ -167,7 +170,9 @@ describe('the editor knows which thing it is editing', () => {
   test('the resolved image URL is not sent back as the image', () => {
     // featured_image holds a media id; a URL in that column is a foreign key
     // that points at nothing.
-    assert.match(editor, /const \{ featured_image_url, user_id, category_ids, tags, excerpt, \.\.\.common \} = formData/)
+    // Both resolved URLs — the featured image's and the social card's — are
+    // pulled out before anything is sent.
+    assert.match(editor, /featured_image_url, og_image_url, user_id, category_ids, tags, excerpt,\s*\n\s*status, publish_at, published, \.\.\.common\s*\n\s*\} = formData/)
   })
 
   test('the slug that will be generated is visible before the save', () => {

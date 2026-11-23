@@ -33,10 +33,17 @@ export const cacheable = (req: Request, res: Response, next: Next) => {
 
     const body = JSON.stringify(data)
 
+    // A response that needed a credential is for whoever held it. Marking it
+    // `public` let a shared cache or CDN hand it to the next caller with no
+    // token at all; `private` keeps it in the requesting client's own cache.
+    // Anonymous reads (public_api on) stay public and shareable.
+    const credentialed = Boolean(req.headers.authorization)
+    res.setHeader('Vary', 'Authorization')
+
     if (
       conditional(req, res, {
         etag: strongEtag(body),
-        cacheControl: `public, max-age=${MAX_AGE_SECONDS}`
+        cacheControl: `${credentialed ? 'private' : 'public'}, max-age=${MAX_AGE_SECONDS}`
       })
     ) {
       return

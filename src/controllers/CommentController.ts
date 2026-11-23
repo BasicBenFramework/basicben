@@ -2,6 +2,8 @@ import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Comment } from '../models/Comment'
 import { Settings } from '../models/Settings'
+import { Post } from '../models/Post'
+import { can } from '@basicbenframework/core/auth/permissions'
 import type { Request, Response } from '../types'
 
 export const CommentController = {
@@ -18,8 +20,20 @@ export const CommentController = {
 
   async byPost(req: Request, res: Response) {
     const postId = parseInt(req.params.postId)
-    const approvedOnly = req.query.all !== 'true'
-    const comments = await Comment.findByPostId(postId, approvedOnly)
+
+    // The whole thread — the moderation queue and the commenters' addresses —
+    // is for moderators. `?all=true` used to unlock it for anyone who asked.
+    if (req.query.all === 'true' && can(req.user, 'comment.moderate')) {
+      const comments = await Comment.findByPostId(postId, false)
+      return res.json({ comments })
+    }
+
+    // A draft's comments are as unpublished as the draft.
+    if (!(await Post.findPublishedById(postId))) {
+      return res.json({ error: 'Post not found' }, 404)
+    }
+
+    const comments = await Comment.findPublicByPostId(postId)
     res.json({ comments })
   },
 
@@ -57,11 +71,32 @@ export const CommentController = {
       return res.json({ errors: result.errors }, 422)
     }
 
-    const { content, author_name, author_email, parent_id } = req.body as {
+    const { content, author_name, author_email } = req.body as {
       content: string
       author_name?: string
       author_email?: string
-      parent_id?: number
+    }
+
+    // Only a published post takes comments; otherwise anyone could attach text
+    // to a draft by guessing its id.
+    if (!(await Post.findPublishedById(postId))) {
+      return res.json({ error: 'Post not found' }, 404)
+    }
+
+    // A reply must answer a comment on the same post, or a thread could be
+    // stitched together across posts.
+    let parent_id: number | undefined
+    const requestedParent = (req.body as { parent_id?: unknown }).parent_id
+    if (requestedParent !== undefined && requestedParent !== null && requestedParent !== '') {
+      const parent = await Comment.find(Number(requestedParent))
+      if (!parent || Number(parent.post_id) !== postId) {
+        return res.json({ errors: { parent_id: ['That comment does not exist on this post'] } }, 422)
+      }
+      parent_id = Number(parent.id)
+    }
+
+    if (req.userId && !can(req.user, 'comment.create')) {
+      return res.json({ error: 'You do not have permission to comment.' }, 403)
     }
 
     // Check if moderation is enabled

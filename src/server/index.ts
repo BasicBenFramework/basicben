@@ -28,7 +28,9 @@ import settingsRoutes from '../routes/api/settings'
 import feedRoutes from '../routes/api/feed'
 import adminRoutes from '../routes/api/admin'
 import tokensRoutes from '../routes/api/tokens'
+import usersRoutes from '../routes/api/users'
 import v1Routes from '../routes/api/v1'
+import cronRoutes from '../routes/api/cron'
 
 // Determine static directory based on environment
 // In production, static files are in dist/client (relative to app root/cwd)
@@ -61,6 +63,8 @@ settingsRoutes(router)
 feedRoutes(router)
 adminRoutes(router)
 tokensRoutes(router)
+cronRoutes(router)
+usersRoutes(router)
 // The public content API. Versioned because its consumers are outside this
 // repository, and read-only because the admin API already owns the writes.
 v1Routes(router)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAuth, useNavigate, useParams, usePath } from '@basicbenframework/core/client'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
@@ -9,6 +9,44 @@ import TermPicker from '../../components/admin/TermPicker'
 
 import type { AuthorProfile, Page, Post } from '../../../types'
 import { Link } from '../../components/Link'
+import { can } from '@basicbenframework/core/auth/permissions'
+
+type Status = 'draft' | 'pending' | 'published'
+
+interface Revision {
+  id: number
+  title: string
+  author_name?: string | null
+  autosave: number
+  created_at: string
+}
+
+interface Autosave {
+  id: number
+  title: string
+  content: string
+  excerpt: string | null
+  created_at: string
+}
+
+/** How often an unsaved change is autosaved, in milliseconds. */
+const AUTOSAVE_EVERY = 30_000
+
+/** A stored UTC timestamp as the value a datetime-local input wants. */
+function toLocalInput(value: string | null | undefined): string {
+  if (!value) return ''
+  const date = new Date(/Z|[+-]\d\d:?\d\d$/.test(value) ? value : value.replace(' ', 'T') + 'Z')
+  if (Number.isNaN(date.getTime())) return ''
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
+
+/** A datetime-local value, which is local time, as ISO UTC for the server. */
+function fromLocalInput(value: string): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
 
 interface Category {
   id: number
@@ -73,6 +111,20 @@ export default function AdminPostEditor() {
     meta_title: '',
     meta_description: '',
     published: false,
+    // Posts only. Pages keep the published checkbox; they are not reviewed or
+    // scheduled.
+    status: 'draft' as Status,
+    // Local time, as the datetime-local input holds it. Blank means "now" when
+    // publishing, and leaves an already-live post's date alone.
+    publish_at: '',
+    og_title: '',
+    og_description: '',
+    og_image: null as number | null,
+    og_image_url: null as string | null,
+    twitter_title: '',
+    twitter_description: '',
+    canonical_url: '',
+    noindex: false,
     // The media id that gets saved, and the URL that gets shown. The server
     // resolves the second from the first, because only it knows where files
     // are served from.
@@ -83,9 +135,50 @@ export default function AdminPostEditor() {
     user_id: '' as number | ''
   })
 
+  const [revisions, setRevisions] = useState<Revision[]>([])
+  const [autosave, setAutosave] = useState<Autosave | null>(null)
+  const [lastAutosaved, setLastAutosaved] = useState<string | null>(null)
+  // Whether the form differs from what was last saved, so autosave only
+  // writes when there is something to keep.
+  const dirty = useRef(false)
+
+  const mayPublish = can(user as { role?: string; email_verified?: boolean } | null, 'post.publish')
+
   useEffect(() => {
     loadData()
   }, [postId])
+
+  // Autosave an existing post while it is being edited. A new post has no id
+  // to autosave against until its first save.
+  useEffect(() => {
+    if (isPage || !postId) return
+
+    const timer = setInterval(async () => {
+      if (!dirty.current) return
+      dirty.current = false
+      try {
+        const res = await api.put<{ autosave: { created_at: string } }>(`/api/posts/${postId}/autosave`, {
+          title: formData.title,
+          content: formData.content,
+          excerpt: formData.excerpt
+        })
+        setLastAutosaved(res?.autosave?.created_at ?? new Date().toISOString())
+      } catch {
+        dirty.current = true
+      }
+    }, AUTOSAVE_EVERY)
+
+    return () => clearInterval(timer)
+  }, [isPage, postId, formData.title, formData.content, formData.excerpt])
+
+  // Leaving with unsaved changes asks first.
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (dirty.current) event.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [])
 
   // A new post is yours until somebody reassigns it.
   useEffect(() => {
@@ -97,8 +190,13 @@ export default function AdminPostEditor() {
       if (!isPage) await loadPostFurniture()
 
       if (postId) {
-        const res = await api.get<{ post?: Post; page?: Page }>(`/api/${resource}/${postId}`)
+        const res = await api.get<{ post?: Post; page?: Page; autosave?: Autosave | null }>(`/api/${resource}/${postId}`)
         const record = (isPage ? res?.page : res?.post) as (Post & Page) | undefined
+
+        if (!isPage) {
+          setAutosave(res?.autosave ?? null)
+          loadRevisions()
+        }
 
         if (record) {
           setFormData(prev => ({
@@ -111,7 +209,17 @@ export default function AdminPostEditor() {
             tags: record.tag_ids || record.tags?.map((t: Tag) => t.id) || [],
             meta_title: record.meta_title || '',
             meta_description: record.meta_description || '',
-            published: record.published || false,
+            published: Boolean(record.published),
+            status: (record.status as Status) || (record.published ? 'published' : 'draft'),
+            publish_at: toLocalInput(record.publish_at),
+            og_title: record.og_title || '',
+            og_description: record.og_description || '',
+            og_image: record.og_image ?? null,
+            og_image_url: null,
+            twitter_title: record.twitter_title || '',
+            twitter_description: record.twitter_description || '',
+            canonical_url: record.canonical_url || '',
+            noindex: Boolean(Number(record.noindex ?? 0)),
             featured_image: record.featured_image ?? null,
             featured_image_url: record.featured_image_url ?? null,
             user_id: record.user_id ?? ''
@@ -151,7 +259,41 @@ export default function AdminPostEditor() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const loadRevisions = async () => {
+    if (!postId) return
+    try {
+      const res = await api.get<{ revisions: Revision[] }>(`/api/posts/${postId}/revisions`)
+      setRevisions((res?.revisions || []).filter(revision => !revision.autosave))
+    } catch {
+      setRevisions([])
+    }
+  }
+
+  /** Put the autosaved text back into the form. Saving is still a separate step. */
+  const restoreAutosave = () => {
+    if (!autosave) return
+    setFormData(prev => ({
+      ...prev,
+      title: autosave.title,
+      content: autosave.content,
+      excerpt: autosave.excerpt || ''
+    }))
+    dirty.current = true
+    setAutosave(null)
+  }
+
+  const restoreRevision = async (revision: Revision) => {
+    if (!postId) return
+    if (!confirm(`Replace the current text with the version from ${new Date(revision.created_at).toLocaleString()}? The current text is kept as a revision.`)) return
+    try {
+      await api.post(`/api/posts/${postId}/revisions/${revision.id}/restore`, {})
+      await loadData()
+    } catch (error: any) {
+      alert(error.message || 'Could not restore that revision')
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent, submitStatus?: Status) => {
     e.preventDefault()
     setSaving(true)
 
@@ -159,14 +301,24 @@ export default function AdminPostEditor() {
       // `featured_image_url` is the server's answer, not the editor's input —
       // sending it back would be asking the API to store a URL in a column that
       // holds a media id.
-      const { featured_image_url, user_id, category_ids, tags, excerpt, ...common } = formData
+      const {
+        featured_image_url, og_image_url, user_id, category_ids, tags, excerpt,
+        status, publish_at, published, ...common
+      } = formData
+
+      const finalStatus = submitStatus ?? status
 
       // category_ids and tags are arrays the server syncs; a page has neither,
-      // and no excerpt column to put an excerpt in.
+      // and no excerpt column to put an excerpt in. A page publishes with the
+      // checkbox; a post with its status and an optional schedule.
       const payload = isPage
-        ? common
+        ? { ...common, published }
         : {
             ...common,
+            status: finalStatus,
+            // Sent only when there is one: blank means "now" for a post going
+            // live, and "unchanged" for one already live.
+            ...(publish_at ? { publish_at: fromLocalInput(publish_at) } : {}),
             excerpt,
             category_ids,
             tags,
@@ -182,6 +334,7 @@ export default function AdminPostEditor() {
         await api.post(`/api/${resource}`, payload)
       }
 
+      dirty.current = false
       navigate(`/admin/${resource}`)
     } catch (error: any) {
       console.error(`Failed to save ${resource}:`, error)
@@ -195,11 +348,25 @@ export default function AdminPostEditor() {
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked
 
+    dirty.current = true
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
   }
+
+  // What the main button will do, so its label can say so.
+  const scheduledFor = formData.publish_at ? new Date(formData.publish_at) : null
+  const isFuture = Boolean(scheduledFor && scheduledFor.getTime() > Date.now())
+  const submitLabel = saving
+    ? 'Saving...'
+    : isPage
+      ? (isEditing ? 'Update' : 'Create')
+      : formData.status === 'published'
+        ? (isFuture ? 'Schedule' : (isEditing ? 'Update' : 'Publish'))
+        : formData.status === 'pending'
+          ? 'Submit for review'
+          : 'Save draft'
 
   // Creating a term without leaving the editor. Going to /admin/categories to
   // add one and coming back meant losing an unsaved draft, which is a poor
@@ -315,6 +482,17 @@ export default function AdminPostEditor() {
   return (
     <AdminLayout title={`${isEditing ? 'Edit' : 'New'} ${noun}`}>
       <form onSubmit={handleSubmit}>
+        {autosave && (
+          <div className="admin-card" role="status" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>
+              There is an autosave of this post from {new Date(autosave.created_at).toLocaleString()} that is newer than the saved version.
+            </span>
+            <span style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="button" className="admin-btn admin-btn-primary" onClick={restoreAutosave}>Restore it</button>
+              <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setAutosave(null)}>Dismiss</button>
+            </span>
+          </div>
+        )}
         <div className="admin-grid admin-grid-2" style={{ gridTemplateColumns: '2fr 1fr' }}>
           {/* Main Content */}
           <div>
@@ -409,7 +587,70 @@ export default function AdminPostEditor() {
                   placeholder="SEO description"
                 />
               </div>
+
+              <div className="admin-form-group">
+                <label className="admin-label">Canonical URL</label>
+                <input
+                  type="url"
+                  name="canonical_url"
+                  value={formData.canonical_url}
+                  onChange={handleChange}
+                  className="admin-input"
+                  placeholder="Only if this was first published somewhere else"
+                />
+              </div>
+
+              <div className="admin-form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input type="checkbox" name="noindex" checked={formData.noindex} onChange={handleChange} />
+                  Ask search engines not to index this {noun.toLowerCase()}
+                </label>
+              </div>
             </div>
+
+            {/* What a shared link shows. Blank fields fall back — to the SEO
+                fields, then the title, excerpt and featured image — so most
+                posts never need these. */}
+            <div className="admin-card">
+              <h3 className="admin-card-title">Social cards</h3>
+              <div className="admin-form-group">
+                <label className="admin-label">Open Graph title</label>
+                <input type="text" name="og_title" value={formData.og_title} onChange={handleChange} className="admin-input" placeholder={formData.meta_title || formData.title || 'Falls back to the SEO title'} />
+              </div>
+              <div className="admin-form-group">
+                <label className="admin-label">Open Graph description</label>
+                <textarea name="og_description" value={formData.og_description} onChange={handleChange} className="admin-textarea" style={{ minHeight: '60px' }} placeholder={formData.meta_description || 'Falls back to the SEO description'} />
+              </div>
+              <div className="admin-form-group">
+                <label className="admin-label">Twitter / X title</label>
+                <input type="text" name="twitter_title" value={formData.twitter_title} onChange={handleChange} className="admin-input" placeholder="Falls back to the Open Graph title" />
+              </div>
+              <div className="admin-form-group">
+                <label className="admin-label">Twitter / X description</label>
+                <textarea name="twitter_description" value={formData.twitter_description} onChange={handleChange} className="admin-textarea" style={{ minHeight: '60px' }} placeholder="Falls back to the Open Graph description" />
+              </div>
+            </div>
+
+            {!isPage && isEditing && revisions.length > 0 && (
+              <div className="admin-card">
+                <h3 className="admin-card-title">Revisions</h3>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.5rem' }}>
+                  {revisions.slice(0, 20).map(revision => (
+                    <li key={revision.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center' }}>
+                      <span>
+                        {new Date(revision.created_at).toLocaleString()}
+                        {revision.author_name ? ` — ${revision.author_name}` : ''}
+                        <br />
+                        <small style={{ color: 'var(--fg-muted)' }}>{revision.title}</small>
+                      </span>
+                      <button type="button" className="admin-btn admin-btn-secondary" onClick={() => restoreRevision(revision)}>
+                        Restore
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -417,17 +658,62 @@ export default function AdminPostEditor() {
             {/* Publish */}
             <div className="admin-card">
               <h3 className="admin-card-title">Publish</h3>
-              <div className="admin-form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    type="checkbox"
-                    name="published"
-                    checked={formData.published}
-                    onChange={handleChange}
-                  />
-                  Published
-                </label>
-              </div>
+              {isPage ? (
+                <div className="admin-form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                      type="checkbox"
+                      name="published"
+                      checked={formData.published}
+                      onChange={handleChange}
+                    />
+                    Published
+                  </label>
+                </div>
+              ) : (
+                <>
+                  <div className="admin-form-group">
+                    <label className="admin-label" htmlFor="status">Status</label>
+                    {/* A contributor can ask for review but not publish; the
+                        option is shown disabled so the route to going live is
+                        visible rather than missing. */}
+                    <select id="status" name="status" value={formData.status} onChange={handleChange} className="admin-input">
+                      <option value="draft">Draft</option>
+                      <option value="pending">Pending review</option>
+                      <option value="published" disabled={!mayPublish && formData.status !== 'published'}>
+                        Published{mayPublish ? '' : ' (an editor publishes)'}
+                      </option>
+                    </select>
+                  </div>
+
+                  {formData.status === 'published' && (
+                    <div className="admin-form-group">
+                      <label className="admin-label" htmlFor="publish_at">Publish on</label>
+                      <input
+                        id="publish_at"
+                        type="datetime-local"
+                        name="publish_at"
+                        value={formData.publish_at}
+                        onChange={handleChange}
+                        className="admin-input"
+                      />
+                      <small style={{ color: 'var(--fg-muted)' }}>
+                        {isFuture
+                          ? `Scheduled — goes live ${scheduledFor!.toLocaleString()}.`
+                          : formData.publish_at
+                            ? 'Already live.'
+                            : 'Blank publishes now. A future date schedules it.'}
+                      </small>
+                    </div>
+                  )}
+
+                  {lastAutosaved && (
+                    <p style={{ color: 'var(--fg-muted)', fontSize: '0.8rem' }}>
+                      Autosaved {new Date(lastAutosaved).toLocaleTimeString()}
+                    </p>
+                  )}
+                </>
+              )}
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
@@ -436,7 +722,7 @@ export default function AdminPostEditor() {
                   disabled={saving}
                   style={{ flex: 1 }}
                 >
-                  {saving ? 'Saving...' : (isEditing ? 'Update' : 'Create')}
+                  {submitLabel}
                 </button>
                 <Link href={`/admin/${resource}`} className="admin-btn admin-btn-secondary">
                   Cancel
@@ -450,13 +736,14 @@ export default function AdminPostEditor() {
             <FeaturedImageBox
               value={formData.featured_image}
               url={formData.featured_image_url}
-              onChange={image =>
+              onChange={image => {
+                dirty.current = true
                 setFormData(prev => ({
                   ...prev,
                   featured_image: image?.id ?? null,
                   featured_image_url: image?.url ?? null
                 }))
-              }
+              }}
             />
 
             {/* Who the post is filed under. Always shown, because "who wrote

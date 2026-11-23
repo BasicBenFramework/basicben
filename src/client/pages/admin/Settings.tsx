@@ -10,6 +10,7 @@ interface SiteSettings {
   moderate_comments: string
   public_api: string
   webhook_urls: string
+  robots_txt: string
 }
 
 export default function AdminSettings() {
@@ -20,7 +21,8 @@ export default function AdminSettings() {
     allow_comments: 'true',
     moderate_comments: 'true',
     public_api: 'false',
-    webhook_urls: ''
+    webhook_urls: '',
+    robots_txt: ''
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -41,7 +43,8 @@ export default function AdminSettings() {
           allow_comments: res.settings.allow_comments || 'true',
           moderate_comments: res.settings.moderate_comments || 'true',
           public_api: res.settings.public_api || 'false',
-          webhook_urls: res.settings.webhook_urls || ''
+          webhook_urls: res.settings.webhook_urls || '',
+          robots_txt: res.settings.robots_txt || ''
         })
       }
     } catch (error) {
@@ -127,6 +130,21 @@ export default function AdminSettings() {
               max="100"
             />
           </div>
+
+          {/* Served at /robots.txt. Blank serves a default that points at the
+              sitemap and keeps crawlers out of the admin and the API. */}
+          <div className="admin-form-group">
+            <label className="admin-label">robots.txt</label>
+            <textarea
+              name="robots_txt"
+              value={settings.robots_txt}
+              onChange={handleChange}
+              className="admin-textarea"
+              rows={5}
+              placeholder={'Blank uses the default:\nUser-agent: *\nDisallow: /admin\nDisallow: /api/\nAllow: /api/v1/\nSitemap: …/sitemap.xml'}
+              style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '13px' }}
+            />
+          </div>
         </div>
 
         {/* Discussion Settings */}
@@ -199,8 +217,8 @@ export default function AdminSettings() {
             <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
               One per line. Each gets a POST when a post, page or media item is created, updated
               or deleted — which is what stops a consumer polling. Every request carries{' '}
-              <code>X-BasicBen-Signature</code>, an HMAC of the exact body keyed with your{' '}
-              <code>APP_KEY</code>; verify it over the <em>raw</em> body, since a parsed and
+              <code>X-BasicBen-Signature</code>, an HMAC of <code>X-BasicBen-Timestamp</code> and the exact body, keyed with your{' '}
+              <code>WEBHOOK_SECRET</code> (set in the environment; nothing is sent without it); verify it over the <em>raw</em> body, since a parsed and
               re-serialised one will not match.
             </p>
             <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>

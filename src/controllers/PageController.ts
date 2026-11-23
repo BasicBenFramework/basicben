@@ -1,6 +1,7 @@
 import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Page } from '../models/Page'
+import { seoFields } from '../helpers/seo-fields'
 import type { Request, Response } from '../types'
 import { paginationFrom, meta } from '../models/pagination'
 
@@ -87,7 +88,11 @@ export const PageController = {
       }
     }
 
+    const seo = seoFields(req.body)
+    if ('errors' in seo) return res.json({ errors: seo.errors }, 422)
+
     const draft = await hooks.filter(HOOKS.PAGE_CREATING, {
+      ...seo.values,
       title,
       slug,
       content,
@@ -164,7 +169,11 @@ export const PageController = {
       return res.json({ errors: { parent_id: ['Cannot set page as its own parent'] } }, 422)
     }
 
+    const seo = seoFields(req.body)
+    if ('errors' in seo) return res.json({ errors: seo.errors }, 422)
+
     const changes = await hooks.filter(HOOKS.PAGE_UPDATING, {
+      ...seo.values,
       title,
       slug,
       content,

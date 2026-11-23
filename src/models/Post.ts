@@ -4,6 +4,7 @@ import { renderContent } from '@basicbenframework/core/content'
 import { getStorage } from '@basicbenframework/core/storage'
 import { derivedFields } from './derive'
 import type { Post as PostType } from '../types'
+import { livePost } from './visibility'
 
 interface CreatePostData {
   user_id: number
@@ -16,6 +17,16 @@ interface CreatePostData {
   meta_title?: string | null
   meta_description?: string | null
   publish_at?: string | null
+  status?: 'draft' | 'pending' | 'published'
+  live_notified?: number
+  og_title?: string | null
+  og_description?: string | null
+  og_image?: number | null
+  twitter_title?: string | null
+  twitter_description?: string | null
+  twitter_image?: number | null
+  canonical_url?: string | null
+  noindex?: number
 }
 
 interface UpdatePostData {
@@ -29,6 +40,17 @@ interface UpdatePostData {
   meta_title?: string | null
   meta_description?: string | null
   publish_at?: string | null
+  status?: 'draft' | 'pending' | 'published'
+  deleted_at?: string | null
+  live_notified?: number
+  og_title?: string | null
+  og_description?: string | null
+  og_image?: number | null
+  twitter_title?: string | null
+  twitter_description?: string | null
+  twitter_image?: number | null
+  canonical_url?: string | null
+  noindex?: number
 }
 
 /**
@@ -42,8 +64,37 @@ interface UpdatePostData {
  */
 const UPDATABLE = [
   'user_id', 'title', 'content', 'content_html', 'published', 'slug', 'excerpt',
-  'featured_image', 'meta_title', 'meta_description', 'publish_at'
+  'featured_image', 'meta_title', 'meta_description', 'publish_at',
+  'status', 'deleted_at', 'live_notified',
+  'og_title', 'og_description', 'og_image', 'twitter_title', 'twitter_description',
+  'twitter_image', 'canonical_url', 'noindex'
 ]
+
+/** The social and indexing fields, written on create exactly as given. */
+export const SEO_FIELDS = [
+  'og_title', 'og_description', 'og_image', 'twitter_title', 'twitter_description',
+  'twitter_image', 'canonical_url', 'noindex'
+] as const
+
+/**
+ * The admin listing's filters, in the order the tabs show them.
+ *
+ * `scheduled` is not a stored status: it is a published post whose time has
+ * not come, which is exactly how the public site decides not to show it.
+ */
+export const LISTING_FILTERS = ['all', 'draft', 'pending', 'scheduled', 'published', 'trash'] as const
+export type ListingFilter = (typeof LISTING_FILTERS)[number]
+
+function listingWhere(filter: ListingFilter, now: string): string {
+  switch (filter) {
+    case 'trash': return 'posts.deleted_at IS NOT NULL'
+    case 'draft': return "posts.deleted_at IS NULL AND posts.status = 'draft'"
+    case 'pending': return "posts.deleted_at IS NULL AND posts.status = 'pending'"
+    case 'scheduled': return `posts.deleted_at IS NULL AND posts.published = 1 AND posts.publish_at > '${now}'`
+    case 'published': return `posts.deleted_at IS NULL AND posts.published = 1 AND (posts.publish_at IS NULL OR posts.publish_at <= '${now}')`
+    default: return 'posts.deleted_at IS NULL'
+  }
+}
 
 export const Post = {
   async all(): Promise<PostType[]> {
@@ -125,8 +176,61 @@ export const Post = {
 
   async findByUser(userId: number): Promise<PostType[]> {
     const db = await getDb()
-    return db.all('SELECT * FROM posts WHERE user_id = ? ORDER BY created_at DESC', [userId])
+    return db.all('SELECT * FROM posts WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC', [userId])
   },
+
+  /** How many posts sit in each listing tab, for the counts beside them. */
+  async counts(userId?: number): Promise<Record<ListingFilter, number>> {
+    const db = await getDb()
+    const now = new Date().toISOString()
+    const result = {} as Record<ListingFilter, number>
+
+    for (const filter of LISTING_FILTERS) {
+      const where = [listingWhere(filter, now)]
+      const params: unknown[] = []
+      if (userId !== undefined) {
+        where.push('posts.user_id = ?')
+        params.push(userId)
+      }
+      const row = await db.get(`SELECT COUNT(*) AS total FROM posts WHERE ${where.join(' AND ')}`, params)
+      result[filter] = Number(row?.total) || 0
+    }
+
+    return result
+  },
+
+  /** Move to the trash. Hidden everywhere, restorable until emptied. */
+  async trash(id: number): Promise<void> {
+    const db = await getDb()
+    await db.run('UPDATE posts SET deleted_at = ? WHERE id = ?', [new Date().toISOString(), id])
+  },
+
+  /** Take out of the trash, in whatever state it was in before. */
+  async restore(id: number): Promise<void> {
+    const db = await getDb()
+    await db.run('UPDATE posts SET deleted_at = NULL WHERE id = ?', [id])
+  },
+
+  /**
+   * Scheduled posts whose time has come and that webhooks have not heard about.
+   *
+   * The public site needs nothing to make a scheduled post appear — the read
+   * filter does that — but a webhook consumer has to be told, and nothing
+   * happens at the moment the time passes. `publishDue()` asks this, tells
+   * the consumers, then marks each one with `markNotified`.
+   */
+  async dueForNotification(): Promise<PostType[]> {
+    const db = await getDb()
+    return db.all(
+      `SELECT * FROM posts WHERE live_notified = 0 AND ${livePost('posts')}`
+    )
+  },
+
+  async markNotified(id: number): Promise<void> {
+    const db = await getDb()
+    await db.run('UPDATE posts SET live_notified = 1 WHERE id = ?', [id])
+  },
+
 
   /**
    * One page of posts, with the total so a caller can size the pager.
@@ -141,12 +245,36 @@ export const Post = {
    * It is cheap: an indexed count.
    */
   async paginate(
-    { perPage, offset, userId }: { perPage: number; offset: number; userId?: number }
+    { perPage, offset, userId, filter = 'all', search }: {
+      perPage: number
+      offset: number
+      userId?: number
+      filter?: ListingFilter
+      search?: string
+    }
   ): Promise<{ posts: PostType[]; total: number }> {
     const db = await getDb()
 
-    const where = userId === undefined ? '' : 'WHERE posts.user_id = ?'
-    const scope = userId === undefined ? [] : [userId]
+    // The trash is its own tab; everything else leaves it out. `now` is our
+    // own ISO string, so inlining it is safe (see visibility.ts).
+    const conditions = [listingWhere(filter, new Date().toISOString())]
+    const scope: unknown[] = []
+
+    if (userId !== undefined) {
+      conditions.push('posts.user_id = ?')
+      scope.push(userId)
+    }
+
+    if (search) {
+      // Case-insensitive on every driver. LIKE is on SQLite and not on
+      // Postgres, so both sides are lowered rather than trusting the default.
+      // `%` and `_` in the search are literal characters, not wildcards.
+      const needle = `%${search.toLowerCase().replace(/[\\%_]/g, (c) => '\\' + c)}%`
+      conditions.push("(LOWER(posts.title) LIKE ? ESCAPE '\\' OR LOWER(posts.content) LIKE ? ESCAPE '\\')")
+      scope.push(needle, needle)
+    }
+
+    const where = `WHERE ${conditions.join(' AND ')}`
 
     // `id` breaks ties. `created_at` alone is not a total order — these rows
     // are written in the same second all the time — and an unspecified order
@@ -180,8 +308,8 @@ export const Post = {
     const db = await getDb()
     const rows = await db.all(`
       SELECT ${PUBLISHED_COLUMNS} ${PUBLISHED_JOINS}
-      WHERE posts.published = 1
-      ORDER BY posts.created_at DESC
+      WHERE ${livePost('posts')}
+      ORDER BY COALESCE(posts.publish_at, posts.created_at) DESC
     `)
 
     return withAuthors(await withFeaturedImages(rows))
@@ -191,7 +319,7 @@ export const Post = {
     const db = await getDb()
     const row = await db.get(`
       SELECT ${PUBLISHED_COLUMNS} ${PUBLISHED_JOINS}
-      WHERE posts.id = ? AND posts.published = 1
+      WHERE posts.id = ? AND ${livePost('posts')}
     `, [id])
 
     if (!row) return undefined
@@ -232,7 +360,10 @@ export const Post = {
       meta_title: data.meta_title ?? null,
       meta_description: data.meta_description ?? null,
       publish_at: data.publish_at ?? null,
-      published: data.published ? 1 : 0
+      published: data.published ? 1 : 0,
+      status: data.status ?? (data.published ? 'published' : 'draft'),
+      live_notified: data.live_notified ?? 1,
+      ...Object.fromEntries(SEO_FIELDS.filter((key) => data[key] !== undefined).map((key) => [key, data[key]]))
     })
 
     const now = new Date().toISOString()
@@ -296,8 +427,10 @@ export const Post = {
     return this.find(id) as Promise<PostType>
   },
 
+  /** Gone for good. Only ever called on a post already in the trash. */
   async delete(id: number): Promise<void> {
     const db = await getDb()
+    await db.run('DELETE FROM post_revisions WHERE post_id = ?', [id])
     await db.run('DELETE FROM posts WHERE id = ?', [id])
   }
 }

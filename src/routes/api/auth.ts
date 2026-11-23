@@ -1,5 +1,8 @@
+import { auth } from '../../middleware/auth'
 import { AuthController } from '../../controllers/AuthController'
 import { loginByAddress, loginByAccount, registerLimit } from '../../middleware/rate-limits'
+import { PasswordResetController } from '../../controllers/PasswordResetController'
+import { passwordResetLimit, tokenRedeemLimit } from '../../middleware/rate-limits'
 
 interface Router {
   post: (path: string, ...handlers: Function[]) => void
@@ -14,9 +17,18 @@ export default (router: Router) => {
   // working on one — which is what credential stuffing looks like.
   router.post('/api/auth/login', loginByAddress, loginByAccount, AuthController.login)
 
-  router.get('/api/user', AuthController.user)
+  // Through `auth`, so a revoked or disabled session is refused here too —
+  // this is what the client asks on load to decide whether it is signed in.
+  router.get('/api/user', auth, AuthController.user)
 
-  // The JWT is stateless, so this cannot revoke anything — it exists so that a
-  // sign-out is observable to a listener (a denylist, an audit log).
-  router.post('/api/auth/logout', AuthController.logout)
+  // Ends every session the account has: tokens carry a version, and this
+  // bumps it.
+  router.post('/api/auth/logout', auth, AuthController.logout)
+
+  // Forgotten passwords. The request is limited by address here and by mailbox
+  // inside the controller — silently, so the answer never depends on whether
+  // the account exists. Both stay registered with DISABLE_REGISTRATION and
+  // without a public site: they are how an existing account gets back in.
+  router.post('/api/auth/forgot-password', passwordResetLimit, PasswordResetController.request)
+  router.post('/api/auth/reset-password', tokenRedeemLimit, PasswordResetController.reset)
 }

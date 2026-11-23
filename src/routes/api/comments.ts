@@ -1,5 +1,6 @@
 import { CommentController } from '../../controllers/CommentController'
-import { auth } from '../../middleware/auth'
+import { auth, optionalAuth } from '../../middleware/auth'
+import { commentLimit } from '../../middleware/rate-limits'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {
@@ -11,10 +12,14 @@ interface Router {
 
 export default (router: Router) => {
   // Public routes - get comments for a post
-  router.get('/api/posts/:postId/comments', CommentController.byPost)
+  // optionalAuth so a moderator can ask for the whole thread; everyone else
+  // gets the approved comments, without addresses.
+  router.get('/api/posts/:postId/comments', optionalAuth, CommentController.byPost)
 
   // Post comment (optional auth - guests can comment with name/email)
-  router.post('/api/posts/:postId/comments', CommentController.store)
+  // optionalAuth so a signed-in commenter posts as themselves. This route
+  // never ran any auth, so everyone was a guest and could use any name.
+  router.post('/api/posts/:postId/comments', commentLimit, optionalAuth, CommentController.store)
 
   // Admin routes (authenticated)
   router.get('/api/comments', auth, requireCapability('comment.moderate'), CommentController.index)

@@ -1,5 +1,6 @@
 import { getDb, query } from '@basicbenframework/core/db'
 import type { Tag as TagType } from '../types'
+import { livePost } from './visibility'
 
 interface CreateTagData {
   name: string
@@ -25,7 +26,7 @@ export const Tag = {
       SELECT t.*, COUNT(pt.post_id) as post_count
       FROM tags t
       LEFT JOIN post_tags pt ON pt.tag_id = t.id
-      LEFT JOIN posts p ON p.id = pt.post_id AND p.published = 1
+      LEFT JOIN posts p ON p.id = pt.post_id AND ${livePost('p')}
       GROUP BY t.id
       ORDER BY t.name ASC
     `)
@@ -37,7 +38,7 @@ export const Tag = {
       SELECT t.*, COUNT(pt.post_id) as post_count
       FROM tags t
       LEFT JOIN post_tags pt ON pt.tag_id = t.id
-      LEFT JOIN posts p ON p.id = pt.post_id AND p.published = 1
+      LEFT JOIN posts p ON p.id = pt.post_id AND ${livePost('p')}
       WHERE t.id = ?
       GROUP BY t.id
     `, [id])
@@ -49,7 +50,7 @@ export const Tag = {
       SELECT t.*, COUNT(pt.post_id) as post_count
       FROM tags t
       LEFT JOIN post_tags pt ON pt.tag_id = t.id
-      LEFT JOIN posts p ON p.id = pt.post_id AND p.published = 1
+      LEFT JOIN posts p ON p.id = pt.post_id AND ${livePost('p')}
       WHERE t.slug = ?
       GROUP BY t.id
     `, [slug])

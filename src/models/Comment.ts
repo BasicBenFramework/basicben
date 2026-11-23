@@ -53,6 +53,30 @@ export const Comment = {
     return buildCommentTree(comments)
   },
 
+  /**
+   * The approved comments on a post, as a reader sees them.
+   *
+   * Explicit columns, never `c.*`: this answers anyone who asks, and the row
+   * holds the guest's email address and the signed-in commenter's account
+   * address beside the text. Neither is published. `verified` says whether a
+   * comment came from an account, so a guest typing an editor's name is not
+   * mistaken for the editor.
+   */
+  async findPublicByPostId(postId: number): Promise<CommentType[]> {
+    const db = await getDb()
+    const comments = await db.all(`
+      SELECT c.id, c.post_id, c.parent_id, c.content, c.created_at,
+             COALESCE(u.name, c.author_name) AS author_name,
+             CASE WHEN c.user_id IS NULL THEN 0 ELSE 1 END AS verified
+      FROM comments c
+      LEFT JOIN users u ON u.id = c.user_id
+      WHERE c.post_id = ? AND c.approved = 1
+      ORDER BY c.created_at ASC
+    `, [postId])
+
+    return buildCommentTree(comments)
+  },
+
   async findPending(): Promise<CommentType[]> {
     const db = await getDb()
     return db.all(`
@@ -141,21 +165,23 @@ export const Comment = {
       `SELECT COUNT(*) as count FROM comments WHERE post_id = ? ${approvedClause}`,
       [postId]
     )
-    return result?.count || 0
+    return Number(result?.count ?? 0)
   },
 
   async countPending(): Promise<number> {
     const db = await getDb()
     const result = await db.get('SELECT COUNT(*) as count FROM comments WHERE approved = 0')
-    return result?.count || 0
+    return Number(result?.count ?? 0)
   }
 }
 
 function buildCommentTree(comments: CommentType[], parentId: number | null = null): CommentType[] {
+  // Compared as numbers: Postgres and libSQL may hand ids back as strings or
+  // bigints, and a strict comparison across types silently drops every reply.
   return comments
-    .filter(comment => comment.parent_id === parentId)
+    .filter(comment => (comment.parent_id == null ? null : Number(comment.parent_id)) === parentId)
     .map(comment => ({
       ...comment,
-      replies: buildCommentTree(comments, comment.id)
+      replies: buildCommentTree(comments, Number(comment.id))
     }))
 }

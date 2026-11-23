@@ -1,3 +1,5 @@
+import { can } from '@basicbenframework/core/auth/permissions'
+import { imageSize } from '../helpers/image-size'
 /**
  * Media library.
  *
@@ -25,8 +27,10 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 
 export const MediaController = {
   async index(req: Request, res: Response) {
-    const page = parseInt(req.query.page as string) || 1
-    const perPage = parseInt(req.query.per_page as string) || 20
+    // Bounded: an unbounded per_page is one request that reads the whole
+    // library and resolves a URL for every row.
+    const page = Math.max(1, parseInt(req.query.page as string) || 1)
+    const perPage = Math.min(100, Math.max(1, parseInt(req.query.per_page as string) || 20))
     const search = (req.query.search as string) || undefined
     const type = (req.query.type as string) || undefined
     const { items, total } = await Media.all(page, perPage, { search, type })
@@ -107,6 +111,27 @@ export const MediaController = {
       return res.json({ error: result.error }, 422)
     }
 
+    // Images are read back once, to record their size and to check that the
+    // bytes are the image they were declared to be. The upload went straight
+    // to storage, so this is the first time the server sees the file.
+    let dimensions: { width: number; height: number } | null = null
+    if (String(result.contentType).startsWith('image/')) {
+      const storage = await getStorage()
+      let info: ReturnType<typeof imageSize> = null
+      try {
+        const object = await storage.get(result.key as string)
+        info = imageSize(new Uint8Array(object.body))
+      } catch (err) {
+        console.error('Could not read the uploaded image:', (err as Error).message)
+      }
+
+      if (!info || info.type !== result.contentType) {
+        await storage.delete(result.key as string).catch(() => {})
+        return res.json({ error: 'That file is not a valid image of the type it claims to be.' }, 422)
+      }
+      dimensions = { width: info.width, height: info.height }
+    }
+
     const media = await Media.create({
       user_id: req.userId,
       filename: result.key as string,
@@ -114,7 +139,9 @@ export const MediaController = {
       path: result.key as string,
       mime_type: result.contentType,
       size: result.size,
-      alt_text: altText
+      alt_text: altText,
+      width: dimensions?.width ?? null,
+      height: dimensions?.height ?? null
     })
 
     res.json({ media: { ...media, url: result.url } }, 201)
@@ -124,6 +151,12 @@ export const MediaController = {
     const media = await Media.find(parseInt(req.params.id))
     if (!media) {
       return res.json({ error: 'Media not found' }, 404)
+    }
+
+    // Your own uploads, or anyone's if you may manage the library. Holding
+    // `media.upload` used to be enough to rewrite another author's alt text.
+    if (!can(req.user, 'media.delete', media)) {
+      return res.json({ error: 'You do not have permission to edit this item.' }, 403)
     }
 
     const { alt_text } = req.body as { alt_text?: string }
@@ -140,6 +173,12 @@ export const MediaController = {
     const media = await Media.find(parseInt(req.params.id))
     if (!media) {
       return res.json({ error: 'Media not found' }, 404)
+    }
+
+    // Checked against the row, so `media.delete.own` works: an author could
+    // never delete their own upload while the route demanded `media.delete`.
+    if (!can(req.user, 'media.delete', media)) {
+      return res.json({ error: 'You do not have permission to delete this item.' }, 403)
     }
 
     await Media.delete(parseInt(req.params.id))

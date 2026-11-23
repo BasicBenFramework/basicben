@@ -109,7 +109,13 @@ export const SHAPES = [
       { name: 'tags', type: 'Array<{ id: number; name: string; slug: string }>', description: 'Every tag on the post. Empty when untagged.' },
       { name: 'meta_title', type: 'string | null', description: 'SEO title override, if set.' },
       { name: 'meta_description', type: 'string | null', description: 'SEO description override, if set.' },
-      { name: 'published_at', type: 'string', description: 'When it was created, ISO 8601. Posts are ordered by this, newest first.' },
+      { name: 'featured_image', type: 'ResponsiveImage | null', description: 'The featured image with its dimensions, alt text and a srcset when IMAGE_TRANSFORM_URL is set.' },
+      { name: 'og', type: 'SocialCard', description: 'Open Graph card: title, description and image, each falling back to the SEO fields, the excerpt and the featured image.' },
+      { name: 'twitter', type: 'SocialCard', description: 'Twitter card, falling back to the Open Graph card.' },
+      { name: 'canonical_url', type: 'string | null', description: 'Where this was first published, if somewhere else. Emit as rel=canonical.' },
+      { name: 'noindex', type: 'boolean', description: 'True when the author asked search engines not to index this. Emit a robots noindex meta tag.' },
+      { name: 'structured_data', type: 'Record<string, unknown>', description: 'schema.org BlogPosting, ready to embed as application/ld+json.' },
+      { name: 'published_at', type: 'string', description: 'When it went live, ISO 8601. Posts are ordered by this, newest first.' },
       { name: 'updated_at', type: 'string', description: 'When it last changed, ISO 8601.' }
     ]
   },
@@ -125,6 +131,11 @@ export const SHAPES = [
       { name: 'featured_image_url', type: 'string | null', description: 'Absolute URL of the featured image, or null.' },
       { name: 'meta_title', type: 'string | null', description: 'SEO title override, if set.' },
       { name: 'meta_description', type: 'string | null', description: 'SEO description override, if set.' },
+      { name: 'featured_image', type: 'ResponsiveImage | null', description: 'The featured image with its dimensions, alt text and a srcset when IMAGE_TRANSFORM_URL is set.' },
+      { name: 'og', type: 'SocialCard', description: 'Open Graph card: title, description and image, each falling back to the SEO fields and the featured image.' },
+      { name: 'twitter', type: 'SocialCard', description: 'Twitter card, falling back to the Open Graph card.' },
+      { name: 'canonical_url', type: 'string | null', description: 'Where this was first published, if somewhere else. Emit as rel=canonical.' },
+      { name: 'noindex', type: 'boolean', description: 'True when the author asked search engines not to index this. Emit a robots noindex meta tag.' },
       { name: 'published_at', type: 'string', description: 'When it was created, ISO 8601.' },
       { name: 'updated_at', type: 'string', description: 'When it last changed, ISO 8601.' }
     ]

@@ -19,6 +19,9 @@ import { AuthLayout } from '../client/layouts/AuthLayout'
 import { DocsLayout } from '../client/layouts/DocsLayout'
 import { Home } from '../client/pages/Home'
 import { Auth } from '../client/pages/Auth'
+import { AcceptInvite } from '../client/pages/AcceptInvite'
+import { ForgotPassword } from '../client/pages/ForgotPassword'
+import { ResetPassword } from '../client/pages/ResetPassword'
 import { Feed } from '../client/pages/Feed'
 import { FeedPost } from '../client/pages/FeedPost'
 import { Posts } from '../client/pages/Posts'
@@ -45,6 +48,7 @@ import AdminTags from '../client/pages/admin/Tags'
 import AdminComments from '../client/pages/admin/Comments'
 import AdminMedia from '../client/pages/admin/Media'
 import AdminTokens from '../client/pages/admin/Tokens'
+import AdminUsers from '../client/pages/admin/Users'
 import AdminSettings from '../client/pages/admin/Settings'
 
 // Admin layout wrapper (no default layout)
@@ -87,6 +91,14 @@ const publicRoutes: Record<string, RouteDefinition> = __DISABLE_PUBLIC_SITE__
  */
 const authRoutes: Record<string, RouteDefinition> = {
   '/login': { component: Auth, layout: AuthLayout, guest: true },
+  // Getting back in, and getting in for the first time by invitation. Outside
+  // both build flags on purpose: a closed site with no public pages still has
+  // people who forget passwords, and an invitation is how a closed site adds
+  // anyone. Only the request form is guest-only — a reset or an invitation
+  // link may well be opened in a browser already signed in as someone else.
+  '/forgot-password': { component: ForgotPassword, layout: AuthLayout, guest: true },
+  '/reset-password/:token': { component: ResetPassword, layout: AuthLayout },
+  '/invite/:token': { component: AcceptInvite, layout: AuthLayout },
   ...(__DISABLE_REGISTRATION__
     ? {}
     : { '/register': { component: Auth, layout: AuthLayout, guest: true } })
@@ -132,5 +144,6 @@ export default createClientApp({
     '/admin/media': { component: AdminMedia, layout: NoLayout, auth: true },
     '/admin/tokens': { component: AdminTokens, layout: NoLayout, auth: true },
     '/admin/settings': { component: AdminSettings, layout: NoLayout, auth: true },
+    '/admin/users': { component: AdminUsers, layout: NoLayout, auth: true },
   }
 })

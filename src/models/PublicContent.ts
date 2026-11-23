@@ -14,6 +14,9 @@
 
 import { getDb } from '@basicbenframework/core/db'
 import { getStorage, absoluteUrl } from '@basicbenframework/core/storage'
+import { livePost, parseStoredTimestamp } from './visibility'
+import { responsiveImage, type ResponsiveImage } from '../helpers/images'
+import { siteUrl } from '../helpers/site'
 
 export type ContentFormat = 'html' | 'markdown'
 
@@ -53,13 +56,48 @@ export interface PublicPost {
   meta_title: string | null
   /** SEO description override, if set. */
   meta_description: string | null
-  /** When it was created, ISO 8601. Posts are ordered by this, newest first. */
+  /** The featured image with its dimensions, alt text and a srcset when IMAGE_TRANSFORM_URL is set. */
+  featured_image: ResponsiveImage | null
+  /** Open Graph card: title, description and image, each falling back to the SEO fields, the excerpt and the featured image. */
+  og: SocialCard
+  /** Twitter card, falling back to the Open Graph card. */
+  twitter: SocialCard
+  /** Where this was first published, if somewhere else. Emit as rel=canonical. */
+  canonical_url: string | null
+  /** True when the author asked search engines not to index this. Emit a robots noindex meta tag. */
+  noindex: boolean
+  /** schema.org BlogPosting, ready to embed as application/ld+json. */
+  structured_data: Record<string, unknown>
+  /** When it went live, ISO 8601. Posts are ordered by this, newest first. */
   published_at: string
   /** When it last changed, ISO 8601. */
   updated_at: string
 }
 
-interface PostRow {
+/** A social share card, with every fallback already applied. */
+export interface SocialCard {
+  title: string
+  description: string | null
+  image_url: string | null
+}
+
+/** The social and indexing columns posts and pages share. */
+interface SeoRow {
+  og_title: string | null
+  og_description: string | null
+  og_image_path: string | null
+  twitter_title: string | null
+  twitter_description: string | null
+  twitter_image_path: string | null
+  canonical_url: string | null
+  noindex: number | boolean | null
+  featured_image_width: number | null
+  featured_image_height: number | null
+  featured_image_alt: string | null
+  publish_at: string | null
+}
+
+interface PostRow extends SeoRow {
   id: number
   slug: string | null
   title: string
@@ -91,6 +129,18 @@ const POST_COLUMNS = `
   posts.meta_description,
   posts.created_at,
   posts.updated_at,
+  posts.publish_at,
+  posts.og_title,
+  posts.og_description,
+  posts.twitter_title,
+  posts.twitter_description,
+  posts.canonical_url,
+  posts.noindex,
+  media.width AS featured_image_width,
+  media.height AS featured_image_height,
+  media.alt_text AS featured_image_alt,
+  og_media.path AS og_image_path,
+  twitter_media.path AS twitter_image_path,
   users.id AS author_id,
   users.name AS author_name,
   users.slug AS author_slug,
@@ -105,6 +155,8 @@ const POST_JOINS = `
   JOIN users ON posts.user_id = users.id
   LEFT JOIN media ON media.id = posts.featured_image
   LEFT JOIN media AS avatars ON avatars.id = users.avatar_id
+  LEFT JOIN media AS og_media ON og_media.id = posts.og_image
+  LEFT JOIN media AS twitter_media ON twitter_media.id = posts.twitter_image
 `
 
 /** The same for pages, which carry a featured image of their own now. */
@@ -118,12 +170,26 @@ const PAGE_COLUMNS = `
   pages.meta_description,
   pages.created_at,
   pages.updated_at,
+  NULL AS publish_at,
+  pages.og_title,
+  pages.og_description,
+  pages.twitter_title,
+  pages.twitter_description,
+  pages.canonical_url,
+  pages.noindex,
+  media.width AS featured_image_width,
+  media.height AS featured_image_height,
+  media.alt_text AS featured_image_alt,
+  og_media.path AS og_image_path,
+  twitter_media.path AS twitter_image_path,
   media.path AS featured_image_path
 `
 
 const PAGE_JOINS = `
   FROM pages
   LEFT JOIN media ON media.id = pages.featured_image
+  LEFT JOIN media AS og_media ON og_media.id = pages.og_image
+  LEFT JOIN media AS twitter_media ON twitter_media.id = pages.twitter_image
 `
 
 const MAX_PER_PAGE = 100
@@ -165,7 +231,7 @@ export const PublicContent = {
     const db = await getDb()
     const { perPage = 10, offset = 0, category, tag, author, search, format = 'html' } = options
 
-    const where: string[] = ['posts.published = 1']
+    const where: string[] = [livePost('posts')]
     const params: unknown[] = []
 
     if (category) {
@@ -212,7 +278,7 @@ export const PublicContent = {
 
     const rows = (await db.all(
       `SELECT ${POST_COLUMNS} ${POST_JOINS} ${clause}
-       ORDER BY posts.created_at DESC
+       ORDER BY COALESCE(posts.publish_at, posts.created_at) DESC, posts.id DESC
        LIMIT ? OFFSET ?`,
       [...params, perPage, offset]
     )) as PostRow[]
@@ -234,7 +300,7 @@ export const PublicContent = {
 
     const row = (await db.get(
       `SELECT ${POST_COLUMNS} ${POST_JOINS}
-       WHERE posts.published = 1 AND (posts.slug = ? OR posts.id = ?)`,
+       WHERE ${livePost('posts')} AND (posts.slug = ? OR posts.id = ?)`,
       [identifier, Number(identifier) || -1]
     )) as PostRow | undefined
 
@@ -293,7 +359,7 @@ export const PublicContent = {
              COUNT(p.id) AS post_count
       FROM categories c
       LEFT JOIN post_categories pc ON pc.category_id = c.id
-      LEFT JOIN posts p ON p.id = pc.post_id AND p.published = 1
+      LEFT JOIN posts p ON p.id = pc.post_id AND ${livePost('p')}
       GROUP BY c.id, c.name, c.slug, c.description
       ORDER BY c.name ASC
     `)) as Array<Omit<PublicCategory, 'post_count'> & { post_count: number | string }>
@@ -310,7 +376,7 @@ export const PublicContent = {
              COUNT(p.id) AS post_count
       FROM tags t
       LEFT JOIN post_tags pt ON pt.tag_id = t.id
-      LEFT JOIN posts p ON p.id = pt.post_id AND p.published = 1
+      LEFT JOIN posts p ON p.id = pt.post_id AND ${livePost('p')}
       GROUP BY t.id, t.name, t.slug
       ORDER BY t.name ASC
     `)) as Array<Omit<PublicTag, 'post_count'> & { post_count: number | string }>
@@ -334,7 +400,7 @@ export const PublicContent = {
              avatars.path AS avatar_path,
              COUNT(posts.id) AS post_count
       FROM users
-      JOIN posts ON posts.user_id = users.id AND posts.published = 1
+      JOIN posts ON posts.user_id = users.id AND ${livePost('posts')}
       LEFT JOIN media AS avatars ON avatars.id = users.avatar_id
       GROUP BY users.id, users.name, users.slug, users.bio, users.website, avatars.path
       ORDER BY users.name ASC
@@ -352,7 +418,7 @@ export const PublicContent = {
               avatars.path AS avatar_path,
               COUNT(posts.id) AS post_count
        FROM users
-       JOIN posts ON posts.user_id = users.id AND posts.published = 1
+       JOIN posts ON posts.user_id = users.id AND ${livePost('posts')}
        LEFT JOIN media AS avatars ON avatars.id = users.avatar_id
        WHERE users.slug = ? OR users.id = ?
        GROUP BY users.id, users.name, users.slug, users.bio, users.website, avatars.path`,
@@ -409,6 +475,16 @@ export interface PublicPage {
   meta_title: string | null
   /** SEO description override, if set. */
   meta_description: string | null
+  /** The featured image with its dimensions, alt text and a srcset when IMAGE_TRANSFORM_URL is set. */
+  featured_image: ResponsiveImage | null
+  /** Open Graph card: title, description and image, each falling back to the SEO fields and the featured image. */
+  og: SocialCard
+  /** Twitter card, falling back to the Open Graph card. */
+  twitter: SocialCard
+  /** Where this was first published, if somewhere else. Emit as rel=canonical. */
+  canonical_url: string | null
+  /** True when the author asked search engines not to index this. Emit a robots noindex meta tag. */
+  noindex: boolean
   /** When it was created, ISO 8601. */
   published_at: string
   /** When it last changed, ISO 8601. */
@@ -485,7 +561,7 @@ export interface PublicMedia {
   created_at: string
 }
 
-interface PageRow {
+interface PageRow extends SeoRow {
   id: number
   slug: string
   title: string
@@ -593,9 +669,7 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
     )) as Array<{ post_id: number; id: number; name: string; slug: string }>
   )
 
-  const storage = rows.some((row) => row.featured_image_path || row.author_avatar_path)
-    ? await getStorage()
-    : null
+  const storage = await getStorage()
 
   return rows.map((row) => ({
     id: row.id,
@@ -615,14 +689,16 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
     tags: tagsByPost.get(row.id) ?? [],
     meta_title: row.meta_title,
     meta_description: row.meta_description,
-    published_at: row.created_at,
+    ...seoFor(row, storage, row.excerpt),
+    structured_data: blogPosting(row, storage),
+    published_at: iso(row.publish_at ?? row.created_at),
     updated_at: row.updated_at
   }))
 }
 
 /** Pages, with their featured image resolved in one adapter lookup per batch. */
 async function shapePages(rows: PageRow[], format: ContentFormat): Promise<PublicPage[]> {
-  const storage = rows.some((row) => row.featured_image_path) ? await getStorage() : null
+  const storage = await getStorage()
 
   return rows.map((row) => ({
     id: row.id,
@@ -633,9 +709,87 @@ async function shapePages(rows: PageRow[], format: ContentFormat): Promise<Publi
       row.featured_image_path && storage ? mediaUrl(storage, row.featured_image_path) : null,
     meta_title: row.meta_title,
     meta_description: row.meta_description,
-    published_at: row.created_at,
+    ...seoFor(row, storage, null),
+    published_at: iso(row.created_at),
     updated_at: row.updated_at
   }))
+}
+
+type Storage = { publicUrl: (key: string) => string }
+
+/** A stored timestamp as ISO 8601 UTC, whichever form the driver returned. */
+function iso(value: string): string {
+  const time = parseStoredTimestamp(value)
+  return Number.isNaN(time) ? value : new Date(time).toISOString()
+}
+
+/**
+ * The featured image, the share cards and the indexing flags.
+ *
+ * Every fallback is applied here so a consumer can render tags straight from
+ * the response: an og title falls back to the meta title and then the title,
+ * a twitter card falls back to the og card, and a card image falls back to
+ * the featured image.
+ */
+function seoFor(
+  row: SeoRow & { title: string; meta_title: string | null; meta_description: string | null; featured_image_path: string | null },
+  storage: Storage,
+  excerpt: string | null
+) {
+  const featuredUrl = row.featured_image_path ? mediaUrl(storage, row.featured_image_path) : null
+  const featured = responsiveImage(featuredUrl, {
+    width: row.featured_image_width,
+    height: row.featured_image_height,
+    alt: row.featured_image_alt
+  })
+
+  const og: SocialCard = {
+    title: row.og_title || row.meta_title || row.title,
+    description: row.og_description || row.meta_description || excerpt || null,
+    image_url: row.og_image_path ? mediaUrl(storage, row.og_image_path) : featuredUrl
+  }
+
+  const twitter: SocialCard = {
+    title: row.twitter_title || og.title,
+    description: row.twitter_description || og.description,
+    image_url: row.twitter_image_path ? mediaUrl(storage, row.twitter_image_path) : og.image_url
+  }
+
+  return {
+    featured_image: featured,
+    og,
+    twitter,
+    canonical_url: row.canonical_url || null,
+    noindex: Boolean(Number(row.noindex ?? 0))
+  }
+}
+
+/** schema.org BlogPosting for a post, for a front end to embed as JSON-LD. */
+function blogPosting(row: PostRow, storage: Storage): Record<string, unknown> {
+  const site = siteUrl()
+  const image = row.og_image_path
+    ? mediaUrl(storage, row.og_image_path)
+    : row.featured_image_path ? mediaUrl(storage, row.featured_image_path) : undefined
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: row.meta_title || row.title,
+    ...(row.meta_description || row.excerpt ? { description: row.meta_description || row.excerpt } : {}),
+    ...(image ? { image } : {}),
+    datePublished: iso(row.publish_at ?? row.created_at),
+    dateModified: iso(row.updated_at),
+    ...(row.author_name
+      ? {
+          author: {
+            '@type': 'Person',
+            name: row.author_name,
+            ...(row.author_slug && site ? { url: `${site}/author/${row.author_slug}` } : {})
+          }
+        }
+      : {}),
+    ...(site ? { mainEntityOfPage: row.canonical_url || `${site}/blog/${row.slug || row.id}` } : {})
+  }
 }
 
 /**
@@ -646,7 +800,7 @@ async function shapePages(rows: PageRow[], format: ContentFormat): Promise<Publi
  */
 function shapeAuthor(
   row: PostRow,
-  storage: { publicUrl: (key: string) => string } | null
+  storage: Storage | null
 ): PublicPost['author_profile'] {
   if (row.author_id === null || row.author_id === undefined) return null
 

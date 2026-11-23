@@ -1,5 +1,6 @@
 import { getDb, query } from '@basicbenframework/core/db'
 import type { Category as CategoryType } from '../types'
+import { livePost } from './visibility'
 
 interface CreateCategoryData {
   name: string
@@ -28,7 +29,7 @@ export const Category = {
     return db.all(`
       SELECT c.*, COUNT(p.id) as post_count
       FROM categories c
-      LEFT JOIN posts p ON p.category_id = c.id AND p.published = 1
+      LEFT JOIN posts p ON p.category_id = c.id AND ${livePost('p')}
       GROUP BY c.id
       ORDER BY c.name ASC
     `)
@@ -39,7 +40,7 @@ export const Category = {
     return db.get(`
       SELECT c.*, COUNT(p.id) as post_count
       FROM categories c
-      LEFT JOIN posts p ON p.category_id = c.id AND p.published = 1
+      LEFT JOIN posts p ON p.category_id = c.id AND ${livePost('p')}
       WHERE c.id = ?
       GROUP BY c.id
     `, [id])
@@ -50,7 +51,7 @@ export const Category = {
     return db.get(`
       SELECT c.*, COUNT(p.id) as post_count
       FROM categories c
-      LEFT JOIN posts p ON p.category_id = c.id AND p.published = 1
+      LEFT JOIN posts p ON p.category_id = c.id AND ${livePost('p')}
       WHERE c.slug = ?
       GROUP BY c.id
     `, [slug])

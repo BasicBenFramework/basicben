@@ -4,6 +4,10 @@ import { can } from '@basicbenframework/core/auth/permissions'
 import { Post } from '../models/Post'
 import type { Post as PostType, Request, Response } from '../types'
 import { paginationFrom, meta } from '../models/pagination'
+import { PostRevision } from '../models/PostRevision'
+import { seoFields } from '../helpers/seo-fields'
+import { LISTING_FILTERS, type ListingFilter } from '../models/Post'
+import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/visibility'
 
 /**
  * Hooks fire from here so an app can take part in the content lifecycle.
@@ -25,15 +29,19 @@ export const PostController = {
     // The listing was scoped to the signed-in user unconditionally, so the
     // people with `post.edit` — the ones responsible for everyone else's posts
     // — could not see a single one of them.
-    const { posts, total } = await Post.paginate({
-      perPage,
-      offset,
-      userId: can(req.user, 'post.edit') ? undefined : req.userId
-    })
+    const query = req.query as Record<string, string | undefined>
+    const filter = (LISTING_FILTERS as readonly string[]).includes(query.status ?? '')
+      ? (query.status as ListingFilter)
+      : 'all'
+    const search = query.search?.trim().slice(0, 200) || undefined
+    const userId = can(req.user, 'post.edit') ? undefined : req.userId
+
+    const { posts, total } = await Post.paginate({ perPage, offset, userId, filter, search })
 
     // `posts` stays where it was so nothing reading this breaks; `meta` is
-    // added alongside, in the same shape /api/v1 uses.
-    res.json({ posts, meta: meta(page, perPage, total) })
+    // added alongside, in the same shape /api/v1 uses. `counts` sizes the
+    // status tabs.
+    res.json({ posts, meta: meta(page, perPage, total), counts: await Post.counts(userId) })
   },
 
   async show(req: Request, res: Response) {
@@ -46,7 +54,14 @@ export const PostController = {
     // post has many of each now.
     const taxonomy = await Post.taxonomy(post.id)
 
-    res.json({ post: { ...post, category_ids: taxonomy.categories, tag_ids: taxonomy.tags } })
+    // An autosave newer than the post is work the author has not saved —
+    // a closed tab, a crash. The editor offers it back rather than losing it.
+    const autosave = await PostRevision.pendingAutosave(post.id, req.userId!, String(post.updated_at ?? post.created_at))
+
+    res.json({
+      post: { ...post, category_ids: taxonomy.categories, tag_ids: taxonomy.tags },
+      autosave: autosave ?? null
+    })
   },
 
   async store(req: Request, res: Response) {
@@ -59,15 +74,29 @@ export const PostController = {
       return res.json({ errors: result.errors }, 422)
     }
 
+    const fields = editableFields(req.body)
+    if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
+
+    const publishing = resolvePublishing(req, null)
+    if ('error' in publishing) return res.json({ error: publishing.error }, publishing.status)
+
     const draft = await hooks.filter(HOOKS.POST_CREATING, {
       // Attribution. Anyone may write as themselves; assigning a post to
       // someone else is `post.edit`, the same capability that lets you edit
       // their work — the WordPress rule, where only an editor can hand a post
       // to another author.
       user_id: authorFor(req),
-      ...editableFields(req.body),
-      published: Boolean((req.body as { published?: boolean }).published)
+      ...fields.values,
+      ...publishing.values
     }, { req })
+
+    // Checked again after the filter, so a listener cannot publish on behalf
+    // of someone who may not. Publishing is its own capability: a contributor
+    // writes drafts and submits them for review; someone with `post.publish`
+    // puts them live.
+    if (draft?.published && !can(req.user, 'post.publish')) {
+      return res.json({ error: 'You do not have permission to publish posts.' }, 403)
+    }
 
     if (draft?.cancel) {
       return res.json({ error: draft.reason || 'Post rejected.' }, 422)
@@ -101,23 +130,48 @@ export const PostController = {
       return res.json({ errors: result.errors }, 422)
     }
 
+    // Once a post is live, changing it is changing the site. A contributor may
+    // edit their own drafts and nothing that is published, which is the
+    // WordPress rule.
+    if (post.published && !can(req.user, 'post.publish')) {
+      return res.json({ error: 'You do not have permission to edit a published post.' }, 403)
+    }
+
+    if (post.deleted_at) {
+      return res.json({ error: 'Restore this post from the trash before editing it.' }, 409)
+    }
+
     const reassigned = authorFor(req, post.user_id)
 
-    const published = (req.body as { published?: boolean }).published
+    const fields = editableFields(req.body)
+    if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
+
+    // Absent means "leave it as it is". Coercing an absent key to 0 turned
+    // every request that did not mention publishing into an unpublish.
+    const publishing = resolvePublishing(req, post)
+    if ('error' in publishing) return res.json({ error: publishing.error }, publishing.status)
 
     const changes = await hooks.filter(HOOKS.POST_UPDATING, {
-      ...editableFields(req.body),
+      ...fields.values,
       ...(reassigned === post.user_id ? {} : { user_id: reassigned }),
-      // Absent means "leave it as it is". Coercing an absent key to 0 turned
-      // every request that did not mention publishing into an unpublish.
-      ...(published === undefined ? {} : { published: published ? 1 : 0 })
+      ...publishing.values
     }, { req, post })
 
     if (changes?.cancel) {
       return res.json({ error: changes.reason || 'Update rejected.' }, 422)
     }
 
+    if (changes?.published && !can(req.user, 'post.publish')) {
+      return res.json({ error: 'You do not have permission to publish posts.' }, 403)
+    }
+
+    // What it said before, so this save can be undone.
+    await PostRevision.snapshot(post, changes, req.userId ?? null)
+
     const updated = await Post.update(parseInt(req.params.id), changes)
+
+    // A real save supersedes whatever was autosaved while typing it.
+    await PostRevision.clearAutosave(post.id, req.userId!)
 
     await saveTaxonomy(parseInt(req.params.id), req.body)
 
@@ -132,17 +186,152 @@ export const PostController = {
       return res.json({ error: 'Post not found' }, 404)
     }
 
-    const intent = await hooks.filter(HOOKS.POST_DELETING, { post, cancel: false }, { req })
-
-    if (intent?.cancel) {
-      return res.json({ error: intent.reason || 'Deletion rejected.' }, 422)
+    // Seeing a post is not the same as being allowed to remove it.
+    if (!can(req.user, 'post.delete', post)) {
+      return res.json({ error: 'You do not have permission to delete this post.' }, 403)
     }
 
-    await Post.delete(parseInt(req.params.id))
+    const outcome = await removePost(req, post)
+    if ('error' in outcome) return res.json({ error: outcome.error }, outcome.status)
 
-    await hooks.fire(HOOKS.POST_DELETED, { post, userId: req.userId })
+    res.json({ message: outcome.message, trashed: outcome.trashed })
+  },
 
-    res.json({ message: 'Post deleted' })
+  /** Take a post back out of the trash. */
+  async restore(req: Request, res: Response) {
+    const post = await Post.find(parseInt(req.params.id))
+    if (!post || !mayEdit(req, post)) {
+      return res.json({ error: 'Post not found' }, 404)
+    }
+
+    const outcome = await restorePost(req, post)
+    if ('error' in outcome) return res.json({ error: outcome.error }, outcome.status)
+
+    res.json({ post: await Post.find(post.id) })
+  },
+
+  /**
+   * One action over many posts: trash, restore, delete, publish, draft.
+   *
+   * Each post is checked exactly as the single-post endpoint would check it,
+   * so selecting forty rows cannot do to one of them what you could not do to
+   * it alone. What failed is reported per post rather than failing the batch.
+   */
+  async bulk(req: Request, res: Response) {
+    const { action, ids } = (req.body ?? {}) as { action?: string; ids?: unknown }
+    const actions = ['trash', 'restore', 'delete', 'publish', 'draft']
+
+    if (!action || !actions.includes(action) || !Array.isArray(ids) || ids.length === 0) {
+      return res.json({ error: `Send an action (${actions.join(', ')}) and a list of ids.` }, 422)
+    }
+
+    const unique = [...new Set(ids.map(Number).filter(Number.isInteger))].slice(0, 200)
+    const done: number[] = []
+    const failed: Array<{ id: number; error: string }> = []
+
+    for (const id of unique) {
+      const post = await Post.find(id)
+      if (!post || !mayEdit(req, post)) {
+        failed.push({ id, error: 'Post not found' })
+        continue
+      }
+
+      let outcome: { error: string; status: number } | Record<string, unknown>
+
+      if (action === 'trash') {
+        outcome = post.deleted_at ? { error: 'Already in the trash', status: 409 } : await removePost(req, post)
+      } else if (action === 'delete') {
+        outcome = post.deleted_at ? await removePost(req, post) : { error: 'Move it to the trash first', status: 409 }
+      } else if (action === 'restore') {
+        outcome = await restorePost(req, post)
+      } else {
+        outcome = await setStatus(req, post, action === 'publish' ? 'published' : 'draft')
+      }
+
+      if ('error' in outcome) failed.push({ id, error: String(outcome.error) })
+      else done.push(id)
+    }
+
+    res.json({ done, failed })
+  },
+
+  /** Every saved version of a post, newest first. */
+  async revisions(req: Request, res: Response) {
+    const post = await Post.find(parseInt(req.params.id))
+    if (!post || !mayEdit(req, post)) {
+      return res.json({ error: 'Post not found' }, 404)
+    }
+
+    res.json({ revisions: await PostRevision.list(post.id) })
+  },
+
+  /** One revision, with its full text, to compare against the post. */
+  async revision(req: Request, res: Response) {
+    const post = await Post.find(parseInt(req.params.id))
+    if (!post || !mayEdit(req, post)) {
+      return res.json({ error: 'Post not found' }, 404)
+    }
+
+    const revision = await PostRevision.find(post.id, parseInt(req.params.revisionId))
+    if (!revision) return res.json({ error: 'Revision not found' }, 404)
+
+    res.json({ revision })
+  },
+
+  /**
+   * Put an older version back.
+   *
+   * A save like any other — it goes through the same capability checks and
+   * snapshots the current text first — so restoring is itself undoable.
+   */
+  async restoreRevision(req: Request, res: Response) {
+    const post = await Post.find(parseInt(req.params.id))
+    if (!post || !mayEdit(req, post)) {
+      return res.json({ error: 'Post not found' }, 404)
+    }
+
+    if (post.published && !can(req.user, 'post.publish')) {
+      return res.json({ error: 'You do not have permission to edit a published post.' }, 403)
+    }
+
+    const revision = await PostRevision.find(post.id, parseInt(req.params.revisionId))
+    if (!revision) return res.json({ error: 'Revision not found' }, 404)
+
+    const changes = { title: revision.title, content: revision.content, excerpt: revision.excerpt ?? '' }
+
+    await PostRevision.snapshot(post, changes, req.userId ?? null)
+    const updated = await Post.update(post.id, changes)
+
+    await hooks.fire(HOOKS.POST_UPDATED, { post: updated, previous: post, userId: req.userId })
+
+    res.json({ post: updated })
+  },
+
+  /**
+   * Keep what is being typed, without saving it.
+   *
+   * The post is untouched — a live post does not change because its editor
+   * paused. The copy waits in the revisions table, one per author, and the
+   * editor offers it back if the page is reopened before a real save.
+   */
+  async autosave(req: Request, res: Response) {
+    const post = await Post.find(parseInt(req.params.id))
+    if (!post || !mayEdit(req, post)) {
+      return res.json({ error: 'Post not found' }, 404)
+    }
+
+    const { title, content, excerpt } = (req.body ?? {}) as { title?: unknown; content?: unknown; excerpt?: unknown }
+    if (typeof title !== 'string' || typeof content !== 'string') {
+      return res.json({ error: 'title and content are required' }, 422)
+    }
+
+    const saved = await PostRevision.autosave(post.id, req.userId!, {
+      title: title.slice(0, 200),
+      content,
+      excerpt: typeof excerpt === 'string' ? excerpt : null
+    })
+
+    res.json({ autosave: { id: saved?.id, created_at: saved?.created_at } })
   },
 
   async feed(req: Request, res: Response) {
@@ -167,7 +356,10 @@ export const PostController = {
  * an admin stop getting "Post not found" for a post that plainly exists.
  */
 function mayEdit(req: Request, post: PostType): boolean {
-  return post.user_id === req.userId || can(req.user, 'post.edit')
+  // Through `can()` rather than comparing ids, so the role still counts: an
+  // account that lost `post.edit.own` (or never confirmed its address) cannot
+  // keep editing posts just because they carry its id.
+  return can(req.user, 'post.edit', post)
 }
 
 /**
@@ -194,12 +386,18 @@ function authorFor(req: Request, fallback?: number): number {
  * written nowhere. Absent keys stay absent so a caller changing one field does
  * not blank the rest; a blank slug or excerpt is a request to derive one, which
  * the model does.
+ *
+ * Publishing state — `status`, `published`, `publish_at` — is not here; see
+ * `resolvePublishing`, which also decides who may change it.
  */
-function editableFields(body: unknown): Record<string, unknown> {
+function editableFields(body: unknown):
+  | { values: Record<string, unknown> }
+  | { errors: Record<string, string[]> } {
   const payload = (body ?? {}) as Record<string, unknown>
   const fields: Record<string, unknown> = {}
+  const errors: Record<string, string[]> = {}
 
-  for (const key of ['title', 'content', 'slug', 'excerpt', 'meta_title', 'meta_description', 'publish_at']) {
+  for (const key of ['title', 'content', 'slug', 'excerpt', 'meta_title', 'meta_description']) {
     if (key in payload) fields[key] = payload[key]
   }
 
@@ -210,7 +408,143 @@ function editableFields(body: unknown): Record<string, unknown> {
     fields.featured_image = Number.isInteger(id) && id > 0 ? id : null
   }
 
-  return fields
+  const seo = seoFields(payload)
+  if ('errors' in seo) Object.assign(errors, seo.errors)
+  else Object.assign(fields, seo.values)
+
+  return Object.keys(errors).length ? { errors } : { values: fields }
+}
+
+/**
+ * Work out the publishing state a request asks for, and whether it may.
+ *
+ * Accepts `status` (`draft`, `pending`, `published`) and, for clients written
+ * before it existed, the old `published` boolean. `publish_at` in the future
+ * on a published post is a schedule: the post is stored as published and the
+ * public site starts showing it when the time comes.
+ *
+ * `existing` is null on create. On update, absent keys leave the state alone.
+ */
+function resolvePublishing(
+  req: Request,
+  existing: PostType | null
+): { values: Record<string, unknown> } | { error: string; status: number } {
+  const body = (req.body ?? {}) as { status?: unknown; published?: unknown; publish_at?: unknown }
+
+  let status: PostStatus | undefined
+  if (typeof body.status === 'string') {
+    if (!(POST_STATUSES as readonly string[]).includes(body.status)) {
+      return { error: `status must be one of ${POST_STATUSES.join(', ')}`, status: 422 }
+    }
+    status = body.status as PostStatus
+  } else if (body.published !== undefined) {
+    status = body.published ? 'published' : 'draft'
+  }
+
+  let publishAt: string | null | undefined
+  if ('publish_at' in body) {
+    try {
+      publishAt = toStoredTimestamp(body.publish_at)
+    } catch {
+      return { error: 'publish_at is not a valid date', status: 422 }
+    }
+  }
+
+  const values: Record<string, unknown> = {}
+  const wasPublished = Boolean(existing?.published)
+  const finalStatus = status ?? (existing ? undefined : 'draft')
+
+  if (finalStatus === 'published' && !wasPublished && !can(req.user, 'post.publish')) {
+    return { error: 'You do not have permission to publish posts.', status: 403 }
+  }
+
+  if (finalStatus !== undefined) {
+    values.status = finalStatus
+    values.published = finalStatus === 'published' ? 1 : 0
+  }
+
+  if (publishAt !== undefined) values.publish_at = publishAt
+
+  // Going live with no date given means now. A post that was already live
+  // keeps the date it went live, so republishing does not reorder the blog.
+  const goingLive = finalStatus === 'published' && !wasPublished
+  if (goingLive && !values.publish_at) values.publish_at = new Date().toISOString()
+
+  // Webhooks hear about a live post when it is saved; a scheduled one is told
+  // by the publish-due tick when its time arrives.
+  const effectiveStatus = finalStatus ?? (wasPublished ? 'published' : existing?.status)
+  const effectiveAt = (values.publish_at ?? existing?.publish_at ?? null) as string | null
+  if (effectiveStatus === 'published' && (goingLive || 'publish_at' in values)) {
+    values.live_notified = effectiveAt && new Date(effectiveAt).getTime() > Date.now() ? 0 : 1
+  }
+
+  return { values }
+}
+
+/** Trash a post, or delete it for good if it is already in the trash. */
+async function removePost(
+  req: Request,
+  post: PostType
+): Promise<{ message: string; trashed: boolean } | { error: string; status: number }> {
+  // Seeing a post is not the same as being allowed to remove it.
+  if (!can(req.user, 'post.delete', post)) {
+    return { error: 'You do not have permission to delete this post.', status: 403 }
+  }
+
+  const permanent = Boolean(post.deleted_at)
+
+  const intent = await hooks.filter(HOOKS.POST_DELETING, { post, cancel: false, permanent }, { req })
+  if (intent?.cancel) {
+    return { error: intent.reason || 'Deletion rejected.', status: 422 }
+  }
+
+  if (permanent) {
+    await Post.delete(post.id)
+  } else {
+    await Post.trash(post.id)
+  }
+
+  // Fired on trashing: that is when the post leaves the public site, which is
+  // what a webhook consumer needs to hear.
+  await hooks.fire(HOOKS.POST_DELETED, { post, userId: req.userId, permanent })
+
+  return permanent
+    ? { message: 'Post deleted permanently', trashed: false }
+    : { message: 'Post moved to the trash', trashed: true }
+}
+
+async function restorePost(req: Request, post: PostType): Promise<{ ok: true } | { error: string; status: number }> {
+  if (!post.deleted_at) return { error: 'This post is not in the trash.', status: 409 }
+  if (!can(req.user, 'post.delete', post)) {
+    return { error: 'You do not have permission to restore this post.', status: 403 }
+  }
+
+  await Post.restore(post.id)
+  const restored = await Post.find(post.id)
+  await hooks.fire(HOOKS.POST_UPDATED, { post: restored, previous: post, userId: req.userId })
+  return { ok: true }
+}
+
+/** Publish or unpublish one post, for bulk actions. */
+async function setStatus(
+  req: Request,
+  post: PostType,
+  status: PostStatus
+): Promise<{ ok: true } | { error: string; status: number }> {
+  if (post.deleted_at) return { error: 'Restore it from the trash first.', status: 409 }
+  if (!can(req.user, 'post.publish')) {
+    return { error: 'You do not have permission to publish posts.', status: 403 }
+  }
+
+  const original = req.body
+  ;(req as { body: unknown }).body = { status }
+  const publishing = resolvePublishing(req, post)
+  ;(req as { body: unknown }).body = original
+  if ('error' in publishing) return publishing
+
+  const updated = await Post.update(post.id, publishing.values)
+  await hooks.fire(HOOKS.POST_UPDATED, { post: updated, previous: post, userId: req.userId })
+  return { ok: true }
 }
 
 /**

@@ -55,6 +55,13 @@ export function Auth() {
         <Input type="password" placeholder="Password" required minLength={8} value={form.password} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, password: e.target.value })} />
         <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : isLogin ? 'Sign in' : 'Create account'}</Button>
       </form>
+      {/* Offered whatever DISABLE_REGISTRATION says: a closed site still has
+          people with accounts who forget their passwords. */}
+      {isLogin && (
+        <p className={`text-xs ${t.muted} text-center mt-4`}>
+          <button onClick={() => navigate('/forgot-password')} className="underline hover:no-underline">Forgot password?</button>
+        </p>
+      )}
       {/* With registration closed there is nothing to offer someone without an
           account, and inviting them to sign up would be a dead end. */}
       {!__DISABLE_REGISTRATION__ && (

@@ -1,0 +1,11 @@
+Hi,
+
+{{inviterName}} has invited you to join {{siteName}} as {{roleLabel}}.
+
+Accept the invitation and choose a password here:
+
+{{inviteUrl}}
+
+This link expires in 7 days and can be used once. If you were not expecting
+an invitation, you can ignore this message — no account exists until you
+accept.

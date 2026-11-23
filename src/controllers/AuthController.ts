@@ -1,5 +1,5 @@
 import { validate, rules } from '@basicbenframework/core/validation'
-import { signJwt, verifyJwt, hashPassword, verifyPassword } from '@basicbenframework/core/auth'
+import { hashPassword, verifyPassword } from '@basicbenframework/core/auth'
 import { ROLES, DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import { User } from '../models/User'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
@@ -8,13 +8,25 @@ import { issueChallenge } from './TwoFactorController'
 import { TwoFactor } from '../models/TwoFactor'
 import { Credential } from '../models/Credential'
 import { loginByAddress, loginByAccount } from '../middleware/rate-limits'
+import { issueSessionToken, revokeSessions } from '../helpers/session'
+import { getDb } from '@basicbenframework/core/db'
 import type { Request, Response } from '../types'
 
-interface JwtPayload {
-  userId: number
-  role?: string
-  email_verified?: boolean
+/**
+ * A hash to check against when the address has no account.
+ *
+ * Without it a login for an unknown address returns before scrypt runs, and
+ * the difference in response time says which addresses are registered.
+ * Computed once, lazily, from a password nobody will ever send.
+ */
+let dummyHash: Promise<string> | null = null
+function decoyHash(): Promise<string> {
+  dummyHash ??= hashPassword('basicben-timing-decoy-' + Math.random())
+  return dummyHash
 }
+// Computed at startup rather than on the first unknown address, which would
+// otherwise pay for hashing twice and be the one slow response.
+void decoyHash()
 
 export const AuthController = {
   async register(req: Request, res: Response) {
@@ -67,7 +79,7 @@ export const AuthController = {
     // that was never delivered would lock them out of their own admin.
     const emailVerified = isFirstUser
 
-    const user = await User.create({
+    let user = await User.create({
       name,
       email,
       password: await hashPassword(password),
@@ -75,6 +87,18 @@ export const AuthController = {
       email_verified: emailVerified ? 1 : 0,
       email_verified_at: emailVerified ? new Date().toISOString() : null
     })
+
+    // "First" was decided by a count taken before the insert, so two signups
+    // racing on a fresh install could both see zero and both become admin.
+    // Only the lowest id keeps it; anyone else who raced is demoted on the spot.
+    if (isFirstUser) {
+      const db = await getDb()
+      const first = await db.get('SELECT MIN(id) AS id FROM users')
+      if (Number(first?.id) !== Number(user.id)) {
+        user = await User.update(user.id, { role: DEFAULT_ROLE, email_verified: 0, email_verified_at: null })
+        return res.json({ error: 'Registration conflicted with another signup. Please sign in.' }, 409)
+      }
+    }
 
     let verificationSent = false
 
@@ -90,11 +114,7 @@ export const AuthController = {
       }
     }
 
-    const token = signJwt(
-      { userId: user.id, role, email_verified: emailVerified },
-      process.env.APP_KEY as string,
-      { expiresIn: '7d' }
-    )
+    const token = issueSessionToken({ id: user.id, role, email_verified: emailVerified, token_version: 0 })
 
     await hooks.fire(HOOKS.AUTH_REGISTER, { user, role, verificationSent })
 
@@ -119,8 +139,19 @@ export const AuthController = {
     }
 
     const user = await User.findByEmail(email)
-    if (!user || !(await verifyPassword(password, user.password))) {
+    if (!user) {
+      // Same work as a wrong password, so the two cannot be told apart by time.
+      await verifyPassword(password, await decoyHash())
       return res.json({ error: 'Invalid credentials' }, 401)
+    }
+    if (!(await verifyPassword(password, user.password))) {
+      return res.json({ error: 'Invalid credentials' }, 401)
+    }
+
+    // Checked only after the password, so a disabled account is not revealed
+    // to someone who does not know its password.
+    if ((user as { disabled_at?: string | null }).disabled_at) {
+      return res.json({ error: 'This account has been disabled.' }, 403)
     }
 
     // With a second factor enrolled the password alone is not a session. The
@@ -143,15 +174,7 @@ export const AuthController = {
       return res.json({ twoFactorRequired: true, methods, challenge, expiresAt })
     }
 
-    const token = signJwt(
-      {
-        userId: user.id,
-        role: user.role ?? DEFAULT_ROLE,
-        email_verified: Boolean(user.email_verified)
-      },
-      process.env.APP_KEY as string,
-      { expiresIn: '7d' }
-    )
+    const token = issueSessionToken(user)
 
     await hooks.fire(HOOKS.AUTH_LOGIN, { user, req })
 
@@ -168,31 +191,23 @@ export const AuthController = {
   },
 
   /**
-   * Sign out.
+   * Sign out, everywhere.
    *
-   * The token is a stateless JWT, so nothing here can revoke it — it stays
-   * valid until it expires, and the client is what discards it. The endpoint
-   * exists for the hook: a token denylist, or an audit
-   * log, needs a point at which a sign-out is observable, and there was none.
+   * Bumps the account's token version, so this token and every other one the
+   * account holds stop working on their next request. A stateless token cannot
+   * be revoked one at a time without a denylist; ending them all is the
+   * conservative choice for an admin account.
    */
   async logout(req: Request, res: Response) {
+    await revokeSessions(req.userId!)
+
     await hooks.fire(HOOKS.AUTH_LOGOUT, { userId: req.userId, req })
 
     res.json({ message: 'Signed out.' })
   },
 
   async user(req: Request, res: Response) {
-    const token = req.headers.authorization?.replace('Bearer ', '')
-    if (!token) {
-      return res.json({ error: 'No token provided' }, 401)
-    }
-
-    const payload = verifyJwt(token, process.env.APP_KEY as string) as JwtPayload | null
-    if (!payload) {
-      return res.json({ error: 'Invalid token' }, 401)
-    }
-
-    const user = await User.find(payload.userId)
+    const user = await User.find(req.userId!)
     if (!user) {
       return res.json({ error: 'User not found' }, 404)
     }

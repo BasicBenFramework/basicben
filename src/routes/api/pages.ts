@@ -19,7 +19,8 @@ export default (router: Router) => {
   router.get('/api/pages/tree', auth, requireCapability('page.edit'), PageController.tree)
   router.get('/api/pages/:id', auth, requireCapability('page.edit'), PageController.show)
   router.post('/api/pages', auth, requireCapability('page.create'), PageController.store)
+  // Before /:id, which would otherwise match `reorder` as an id.
+  router.put('/api/pages/reorder', auth, requireCapability('page.edit'), PageController.reorder)
   router.put('/api/pages/:id', auth, requireCapability('page.edit'), PageController.update)
   router.delete('/api/pages/:id', auth, requireCapability('page.delete'), PageController.destroy)
-  router.put('/api/pages/reorder', auth, requireCapability('page.edit'), PageController.reorder)
 }

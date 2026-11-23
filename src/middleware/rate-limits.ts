@@ -22,7 +22,12 @@ const store = new DatabaseStore({ getDb })
 // Leaving it off on a directly-exposed server is deliberate: the header is
 // client-supplied, so trusting it would let anyone rotate their apparent
 // address and bypass every limit here.
-const trustProxy = process.env.TRUST_PROXY === 'true'
+// `true` is one proxy; a number is that many, counted from the right of the
+// header, which is the end the client cannot write.
+const trustProxy: boolean | number =
+  process.env.TRUST_PROXY === 'true' ? true
+    : /^\d+$/.test(process.env.TRUST_PROXY ?? '') ? Number(process.env.TRUST_PROXY)
+      : false
 
 const address = (req: Request) => `ip:${(req as any).socket?.remoteAddress ?? ''}`
 const emailKey = (req: Request) => {
@@ -126,4 +131,85 @@ export const publicApiLimit = rateLimit({
   store,
   trustProxy,
   message: 'Too many requests. Please slow down.'
+})
+
+/**
+ * Account changes: the profile and the password.
+ *
+ * Both take a current password when they matter, which makes them a place to
+ * guess one from inside a stolen session; and the profile answers whether an
+ * address is taken. Keyed on the account, so it runs after `auth`.
+ */
+export const accountChangeLimit = rateLimit({
+  limit: 10,
+  window: '15m',
+  blockFor: '15m',
+  store,
+  key: (req: Request) => `account:${req.userId ?? ''}`,
+  message: 'Too many account changes. Please try again shortly.'
+})
+
+/**
+ * Comments from anyone.
+ *
+ * The one write any visitor can make without an account, so the one most
+ * worth flooding.
+ */
+export const commentLimit = rateLimit({
+  limit: 5,
+  window: '10m',
+  blockFor: '10m',
+  store,
+  trustProxy,
+  message: 'Too many comments. Please wait a few minutes.'
+})
+
+/**
+ * Asking for a password reset link, from one address.
+ *
+ * The per-address half only. The per-mailbox half runs inside the controller
+ * on `emailSendLimiter`, because a limited request there must still get the
+ * same 200 as every other — a 429 that only appears for addresses with an
+ * account would answer the question the endpoint is built not to answer.
+ * This one is safe as middleware: it refuses everyone from the address alike,
+ * registered or not.
+ */
+export const passwordResetLimit = rateLimit({
+  limit: 5,
+  window: '15m',
+  blockFor: '15m',
+  store,
+  trustProxy,
+  message: 'Too many reset requests. Please try again shortly.'
+})
+
+/**
+ * Spending a reset or invitation link.
+ *
+ * The tokens are 32 random bytes, so this is not what stops guessing — the
+ * entropy is. It stops one address hammering the password hash, which both
+ * endpoints run on every attempt.
+ */
+export const tokenRedeemLimit = rateLimit({
+  limit: 10,
+  window: '15m',
+  blockFor: '15m',
+  store,
+  trustProxy,
+  message: 'Too many attempts. Please try again shortly.'
+})
+
+/**
+ * Invitations sent by one account.
+ *
+ * Each one is an email to an address the sender chose, which is the shape of
+ * a spam relay if a session is ever stolen. Keyed on the account, so it runs
+ * after `auth`; generous enough to onboard a team in one sitting.
+ */
+export const invitationLimit = rateLimit({
+  limit: 20,
+  window: '1h',
+  store,
+  key: (req: Request) => `invite:${req.userId ?? ''}`,
+  message: 'Too many invitations sent. Please try again later.'
 })

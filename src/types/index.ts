@@ -70,8 +70,21 @@ export interface Post {
   tag_ids?: number[]
   meta_title?: string | null
   meta_description?: string | null
+  /** When it goes, or went, live. A future value on a published post is a schedule. */
   publish_at?: string | null
   published: boolean
+  /** Editorial state: `draft`, `pending` (awaiting review) or `published`. */
+  status?: 'draft' | 'pending' | 'published'
+  /** Set while the post is in the trash. */
+  deleted_at?: string | null
+  og_title?: string | null
+  og_description?: string | null
+  og_image?: number | null
+  twitter_title?: string | null
+  twitter_description?: string | null
+  twitter_image?: number | null
+  canonical_url?: string | null
+  noindex?: number | boolean
   created_at: string
   updated_at: string
   author_name?: string
@@ -149,6 +162,9 @@ export interface Media {
   mime_type?: string
   size?: number
   alt_text?: string
+  /** Pixel dimensions, read from the file at upload. Null for non-images. */
+  width?: number | null
+  height?: number | null
   created_at: string
 }
 

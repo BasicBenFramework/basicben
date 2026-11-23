@@ -1,3 +1,4 @@
+import { SEO_COLUMNS } from '../helpers/seo-fields'
 import { getDb, query } from '@basicbenframework/core/db'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent } from '@basicbenframework/core/content'
@@ -40,7 +41,7 @@ interface UpdatePageData {
 const UPDATABLE = [
   'title', 'slug', 'content', 'content_html', 'featured_image', 'template',
   'published', 'parent_id', 'menu_order', 'meta_title', 'meta_description',
-  'updated_at'
+  'updated_at', ...SEO_COLUMNS
 ]
 
 export const Page = {
@@ -144,6 +145,10 @@ export const Page = {
       menu_order: data.menu_order || 0,
       meta_title: data.meta_title || null,
       meta_description: data.meta_description || null,
+      ...Object.fromEntries(
+        SEO_COLUMNS.filter((key) => (data as unknown as Record<string, unknown>)[key] !== undefined)
+          .map((key) => [key, (data as unknown as Record<string, unknown>)[key]])
+      ),
       created_at: now,
       updated_at: now
     })

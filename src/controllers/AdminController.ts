@@ -14,6 +14,7 @@
  */
 
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
+import { can } from '@basicbenframework/core/auth/permissions'
 import { Post } from '../models/Post'
 import { Page } from '../models/Page'
 import { Comment } from '../models/Comment'
@@ -42,6 +43,9 @@ const DEFAULT_MENU = [
   { path: '/admin/media', label: 'Media', icon: '🖼️', section: 'Content' },
   { path: '/admin/tokens', label: 'API tokens', icon: '🔑', section: 'Site' },
   { path: '/admin/settings', label: 'Settings', icon: '⚙️', section: 'Site' },
+  // Gated: only someone who can manage accounts is shown the way to them. The
+  // routes behind it refuse everyone else regardless — this is presentation.
+  { path: '/admin/users', label: 'Users', icon: '👥', section: 'Site', capability: 'user.manage' },
   // Where an author edits their own byline. It lives outside /admin because it
   // is the one screen every account has, admin area or not — but the people
   // writing posts are in here, so the way to it has to be too.
@@ -54,6 +58,8 @@ interface MenuItem {
   icon?: string
   /** The heading it sits under. Omitted items sit at the top, ungrouped. */
   section?: string
+  /** Shown only to someone who holds this. Omitted means everyone. */
+  capability?: string
 }
 
 export const AdminController = {
@@ -79,7 +85,11 @@ export const AdminController = {
 
     res.json({
       menu: menu.filter(
-        (item: MenuItem) => item && typeof item.path === 'string' && typeof item.label === 'string'
+        (item: MenuItem) =>
+          item && typeof item.path === 'string' && typeof item.label === 'string' &&
+          // After the listeners, so an item a hook adds can be gated the same
+          // way by naming a capability.
+          (!item.capability || can(req.user ?? null, item.capability))
       )
     })
   },

@@ -273,12 +273,13 @@ export function Headless() {
 {`POST /your-hook
 X-BasicBen-Event: post.created
 X-BasicBen-Signature: sha256=<hex>
+X-BasicBen-Timestamp: 1795430400
 
 { "event": "post.created", "id": 7, "slug": "hello", "at": "2026-08-18T…" }`}
           </CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            The signature is an HMAC of the exact body, keyed with your <code>APP_KEY</code>.
+            The signature is an HMAC of the timestamp and the exact body (<code>{'${timestamp}.${body}'}</code>), keyed with your <code>WEBHOOK_SECRET</code> — its own secret, never <code>APP_KEY</code>, which signs sessions and must not leave the server. With no <code>WEBHOOK_SECRET</code> set, nothing is sent.
             Verify it over the <strong>raw</strong> bytes — a body that has been parsed and
             re-serialised does not reproduce it, because whitespace and number formatting are free
             to change. That is what <code>bodyParser</code>'s <code>skip</code> option is for.
@@ -291,7 +292,11 @@ X-BasicBen-Signature: sha256=<hex>
 let raw = ''
 for await (const chunk of req) raw += chunk
 
-if (!verify(raw, req.headers['x-basicben-signature'], process.env.APP_KEY)) {
+// The signature covers the timestamp too, and verify() refuses one more
+// than five minutes old — a captured delivery cannot be replayed later.
+if (!verify(raw, req.headers['x-basicben-signature'], process.env.WEBHOOK_SECRET, {
+  timestamp: req.headers['x-basicben-timestamp']
+})) {
   return res.json({ error: 'Bad signature' }, 401)
 }`}
           </CodeBlock>

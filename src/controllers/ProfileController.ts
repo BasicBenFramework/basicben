@@ -1,10 +1,26 @@
 import { validate, rules } from '@basicbenframework/core/validation'
 import { User } from '../models/User'
-import { createHash } from 'node:crypto'
+import { hashPassword, verifyPassword } from '@basicbenframework/core/auth'
+import { resetVerification, sendVerificationEmail } from './EmailVerificationController'
+import { issueSessionToken, revokeSessions } from '../helpers/session'
 import type { Request, Response } from '../types'
 
-function hashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex')
+/**
+ * An http(s) URL or nothing.
+ *
+ * The website travels to every byline through /api/v1, where a headless
+ * consumer may render it as a link without React's protection against
+ * `javascript:` URLs.
+ */
+function safeWebsite(value: string): string | null | false {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  try {
+    const url = new URL(trimmed)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : false
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -66,11 +82,30 @@ export const ProfileController = {
       return res.json({ error: 'User not found' }, 404)
     }
 
-    if (email !== user.email) {
+    const emailChanged = email !== user.email
+
+    if (emailChanged) {
+      // The address is where password resets go, so changing it is taking
+      // over the account. A session alone — one left open on a shared
+      // machine, or stolen — must not be enough.
+      const currentPassword = (req.body as { currentPassword?: string }).currentPassword
+      if (!currentPassword || !(await verifyPassword(currentPassword, user.password))) {
+        return res.json({ error: 'Enter your current password to change your email address.' }, 403)
+      }
+
       const existing = await User.findByEmail(email)
       if (existing) {
         return res.json({ error: 'Email already taken' }, 400)
       }
+    }
+
+    let cleanWebsite: string | null | undefined
+    if (typeof website === 'string') {
+      const checked = safeWebsite(website)
+      if (checked === false) {
+        return res.json({ errors: { website: ['Website must be an http or https URL'] } }, 422)
+      }
+      cleanWebsite = checked
     }
 
     // Only what the request actually carried. A client that knows nothing about
@@ -82,10 +117,24 @@ export const ProfileController = {
     // registration; the model makes whatever it gets unique.
     if (typeof slug === 'string') profile.slug = slug.trim() || name
     if (typeof bio === 'string') profile.bio = bio.trim() || null
-    if (typeof website === 'string') profile.website = website.trim() || null
+    if (cleanWebsite !== undefined) profile.website = cleanWebsite
     if ('avatar_id' in req.body) profile.avatar_id = Number(avatar_id) || null
 
     const updated = await User.update(req.userId!, profile)
+
+    // A new address has not been confirmed by anyone. Keeping the old flag
+    // would let an account claim any address as verified.
+    let verificationSent = false
+    if (emailChanged) {
+      await resetVerification(req.userId!)
+      try {
+        await sendVerificationEmail({ ...updated, email })
+        verificationSent = true
+      } catch (err) {
+        console.error('Failed to send verification email:', (err as Error).message)
+      }
+    }
+
     const shaped = await User.profile(req.userId!)
 
     res.json({
@@ -98,7 +147,8 @@ export const ProfileController = {
         website: updated.website ?? null,
         avatar_id: updated.avatar_id ?? null,
         avatar_url: shaped?.avatar_url ?? null
-      }
+      },
+      ...(emailChanged ? { emailChanged: true, verificationSent } : {})
     })
   },
 
@@ -119,11 +169,20 @@ export const ProfileController = {
       return res.json({ error: 'User not found' }, 404)
     }
 
-    if (user.password !== hashPassword(currentPassword)) {
+    if (!(await verifyPassword(currentPassword, user.password))) {
       return res.json({ error: 'Current password is incorrect' }, 400)
     }
 
-    await User.update(req.userId!, { password: hashPassword(newPassword) })
-    res.json({ message: 'Password updated successfully' })
+    // The framework's scrypt hash, the same one registration writes. This
+    // used to compare and store unsalted SHA-256, so it never matched and
+    // nobody could change a password at all.
+    await User.update(req.userId!, { password: await hashPassword(newPassword) })
+
+    // A changed password is usually a response to a suspected compromise, so
+    // every other session ends. This one carries on with a fresh token.
+    await revokeSessions(req.userId!)
+    const fresh = await User.find(req.userId!)
+
+    res.json({ message: 'Password updated successfully', token: issueSessionToken(fresh!) })
   }
 }

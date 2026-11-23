@@ -3,6 +3,7 @@ import { api } from '../../helpers/api'
 import { useAuth, useNavigate, usePath } from '@basicbenframework/core/client'
 import AdminIcon from '../components/admin/AdminIcons'
 import { Link } from '../components/Link'
+import { can } from '@basicbenframework/core/auth/permissions'
 
 interface MenuItem {
   path: string
@@ -10,6 +11,8 @@ interface MenuItem {
   icon?: string
   /** The heading it sits under. Omitted items sit at the top, ungrouped. */
   section?: string
+  /** Shown only to someone who holds this. The server filters its copy too. */
+  capability?: string
 }
 
 /*
@@ -34,6 +37,7 @@ const DEFAULT_MENU: MenuItem[] = [
   { path: '/admin/media', label: 'Media', section: 'Content' },
   { path: '/admin/tokens', label: 'API tokens', section: 'Site' },
   { path: '/admin/settings', label: 'Settings', section: 'Site' },
+  { path: '/admin/users', label: 'Users', section: 'Site', capability: 'user.manage' },
   { path: '/profile', label: 'Profile', section: 'Account' },
 ]
 
@@ -147,7 +151,10 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
         </div>
 
         <nav className="admin-nav">
-          {bySection(menuItems).map(group => (
+          {/* The fallback is a fixed list, so it is filtered here as well as on
+              the server: otherwise a gated item would flash for everyone until
+              the server's answer arrived without it. */}
+          {bySection(menuItems.filter(item => !item.capability || can(user as any, item.capability))).map(group => (
             <div className="admin-nav-group" key={group.title ?? 'top'}>
               {/* Collapsed, the heading becomes the rule it already was: there
                   is no room for a word on a 56px rail, and a group of links

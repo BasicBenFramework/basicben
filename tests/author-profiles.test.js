@@ -104,7 +104,7 @@ describe('attribution', () => {
   })
 
   test('the listing widens for whoever can edit everything', () => {
-    assert.match(controller, /userId: can\(req\.user, 'post\.edit'\) \? undefined : req\.userId/)
+    assert.match(controller, /const userId = can\(req\.user, 'post\.edit'\) \? undefined : req\.userId/)
   })
 })
 
@@ -124,7 +124,8 @@ describe('what a reader gets', () => {
 
   test('the author index lists only people with something published', () => {
     // Listing an account with no posts tells the world that account exists.
-    assert.match(publicContent, /JOIN posts ON posts\.user_id = users\.id AND posts\.published = 1/)
+    // Through livePost, so a scheduled or trashed post does not count either.
+    assert.match(publicContent, /JOIN posts ON posts\.user_id = users\.id AND \$\{livePost\('posts'\)\}/)
   })
 
   test('the archive endpoints are documented, not just routed', () => {

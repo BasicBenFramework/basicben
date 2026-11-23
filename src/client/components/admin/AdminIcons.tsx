@@ -67,6 +67,13 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 11 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 20 11a2 2 0 1 1 0 4z" />
     </>
   ),
+  users: (
+    <>
+      <path d="M16 21v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V21" />
+      <circle cx="9" cy="7" r="3.5" />
+      <path d="M22 21v-1.5a4 4 0 0 0-3-3.9M16 3.6a3.5 3.5 0 0 1 0 6.8" />
+    </>
+  ),
   site: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -89,7 +96,8 @@ const byPath: Record<string, string> = {
   // or not. It still belongs in this map — an item without one falls back to
   // the emoji the server supplied, which is the look these icons replaced.
   '/profile': 'profile',
-  '/admin/settings': 'settings'
+  '/admin/settings': 'settings',
+  '/admin/users': 'users'
 }
 
 interface AdminIconProps {

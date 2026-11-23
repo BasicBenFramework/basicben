@@ -17,4 +17,5 @@ export default (router: Router) => {
   router.get('/feed.xml', FeedController.rss)
   router.get('/feed.json', FeedController.json)
   router.get('/sitemap.xml', FeedController.sitemap)
+  router.get('/robots.txt', FeedController.robots)
 }
