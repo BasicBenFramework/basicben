@@ -39,11 +39,13 @@ const DEFAULT_MENU = [
   { path: '/admin/pages', label: 'Pages', icon: '📄', section: 'Content' },
   { path: '/admin/categories', label: 'Categories', icon: '📁', section: 'Content' },
   { path: '/admin/tags', label: 'Tags', icon: '🏷️', section: 'Content' },
+  { path: '/admin/taxonomies', label: 'Taxonomies', icon: '🗃️', section: 'Content', capability: 'settings.manage' },
   { path: '/admin/comments', label: 'Comments', icon: '💬', section: 'Content' },
   { path: '/admin/media', label: 'Media', icon: '🖼️', section: 'Content' },
   { path: '/admin/snippets', label: 'Snippets', icon: '🧩', section: 'Content', capability: 'post.publish' },
   { path: '/admin/tokens', label: 'API tokens', icon: '🔑', section: 'Site' },
   { path: '/admin/settings', label: 'Settings', icon: '⚙️', section: 'Site' },
+  { path: '/admin/content-types', label: 'Content types', icon: '🗂️', section: 'Site', capability: 'settings.manage' },
   { path: '/admin/navigation', label: 'Navigation', icon: '🧭', section: 'Site', capability: 'settings.manage' },
   { path: '/admin/redirects', label: 'Redirects', icon: '↪️', section: 'Site', capability: 'settings.manage' },
   // Gated: only someone who can manage accounts is shown the way to them. The

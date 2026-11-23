@@ -89,6 +89,12 @@ export interface Post {
   visibility?: 'public' | 'members' | 'paid'
   /** The author asked for this post to be emailed to members when it goes live. */
   send_newsletter?: number | boolean
+  /** Content type key (migration 038). `post` for every post that predates types. */
+  post_type?: string
+  /** Custom field values: the stored JSON string on a row, an object once shaped for the editor. */
+  fields?: string | Record<string, unknown> | null
+  /** Custom taxonomy term ids, for the editor to preselect. */
+  term_ids?: number[]
   created_at: string
   updated_at: string
   author_name?: string

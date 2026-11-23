@@ -19,6 +19,9 @@ import { responsiveImage, type ResponsiveImage } from '../helpers/images'
 import { siteUrl } from '../helpers/site'
 import { mayReadBody, publicExcerpt, visibilityOf } from '../helpers/gating'
 import { excerpt as plainText } from '@basicbenframework/core/content'
+import { ContentType, publicFieldValues, type ContentTypeRecord } from './ContentType'
+import { taxonomyWhere } from './Taxonomy'
+import { entryPath } from '../helpers/content-paths'
 
 export type ContentFormat = 'html' | 'markdown'
 
@@ -58,6 +61,12 @@ export interface PublicPost {
   categories: Array<{ id: number; name: string; slug: string }>
   /** Every tag on the post. Empty when untagged. */
   tags: Array<{ id: number; name: string; slug: string }>
+  /** Content type key: `post` for a blog post, or a custom type such as `recipe`. See `?type=` and `/api/v1/types`. */
+  type: string
+  /** Custom field values keyed by field key, typed as the content type declares them. Empty when it has none; null when `gated`, like `content`. */
+  fields: Record<string, unknown> | null
+  /** Custom taxonomy terms keyed by taxonomy key. Categories and tags stay in their own fields. */
+  terms: Record<string, Array<{ id: number; name: string; slug: string }>>
   /** SEO title override, if set. */
   meta_title: string | null
   /** SEO description override, if set. */
@@ -105,6 +114,8 @@ interface SeoRow {
 
 interface PostRow extends SeoRow {
   id: number
+  post_type: string | null
+  fields: string | null
   slug: string | null
   title: string
   excerpt: string | null
@@ -127,6 +138,8 @@ interface PostRow extends SeoRow {
 /** Named once so the list and single-item queries cannot drift apart. */
 const POST_COLUMNS = `
   posts.id,
+  posts.post_type,
+  posts.fields,
   posts.slug,
   posts.title,
   posts.excerpt,
@@ -236,13 +249,27 @@ export const PublicContent = {
       format?: ContentFormat
       /** Whether the request carries a valid member session; unlocks gated bodies. */
       member?: boolean
+      /** A content type key, or `any` for every public type. Defaults to `post`. */
+      type?: string
+      /** Custom taxonomy filters, taxonomy key to term slug or id. */
+      taxonomy?: Record<string, string>
     } = {}
   ): Promise<{ posts: PublicPost[]; total: number }> {
     const db = await getDb()
-    const { perPage = 10, offset = 0, category, tag, author, search, format = 'html', member = false } = options
+    const { perPage = 10, offset = 0, category, tag, author, search, format = 'html', type = 'post', taxonomy = {}, member = false } = options
 
     const where: string[] = [livePost('posts')]
     const params: unknown[] = []
+
+    // One content type, `post` unless asked, so a consumer written before
+    // content types existed sees exactly the posts it always did.
+    const typed = typeWhere('posts', type)
+    where.push(typed.where)
+    params.push(...typed.params)
+
+    const terms = taxonomyWhere('posts', taxonomy)
+    where.push(...terms.where)
+    params.push(...terms.params)
 
     if (category) {
       // Matches on *any* of the post's categories, not just its primary one —
@@ -305,13 +332,22 @@ export const PublicContent = {
    * Slugs are nullable on posts — the column was added after the table — so a
    * post that never got one is still reachable by id rather than invisible.
    */
-  async post(identifier: string, format: ContentFormat = 'html', member = false): Promise<PublicPost | null> {
+  async post(
+    identifier: string,
+    format: ContentFormat = 'html',
+    /** `member`: a valid member session, which unlocks gated bodies. `type`: the content type key. */
+    { member = false, type = 'post' }: { member?: boolean; type?: string } = {}
+  ): Promise<PublicPost | null> {
     const db = await getDb()
+    // The same type rule as the listing: a recipe is not at /api/v1/posts/:slug
+    // unless the caller asks for recipes (or `any`), so a front end routing
+    // `/blog/:slug` through this cannot render a recipe at a blog URL.
+    const typed = typeWhere('posts', type)
 
     const row = (await db.get(
       `SELECT ${POST_COLUMNS} ${POST_JOINS}
-       WHERE ${livePost('posts')} AND (posts.slug = ? OR posts.id = ?)`,
-      [identifier, Number(identifier) || -1]
+       WHERE ${livePost('posts')} AND ${typed.where} AND (posts.slug = ? OR posts.id = ?)`,
+      [...typed.params, identifier, Number(identifier) || -1]
     )) as PostRow | undefined
 
     if (!row) return null
@@ -679,6 +715,8 @@ async function shapePosts(rows: PostRow[], format: ContentFormat, member = false
     )) as Array<{ post_id: number; id: number; name: string; slug: string }>
   )
 
+  const types = await ContentType.all()
+  const termsByPost = await customTerms(db, ids, placeholders)
   const storage = await getStorage()
 
   return rows.map((gatedRow) => {
@@ -709,10 +747,15 @@ async function shapePosts(rows: PostRow[], format: ContentFormat, member = false
     author_profile: shapeAuthor(row, storage),
     categories: categoriesByPost.get(row.id) ?? [],
     tags: tagsByPost.get(row.id) ?? [],
+    type: row.post_type || 'post',
+    // Custom fields can carry the substance of an entry (a recipe's method),
+    // so a gated entry withholds them with the body.
+    fields: mayReadBody(row.visibility, member) ? fieldsFor(types, row) : null,
+    terms: termsByPost.get(row.id) ?? {},
     meta_title: row.meta_title,
     meta_description: row.meta_description,
     ...seoFor(row, storage, row.excerpt),
-    structured_data: blogPosting(row, storage),
+    structured_data: blogPosting(row, storage, types),
     published_at: iso(row.publish_at ?? row.created_at),
     updated_at: row.updated_at
     }
@@ -788,7 +831,7 @@ function seoFor(
 }
 
 /** schema.org BlogPosting for a post, for a front end to embed as JSON-LD. */
-function blogPosting(row: PostRow, storage: Storage): Record<string, unknown> {
+function blogPosting(row: PostRow, storage: Storage, types: ContentTypeRecord[] = []): Record<string, unknown> {
   const site = siteUrl()
   const image = row.og_image_path
     ? mediaUrl(storage, row.og_image_path)
@@ -811,7 +854,9 @@ function blogPosting(row: PostRow, storage: Storage): Record<string, unknown> {
           }
         }
       : {}),
-    ...(site ? { mainEntityOfPage: row.canonical_url || `${site}/blog/${row.slug || row.id}` } : {})
+    // `entryPath` gives a plain post `/blog/:slug` exactly as before, and a
+    // custom type its own route base.
+    ...(site ? { mainEntityOfPage: row.canonical_url || `${site}${entryPath(routeBaseOf(types, row.post_type), row.slug, row.id)}` } : {})
   }
 }
 
@@ -877,4 +922,57 @@ function contentFor(
   if (html) return { content: html, format: 'html' }
 
   return { content: markdown, format: 'markdown' }
+}
+
+// --- Content types and custom taxonomies (migrations 038–040) ---------------
+
+/**
+ * The SQL fragment that narrows posts to one content type, or every public
+ * one for `any`. Bound, because the key is input. A type that does not exist
+ * or is not public matches nothing: an unknown `?type=` is an empty listing,
+ * never an unfiltered one.
+ */
+function typeWhere(alias: string, type: string): { where: string; params: unknown[] } {
+  const publicTypes = 'SELECT key FROM content_types WHERE is_public = 1'
+
+  if (type === 'any') return { where: `${alias}.post_type IN (${publicTypes})`, params: [] }
+
+  return { where: `(${alias}.post_type = ? AND ${alias}.post_type IN (${publicTypes}))`, params: [type] }
+}
+
+function routeBaseOf(types: ContentTypeRecord[], key: string | null): string | null {
+  if (!key || key === 'post') return null
+  return types.find((type) => type.key === key)?.route_base ?? null
+}
+
+/** A post's custom field values, limited to what its type declares now. */
+function fieldsFor(types: ContentTypeRecord[], row: PostRow): Record<string, unknown> {
+  const type = types.find((candidate) => candidate.key === (row.post_type || 'post'))
+  if (!type || !type.supports.custom_fields) return {}
+  return publicFieldValues(type.fields, row.fields)
+}
+
+/** Custom terms for a page of posts, in one query, grouped by taxonomy key. */
+async function customTerms(
+  db: { all: (sql: string, params?: unknown[]) => Promise<unknown[]> },
+  ids: number[],
+  placeholders: string
+): Promise<Map<number, PublicPost['terms']>> {
+  const rows = (await db.all(
+    `SELECT tr.post_id, taxonomies.key AS taxonomy, terms.id, terms.name, terms.slug
+     FROM term_relationships tr
+     JOIN terms ON terms.id = tr.term_id
+     JOIN taxonomies ON taxonomies.id = terms.taxonomy_id
+     WHERE taxonomies.is_public = 1 AND tr.post_id IN (${placeholders})
+     ORDER BY terms.name ASC`,
+    ids
+  )) as Array<{ post_id: number; taxonomy: string; id: number; name: string; slug: string }>
+
+  const byPost = new Map<number, PublicPost['terms']>()
+  for (const row of rows) {
+    const terms = byPost.get(Number(row.post_id)) ?? {}
+    ;(terms[row.taxonomy] ??= []).push({ id: Number(row.id), name: row.name, slug: row.slug })
+    byPost.set(Number(row.post_id), terms)
+  }
+  return byPost
 }

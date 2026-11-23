@@ -37,6 +37,8 @@ import snippetsRoutes from '../routes/api/snippets'
 import exportRoutes from '../routes/api/export'
 import opsRoutes from '../routes/api/ops'
 import membersRoutes from '../routes/api/members'
+import contentModelRoutes from '../routes/api/content-model'
+import themeRoutes from '../routes/theme'
 
 // Determine static directory based on environment
 // In production, static files are in dist/client (relative to app root/cwd)
@@ -80,6 +82,9 @@ membersRoutes(router)
 // The public content API. Versioned because its consumers are outside this
 // repository, and read-only because the admin API already owns the writes.
 v1Routes(router)
+contentModelRoutes(router)
+// Last: its /:slug and /:base/:slug routes would catch anything registered after it.
+themeRoutes(router)
 router.applyTo(app)
 
 // Serverless platforms invoke a handler per request and give you no port to

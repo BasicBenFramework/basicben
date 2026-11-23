@@ -92,6 +92,8 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M4 21h8" />
     </>
   ),
+  taxonomies: (<><path d="M4 6h16M4 12h10M4 18h6" /><circle cx="18" cy="16" r="3" /></>),
+  contentTypes: (<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>),
   analytics: (<><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>),
   members: (<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></>),
   health: <path d="M3 12h4l2-5 4 10 2-5h6" />,
@@ -116,6 +118,8 @@ const byPath: Record<string, string> = {
   '/admin/pages': 'pages',
   '/admin/categories': 'categories',
   '/admin/tags': 'tags',
+  '/admin/taxonomies': 'taxonomies',
+  '/admin/content-types': 'contentTypes',
   '/admin/comments': 'comments',
   '/admin/media': 'media',
   '/admin/tokens': 'tokens',

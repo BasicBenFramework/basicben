@@ -84,7 +84,9 @@ const PARAMS = {
   tag: 'Filter posts by tag slug or id.',
   author: 'Filter posts by author slug or id — an author archive.',
   search: 'Filter posts whose title or excerpt contains this text.',
-  format: '`markdown` returns the source. Anything else returns rendered HTML.'
+  format: '`markdown` returns the source. Anything else returns rendered HTML.',
+  type: 'Content type key (see `/api/v1/types`). Defaults to `post`; `any` means every public type. Applies to the list and to a single post.',
+  tax: 'Filter posts by custom taxonomy term: `taxonomy:slug`, comma-separated to require several. `taxonomy[key]=slug` works too.'
 }
 
 /** Endpoints answer with this envelope; it is written once in the controller. */

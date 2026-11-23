@@ -3,6 +3,8 @@ import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import { Link } from '../../components/Link'
 import { Pagination, type PageMeta } from '../../components/admin/Pagination'
+import { useNavigate, useParams } from '@basicbenframework/core/client'
+import { useContentTypes, typeFromQuery, navigateWithType } from '../../hooks/useContentTypes'
 
 interface Post {
   id: number
@@ -58,16 +60,33 @@ export default function AdminPosts() {
   const [selected, setSelected] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Which content type this screen lists. `/admin/content/:type` names it in
+  // the path; `/admin/posts?type=` in the query; otherwise it is Posts.
+  const navigate = useNavigate()
+  const params = useParams() as { type?: string }
+  const { types } = useContentTypes()
+  const [type, setType] = useState(params.type || typeFromQuery() || 'post')
+  useEffect(() => { if (params.type) setType(params.type) }, [params.type])
+  const current = types.find(t => t.key === type)
+  const plural = current?.plural_label ?? 'Posts'
+
+  const changeType = (next: string) => {
+    setType(next)
+    setPage(1)
+    // Kept in the address bar so a reload stays on the same type.
+    window.history.replaceState({}, '', next === 'post' ? '/admin/posts' : `/admin/posts?type=${encodeURIComponent(next)}`)
+  }
+
   useEffect(() => {
     loadPosts()
-  }, [page, filter, query])
+  }, [page, filter, query, type])
 
   const loadPosts = async () => {
     setLoading(true)
     setSelected([])
 
     try {
-      const params = new URLSearchParams({ page: String(page), status: filter })
+      const params = new URLSearchParams({ page: String(page), status: filter, type })
       if (query) params.set('search', query)
       const res = await api.get<{ posts: Post[]; meta: PageMeta; counts: Record<Filter, number> }>(`/api/posts?${params}`)
       setPosts(res?.posts || [])
@@ -134,14 +153,33 @@ export default function AdminPosts() {
   const inTrash = filter === 'trash'
 
   return (
-    <AdminLayout title="Posts">
+    <AdminLayout title={plural}>
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Posts</h2>
-          <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
-            + New Post
-          </Link>
+          <h2 className="admin-card-title">{plural}</h2>
+          {type === 'post' ? (
+            <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
+              + New Post
+            </Link>
+          ) : (
+            <button type="button" className="admin-btn admin-btn-primary" onClick={() => navigateWithType(navigate, '/admin/posts/new', type)}>
+              + New {current?.singular_label ?? 'entry'}
+            </button>
+          )}
         </div>
+
+        {/* One content type at a time. Shown only once a site has more than
+            the built-in one, so a plain blog's screen is unchanged. */}
+        {types.length > 1 && (
+          <nav aria-label="Content type" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.75rem' }}>
+            {types.map(t => (
+              <button key={t.key} type="button" onClick={() => changeType(t.key)} aria-pressed={type === t.key}
+                className={`admin-btn ${type === t.key ? 'admin-btn-primary' : 'admin-btn-secondary'}`}>
+                {t.plural_label}
+              </button>
+            ))}
+          </nav>
+        )}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <nav aria-label="Filter posts by status" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>

@@ -29,6 +29,10 @@ interface CreatePostData {
   noindex?: number
   visibility?: 'public' | 'members' | 'paid'
   send_newsletter?: number
+  /** Content type key (migration 038). Absent means `post`. */
+  post_type?: string
+  /** Custom field values as stored: a JSON string, already validated. */
+  fields?: string | null
 }
 
 interface UpdatePostData {
@@ -55,6 +59,8 @@ interface UpdatePostData {
   noindex?: number
   visibility?: 'public' | 'members' | 'paid'
   send_newsletter?: number
+  post_type?: string
+  fields?: string | null
 }
 
 /**
@@ -72,7 +78,10 @@ const UPDATABLE = [
   'status', 'deleted_at', 'live_notified',
   'og_title', 'og_description', 'og_image', 'twitter_title', 'twitter_description',
   'twitter_image', 'canonical_url', 'noindex',
-  'visibility', 'send_newsletter'
+  'visibility', 'send_newsletter',
+  // Content types (migrations 038–039). Validated by helpers/content-model.ts
+  // before they reach here.
+  'post_type', 'fields'
 ]
 
 /** The social and indexing fields, written on create exactly as given. */
@@ -185,7 +194,7 @@ export const Post = {
   },
 
   /** How many posts sit in each listing tab, for the counts beside them. */
-  async counts(userId?: number): Promise<Record<ListingFilter, number>> {
+  async counts(userId?: number, type?: string): Promise<Record<ListingFilter, number>> {
     const db = await getDb()
     const now = new Date().toISOString()
     const result = {} as Record<ListingFilter, number>
@@ -196,6 +205,10 @@ export const Post = {
       if (userId !== undefined) {
         where.push('posts.user_id = ?')
         params.push(userId)
+      }
+      if (type !== undefined) {
+        where.push('posts.post_type = ?')
+        params.push(type)
       }
       const row = await db.get(`SELECT COUNT(*) AS total FROM posts WHERE ${where.join(' AND ')}`, params)
       result[filter] = Number(row?.total) || 0
@@ -250,12 +263,14 @@ export const Post = {
    * It is cheap: an indexed count.
    */
   async paginate(
-    { perPage, offset, userId, filter = 'all', search }: {
+    { perPage, offset, userId, filter = 'all', search, type }: {
       perPage: number
       offset: number
       userId?: number
       filter?: ListingFilter
       search?: string
+      /** One content type's entries; omitted lists every type. */
+      type?: string
     }
   ): Promise<{ posts: PostType[]; total: number }> {
     const db = await getDb()
@@ -268,6 +283,11 @@ export const Post = {
     if (userId !== undefined) {
       conditions.push('posts.user_id = ?')
       scope.push(userId)
+    }
+
+    if (type !== undefined) {
+      conditions.push('posts.post_type = ?')
+      scope.push(type)
     }
 
     if (search) {
@@ -313,7 +333,7 @@ export const Post = {
     const db = await getDb()
     const rows = await db.all(`
       SELECT ${PUBLISHED_COLUMNS} ${PUBLISHED_JOINS}
-      WHERE ${livePost('posts')}
+      WHERE ${livePost('posts')} AND posts.post_type = 'post'
       ORDER BY COALESCE(posts.publish_at, posts.created_at) DESC
     `)
 
@@ -370,6 +390,8 @@ export const Post = {
       live_notified: data.live_notified ?? 1,
       visibility: data.visibility ?? 'public',
       send_newsletter: data.send_newsletter ?? 0,
+      post_type: data.post_type ?? 'post',
+      fields: data.fields ?? null,
       ...Object.fromEntries(SEO_FIELDS.filter((key) => data[key] !== undefined).map((key) => [key, data[key]]))
     })
 

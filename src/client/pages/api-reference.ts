@@ -88,7 +88,9 @@ export const QUERY_PARAMS = [
   { name: 'page', description: 'Which page of results. Defaults to 1.' },
   { name: 'per_page', description: 'Results per page. Defaults to 10, clamped to 100.' },
   { name: 'search', description: 'Filter posts whose title or excerpt contains this text.' },
-  { name: 'tag', description: 'Filter posts by tag slug or id.' }
+  { name: 'tag', description: 'Filter posts by tag slug or id.' },
+  { name: 'tax', description: 'Filter posts by custom taxonomy term: `taxonomy:slug`, comma-separated to require several. `taxonomy[key]=slug` works too.' },
+  { name: 'type', description: 'Content type key (see `/api/v1/types`). Defaults to `post`; `any` means every public type. Applies to the list and to a single post.' }
 ]
 
 export const SHAPES = [
@@ -109,6 +111,9 @@ export const SHAPES = [
       { name: 'author_profile', type: '{ id: number; name: string; slug: string | null; bio: string | null; website: string | null; avatar_url: string | null } | null', description: 'The author\'s profile — biography, link and avatar. Null if the account is gone.' },
       { name: 'categories', type: 'Array<{ id: number; name: string; slug: string }>', description: 'Every category on the post. Empty when uncategorised.' },
       { name: 'tags', type: 'Array<{ id: number; name: string; slug: string }>', description: 'Every tag on the post. Empty when untagged.' },
+      { name: 'type', type: 'string', description: 'Content type key: `post` for a blog post, or a custom type such as `recipe`. See `?type=` and `/api/v1/types`.' },
+      { name: 'fields', type: 'Record<string, unknown> | null', description: 'Custom field values keyed by field key, typed as the content type declares them. Empty when it has none; null when `gated`, like `content`.' },
+      { name: 'terms', type: 'Record<string, Array<{ id: number; name: string; slug: string }>>', description: 'Custom taxonomy terms keyed by taxonomy key. Categories and tags stay in their own fields.' },
       { name: 'meta_title', type: 'string | null', description: 'SEO title override, if set.' },
       { name: 'meta_description', type: 'string | null', description: 'SEO description override, if set.' },
       { name: 'featured_image', type: 'ResponsiveImage | null', description: 'The featured image with its dimensions, alt text and a srcset when IMAGE_TRANSFORM_URL is set.' },

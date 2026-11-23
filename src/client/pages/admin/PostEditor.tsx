@@ -9,6 +9,8 @@ import PostAccessBox, { type Visibility } from '../../components/admin/PostAcces
 import TermPicker from '../../components/admin/TermPicker'
 import SnippetPicker from '../../components/admin/SnippetPicker'
 import { usePostLock } from '../../hooks/usePostLock'
+import { useContentTypes, typeFromQuery, navigateWithType } from '../../hooks/useContentTypes'
+import { CustomFieldsPanel, CustomTermsPanel } from '../../components/admin/ContentModelPanels'
 
 import type { AuthorProfile, Page, Post } from '../../../types'
 import { Link } from '../../components/Link'
@@ -90,7 +92,20 @@ export default function AdminPostEditor() {
 
   const isPage = path.startsWith('/admin/pages')
   const resource = isPage ? 'pages' : 'posts'
-  const noun = isPage ? 'Page' : 'Post'
+
+  // Content types (Phase 3): a post may be a recipe, a product... The type
+  // comes from the saved post, or `?type=` for a new one; its `supports`
+  // decide which panels show, and its fields get a panel of their own.
+  const { types: contentTypes } = useContentTypes()
+  const [postType, setPostType] = useState(typeFromQuery() || 'post')
+  const [customFields, setCustomFields] = useState<Record<string, unknown>>({})
+  const [termIds, setTermIds] = useState<number[]>([])
+  const [termsReady, setTermsReady] = useState(false)
+  const contentType = contentTypes.find(type => type.key === postType)
+  // Until types load, everything shows: the editor as it was before types.
+  const supports = (panel: keyof NonNullable<typeof contentType>['supports']) => isPage || !contentType || contentType.supports[panel]
+
+  const noun = isPage ? 'Page' : (contentType?.singular_label ?? 'Post')
 
   const postId = params.id ? parseInt(params.id) : null
   const isEditing = !!postId
@@ -263,6 +278,12 @@ export default function AdminPostEditor() {
           }))
 
           if (record.author_name) setAuthorName(record.author_name)
+
+          if (!isPage) {
+            setPostType(record.post_type || 'post')
+            setCustomFields(record.fields && typeof record.fields === 'object' ? record.fields : {})
+            setTermIds(record.term_ids || [])
+          }
         }
       }
     } catch (error) {
@@ -367,7 +388,12 @@ export default function AdminPostEditor() {
             // Only when the menu was shown and a choice was made. Sending it
             // otherwise would ask the server to reassign a post to its own
             // author, which it ignores, but there is no reason to ask.
-            ...(user_id === '' ? {} : { user_id })
+            ...(user_id === '' ? {} : { user_id }),
+            post_type: postType,
+            // Only for a type that has fields, and terms only once the
+            // pickers know the selection: an unloaded box is not "none".
+            ...(contentType?.supports.custom_fields && contentType.fields.length ? { fields: customFields } : {}),
+            ...(termsReady ? { term_ids: termIds } : {})
           }
 
       if (isEditing) {
@@ -377,7 +403,7 @@ export default function AdminPostEditor() {
       }
 
       dirty.current = false
-      navigate(`/admin/${resource}`)
+      navigateWithType(navigate, `/admin/${resource}`, isPage ? null : postType)
     } catch (error: any) {
       console.error(`Failed to save ${resource}:`, error)
       // Refused by the edit lock: refresh it so the banner shows who has it.
@@ -617,7 +643,7 @@ export default function AdminPostEditor() {
 
               {/* Pages have no excerpt column, so the field would have been a
                   box that quietly discarded whatever was typed into it. */}
-              {!isPage && (
+              {!isPage && supports('excerpt') && (
                 <div className="admin-form-group">
                   <label className="admin-label">Excerpt</label>
                   <textarea
@@ -631,6 +657,18 @@ export default function AdminPostEditor() {
                 </div>
               )}
             </div>
+
+            {!isPage && (
+              <CustomFieldsPanel
+                type={contentType}
+                values={customFields}
+                disabled={lockedOut}
+                onChange={values => {
+                  dirty.current = true
+                  setCustomFields(values)
+                }}
+              />
+            )}
 
             {/* SEO Settings */}
             <div className="admin-card">
@@ -818,7 +856,7 @@ export default function AdminPostEditor() {
             {/* Both posts and pages carry one now. A page could only ever get a
                 hero image by writing the Markdown for it into the body, which
                 puts it in the content rather than beside it. */}
-            <FeaturedImageBox
+            {supports('featured_image') && <FeaturedImageBox
               value={formData.featured_image}
               url={formData.featured_image_url}
               onChange={image => {
@@ -829,7 +867,7 @@ export default function AdminPostEditor() {
                   featured_image_url: image?.url ?? null
                 }))
               }}
-            />
+            />}
 
             {/* Who the post is filed under. Always shown, because "who wrote
                 this" is part of what you are editing — but a menu only when
@@ -877,7 +915,7 @@ export default function AdminPostEditor() {
                 neither of them usable on a site with four hundred tags. */}
             {!isPage && (
               <>
-                <TermPicker
+                {supports('categories') && <TermPicker
                   title="Categories"
                   noun="category"
                   terms={categories}
@@ -886,12 +924,12 @@ export default function AdminPostEditor() {
                   onAdd={createCategory}
                   busy={creating !== null}
                   emptyText="No categories yet."
-                />
+                />}
 
                 {/* A comma commits, because a run of tags is conventionally
                     typed as one — and `addTags` splits it, reusing the ones
                     that already exist rather than making near-duplicates. */}
-                <TermPicker
+                {supports('tags') && <TermPicker
                   title="Tags"
                   noun="tag"
                   terms={allTags}
@@ -901,6 +939,16 @@ export default function AdminPostEditor() {
                   busy={creating !== null}
                   emptyText="No tags yet."
                   commitOnComma
+                />}
+
+                <CustomTermsPanel
+                  typeKey={postType}
+                  selected={termIds}
+                  onChange={ids => {
+                    dirty.current = true
+                    setTermIds(ids)
+                  }}
+                  onReady={setTermsReady}
                 />
               </>
             )}

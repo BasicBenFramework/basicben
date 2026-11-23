@@ -7,7 +7,8 @@
  */
 
 import { Redirect } from '../models/Redirect'
-import { postPath, pagePath } from './content-paths'
+import { entryPath, pagePath } from './content-paths'
+import { routeBaseFor } from '../models/ContentType'
 
 /**
  * Record that `kind` content moved from `oldPath` to `newPath`: a 301 from the
@@ -42,6 +43,18 @@ interface Movable {
   slug?: string | null
   published?: boolean | number | null
   deleted_at?: string | null
+  /** The post's content type key; absent or `post` means `/blog`. */
+  post_type?: string | null
+}
+
+/** A content type's route base, or null for the built-in type. Never throws. */
+async function baseFor(type: string | null | undefined): Promise<string | null> {
+  if (!type || type === 'post') return null
+  try {
+    return await routeBaseFor(type)
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -56,12 +69,27 @@ interface Movable {
 export async function redirectIfSlugChanged(
   kind: 'post' | 'page',
   before: Movable,
-  after: Movable | null | undefined
+  after: Movable | null | undefined,
+  // A post of a custom content type lives under its type's route base, and
+  // changing its type moves it as surely as changing its slug. Omitted, both
+  // are `/blog` — exactly the behaviour before content types existed.
+  routeBases: { before?: string | null; after?: string | null } = {}
 ): Promise<void> {
-  if (!after || !before.slug || !after.slug || before.slug === after.slug) return
+  if (!after || !before.slug || !after.slug) return
   if (!before.published || before.deleted_at) return
 
-  const path = kind === 'post' ? postPath : pagePath
+  // Looked up from the rows themselves when the caller did not say, so the
+  // controller's one-line call covers custom types without knowing about them.
+  // A plain post never touches the database here.
+  const beforeBase = routeBases.before !== undefined ? routeBases.before : await baseFor(before.post_type)
+  const afterBase = routeBases.after !== undefined
+    ? routeBases.after
+    : after.post_type === before.post_type ? beforeBase : await baseFor(after.post_type)
 
-  await recordSlugChange(kind, path(before.slug), path(after.slug))
+  const from = kind === 'post' ? entryPath(beforeBase, before.slug) : pagePath(before.slug)
+  const to = kind === 'post' ? entryPath(afterBase, after.slug) : pagePath(after.slug)
+
+  if (from === to) return
+
+  await recordSlugChange(kind, from, to)
 }

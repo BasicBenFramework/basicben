@@ -961,6 +961,33 @@ case "$MEMBERS" in
   *) echo "$MEMBERS"; fail "the admin members list does not show the new member" ;;
 esac
 
+# --- Phase 3: content model, public theme, oEmbed -----------------------------
+
+TYPES="$(curl -s "$H/api/v1/types" -H "Authorization: Bearer $API_TOKEN")"
+case "$TYPES" in
+  *'"post"'*) pass "/api/v1/types lists the built-in post type" ;;
+  *) echo "$TYPES"; fail "/api/v1/types did not list the post type" ;;
+esac
+code="$(owner_json -o /dev/null -w '%{http_code}' -X POST "$H/api/content-types" -d '{"key":"recipe","singular_label":"Recipe","plural_label":"Recipes","route_base":"/api"}')"
+[ "$code" = "422" ] || fail "a content type was allowed the reserved route base /api ($code)"
+pass "a content type cannot take a reserved route base"
+
+# With the theme off, a public path is the SPA's shell, not a theme page.
+SHELL_PAGE="$(curl -s "$H/blog/p2-new")"
+case "$SHELL_PAGE" in
+  *'<div id="root"'*|*'<div id="app"'*) pass "with the theme off, public paths serve the app shell" ;;
+  *) echo "$SHELL_PAGE" | head -5; fail "a public path did not serve the app shell with the theme off" ;;
+esac
+
+OEMBED="$(curl -s "$H/oembed?format=json&url=http%3A%2F%2Flocalhost%3A$PORT%2Fblog%2Fp2-new")"
+case "$OEMBED" in
+  *'"type":"rich"'*'Phase two'*|*'Phase two'*'"type":"rich"'*) pass "oEmbed describes a post on this site" ;;
+  *) echo "$OEMBED"; fail "oEmbed did not describe the post" ;;
+esac
+code="$(curl -s -o /dev/null -w '%{http_code}' "$H/oembed?format=json&url=https%3A%2F%2Fevil.example%2Fblog%2Fp2-new")"
+[ "$code" = "404" ] || [ "$code" = "400" ] || fail "oEmbed answered for another origin ($code)"
+pass "oEmbed refuses URLs on other origins"
+
 # What the docs promise is what the server sends.
 #
 # The reference is generated from the interfaces, so it cannot drift from the

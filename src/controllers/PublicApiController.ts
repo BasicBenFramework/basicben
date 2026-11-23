@@ -3,6 +3,7 @@ import {
   paging,
   contentFormat
 } from '../models/PublicContent'
+import { taxonomyFilters } from '../models/Taxonomy'
 import type { Request, Response } from '../types'
 
 /**
@@ -29,7 +30,12 @@ export const PublicApiController = {
       search: req.query.search,
       format: contentFormat(req.query),
       // Set by `optionalMember` in v1.ts. Gated bodies are withheld without it.
-      member: Boolean(req.member)
+      member: Boolean(req.member),
+      // Content types and custom taxonomies. `type` defaults to `post` in the
+      // model, so leaving it off is the listing every consumer already had.
+      type: req.query.type || undefined,
+      // `?tax=cuisine:italian` and `?taxonomy[cuisine]=italian` alike.
+      taxonomy: taxonomyFilters(req.query, req.query.tax)
     })
 
     res.json({
@@ -47,7 +53,7 @@ export const PublicApiController = {
   },
 
   async post(req: Request, res: Response) {
-    const post = await PublicContent.post(req.params.slug, contentFormat(req.query), Boolean(req.member))
+    const post = await PublicContent.post(req.params.slug, contentFormat(req.query), { member: Boolean(req.member), type: req.query.type || 'post' })
 
     if (!post) {
       return res.json({ error: 'Not found' }, 404)

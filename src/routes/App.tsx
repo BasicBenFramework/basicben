@@ -41,6 +41,8 @@ import { Testing } from '../client/pages/Testing'
 // Admin pages
 import AdminDashboard from '../client/pages/admin/Dashboard'
 import AdminPosts from '../client/pages/admin/Posts'
+import AdminContentTypes from '../client/pages/admin/ContentTypes'
+import AdminTaxonomies from '../client/pages/admin/Taxonomies'
 import AdminPostEditor from '../client/pages/admin/PostEditor'
 import AdminPages from '../client/pages/admin/Pages'
 import AdminCategories from '../client/pages/admin/Categories'
@@ -140,6 +142,9 @@ export default createClientApp({
     // Admin routes (use their own layout)
     '/admin': { component: AdminDashboard, layout: NoLayout, auth: true },
     '/admin/posts': { component: AdminPosts, layout: NoLayout, auth: true },
+    '/admin/content/:type': { component: AdminPosts, layout: NoLayout, auth: true },
+    '/admin/content-types': { component: AdminContentTypes, layout: NoLayout, auth: true },
+    '/admin/taxonomies': { component: AdminTaxonomies, layout: NoLayout, auth: true },
     '/admin/posts/new': { component: AdminPostEditor, layout: NoLayout, auth: true },
     '/admin/posts/:id/edit': { component: AdminPostEditor, layout: NoLayout, auth: true },
     '/admin/pages': { component: AdminPages, layout: NoLayout, auth: true },
