@@ -59,7 +59,9 @@ that header or skip caching when it is present.
 
 RSS and JSON Feed list gated posts with their excerpt and a notice, never the
 body. The excerpt is public on gated posts — if one is derived automatically it
-comes from the start of the body, so write one by hand when that matters.
+comes from the start of the body, so write one by hand when that matters. When
+the automatic excerpt would be the whole body (a short post), it is withheld
+along with the body.
 
 ## Newsletters
 
