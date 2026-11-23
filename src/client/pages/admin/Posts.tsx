@@ -5,6 +5,7 @@ import { Link } from '../../components/Link'
 import { Pagination, type PageMeta } from '../../components/admin/Pagination'
 import { useNavigate, useParams } from '@basicbenframework/core/client'
 import { useContentTypes, typeFromQuery, navigateWithType } from '../../hooks/useContentTypes'
+import { t, useT } from '../../i18n'
 
 interface Post {
   id: number
@@ -21,14 +22,7 @@ interface Post {
 
 type Filter = 'all' | 'draft' | 'pending' | 'scheduled' | 'published' | 'trash'
 
-const TABS: Array<{ key: Filter; label: string }> = [
-  { key: 'all', label: 'All' },
-  { key: 'published', label: 'Published' },
-  { key: 'scheduled', label: 'Scheduled' },
-  { key: 'pending', label: 'Pending review' },
-  { key: 'draft', label: 'Drafts' },
-  { key: 'trash', label: 'Trash' }
-]
+const TABS: Filter[] = ['all', 'published', 'scheduled', 'pending', 'draft', 'trash']
 
 /** Read a stored timestamp as UTC, whether or not the driver kept the zone. */
 function parseUtc(value: string | null | undefined): Date | null {
@@ -39,17 +33,26 @@ function parseUtc(value: string | null | undefined): Date | null {
 
 /** The badge a row shows: its status, with "scheduled" told apart from live. */
 function badgeFor(post: Post): { label: string; tone: string } {
-  if (post.deleted_at) return { label: 'Trashed', tone: 'admin-badge-danger' }
+  if (post.deleted_at) return { label: t('Trashed'), tone: 'admin-badge-danger' }
   const at = parseUtc(post.publish_at)
   if (Number(post.published) && at && at.getTime() > Date.now()) {
-    return { label: `Scheduled ${at.toLocaleString()}`, tone: 'admin-badge-info' }
+    return { label: t('Scheduled {date}', { date: at.toLocaleString() }), tone: 'admin-badge-info' }
   }
-  if (Number(post.published)) return { label: 'Published', tone: 'admin-badge-success' }
-  if (post.status === 'pending') return { label: 'Pending review', tone: 'admin-badge-warning' }
-  return { label: 'Draft', tone: 'admin-badge-warning' }
+  if (Number(post.published)) return { label: t('Published'), tone: 'admin-badge-success' }
+  if (post.status === 'pending') return { label: t('Pending review'), tone: 'admin-badge-warning' }
+  return { label: t('Draft'), tone: 'admin-badge-warning' }
 }
 
 export default function AdminPosts() {
+  const { t, tn } = useT()
+  const tabLabels: Record<Filter, string> = {
+    all: t('All'),
+    published: t('Published'),
+    scheduled: t('Scheduled'),
+    pending: t('Pending review'),
+    draft: t('Drafts'),
+    trash: t('Trash')
+  }
   const [posts, setPosts] = useState<Post[]>([])
   const [meta, setMeta] = useState<PageMeta | null>(null)
   const [counts, setCounts] = useState<Partial<Record<Filter, number>>>({})
@@ -67,8 +70,8 @@ export default function AdminPosts() {
   const { types } = useContentTypes()
   const [type, setType] = useState(params.type || typeFromQuery() || 'post')
   useEffect(() => { if (params.type) setType(params.type) }, [params.type])
-  const current = types.find(t => t.key === type)
-  const plural = current?.plural_label ?? 'Posts'
+  const current = types.find(ct => ct.key === type)
+  const plural = current?.plural_label ?? t('Posts')
 
   const changeType = (next: string) => {
     setType(next)
@@ -123,17 +126,17 @@ export default function AdminPosts() {
 
   const runBulk = async (action: string, ids: number[]) => {
     if (ids.length === 0) return
-    if (action === 'delete' && !confirm(`Delete ${ids.length} post${ids.length === 1 ? '' : 's'} permanently? This cannot be undone.`)) return
+    if (action === 'delete' && !confirm(tn('Delete {count} post permanently? This cannot be undone.', 'Delete {count} posts permanently? This cannot be undone.', ids.length))) return
 
     try {
       const res = await api.post<{ done: number[]; failed: Array<{ id: number; error: string }> }>('/api/posts/bulk', { action, ids })
       if (res?.failed?.length) {
-        alert(`${res.failed.length} could not be changed:\n` + res.failed.map(f => `#${f.id}: ${f.error}`).join('\n'))
+        alert(tn('{count} could not be changed:', '{count} could not be changed:', res.failed.length) + '\n' + res.failed.map(f => `#${f.id}: ${f.error}`).join('\n'))
       }
       const leavesView = action === 'trash' || action === 'restore' || action === 'delete' || filter !== 'all'
       refreshAfter(leavesView ? (res?.done?.length ?? 0) : 0)
     } catch (error: any) {
-      alert(error.message || 'That action failed')
+      alert(error.message || t('That action failed'))
     }
   }
 
@@ -142,7 +145,7 @@ export default function AdminPosts() {
       await api.delete(`/api/posts/${id}`)
       refreshAfter(1)
     } catch (error: any) {
-      alert(error.message || 'Failed to move the post to the trash')
+      alert(error.message || t('Failed to move the post to the trash'))
     }
   }
 
@@ -159,11 +162,11 @@ export default function AdminPosts() {
           <h2 className="admin-card-title">{plural}</h2>
           {type === 'post' ? (
             <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
-              + New Post
+              {t('+ New Post')}
             </Link>
           ) : (
             <button type="button" className="admin-btn admin-btn-primary" onClick={() => navigateWithType(navigate, '/admin/posts/new', type)}>
-              + New {current?.singular_label ?? 'entry'}
+              {current?.singular_label ? t('+ New {name}', { name: current.singular_label }) : t('+ New entry')}
             </button>
           )}
         </div>
@@ -171,27 +174,27 @@ export default function AdminPosts() {
         {/* One content type at a time. Shown only once a site has more than
             the built-in one, so a plain blog's screen is unchanged. */}
         {types.length > 1 && (
-          <nav aria-label="Content type" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.75rem' }}>
-            {types.map(t => (
-              <button key={t.key} type="button" onClick={() => changeType(t.key)} aria-pressed={type === t.key}
-                className={`admin-btn ${type === t.key ? 'admin-btn-primary' : 'admin-btn-secondary'}`}>
-                {t.plural_label}
+          <nav aria-label={t('Content type')} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.75rem' }}>
+            {types.map(ct => (
+              <button key={ct.key} type="button" onClick={() => changeType(ct.key)} aria-pressed={type === ct.key}
+                className={`admin-btn ${type === ct.key ? 'admin-btn-primary' : 'admin-btn-secondary'}`}>
+                {ct.plural_label}
               </button>
             ))}
           </nav>
         )}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <nav aria-label="Filter posts by status" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+          <nav aria-label={t('Filter posts by status')} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
             {TABS.map(tab => (
               <button
-                key={tab.key}
+                key={tab}
                 type="button"
-                onClick={() => changeFilter(tab.key)}
-                className={`admin-btn ${filter === tab.key ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
-                aria-pressed={filter === tab.key}
+                onClick={() => changeFilter(tab)}
+                className={`admin-btn ${filter === tab ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
+                aria-pressed={filter === tab}
               >
-                {tab.label}{counts[tab.key] !== undefined ? ` (${counts[tab.key]})` : ''}
+                {tabLabels[tab]}{counts[tab] !== undefined ? ` (${counts[tab]})` : ''}
               </button>
             ))}
           </nav>
@@ -201,43 +204,43 @@ export default function AdminPosts() {
               type="search"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search posts"
+              placeholder={t('Search posts')}
               className="admin-input"
-              aria-label="Search posts"
+              aria-label={t('Search posts')}
             />
-            <button type="submit" className="admin-btn admin-btn-secondary">Search</button>
+            <button type="submit" className="admin-btn admin-btn-secondary">{t('Search')}</button>
           </form>
         </div>
 
         {selected.length > 0 && (
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span>{selected.length} selected</span>
+            <span>{tn('{count} selected', '{count} selected', selected.length)}</span>
             {inTrash ? (
               <>
-                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => runBulk('restore', selected)}>Restore</button>
-                <button type="button" className="admin-btn admin-btn-danger" onClick={() => runBulk('delete', selected)}>Delete permanently</button>
+                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => runBulk('restore', selected)}>{t('Restore')}</button>
+                <button type="button" className="admin-btn admin-btn-danger" onClick={() => runBulk('delete', selected)}>{t('Delete permanently')}</button>
               </>
             ) : (
               <>
-                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => runBulk('publish', selected)}>Publish</button>
-                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => runBulk('draft', selected)}>Unpublish</button>
-                <button type="button" className="admin-btn admin-btn-danger" onClick={() => runBulk('trash', selected)}>Move to trash</button>
+                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => runBulk('publish', selected)}>{t('Publish')}</button>
+                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => runBulk('draft', selected)}>{t('Unpublish')}</button>
+                <button type="button" className="admin-btn admin-btn-danger" onClick={() => runBulk('trash', selected)}>{t('Move to trash')}</button>
               </>
             )}
           </div>
         )}
 
         {loading ? (
-          <div className="admin-loading">Loading...</div>
+          <div className="admin-loading">{t('Loading...')}</div>
         ) : posts.length === 0 ? (
           <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>
             {query
-              ? `No posts match “${query}”.`
+              ? t('No posts match “{query}”.', { query })
               : inTrash
-                ? 'The trash is empty.'
+                ? t('The trash is empty.')
                 : filter === 'all'
-                  ? 'No posts yet. Create your first post!'
-                  : 'Nothing here.'}
+                  ? t('No posts yet. Create your first post!')
+                  : t('Nothing here.')}
           </p>
         ) : (
           <table className="admin-table">
@@ -246,17 +249,17 @@ export default function AdminPosts() {
                 <th style={{ width: '2rem' }}>
                   <input
                     type="checkbox"
-                    aria-label="Select all posts on this page"
+                    aria-label={t('Select all posts on this page')}
                     checked={allSelected}
                     onChange={() => setSelected(allSelected ? [] : posts.map(p => p.id))}
                   />
                 </th>
-                <th>Title</th>
-                <th>Author</th>
-                <th>Categories</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
+                <th>{t('Title')}</th>
+                <th>{t('Author')}</th>
+                <th>{t('Categories')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Date')}</th>
+                <th>{t('Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -268,7 +271,7 @@ export default function AdminPosts() {
                     <td>
                       <input
                         type="checkbox"
-                        aria-label={`Select ${post.title}`}
+                        aria-label={t('Select {name}', { name: post.title })}
                         checked={selected.includes(post.id)}
                         onChange={() => toggle(post.id)}
                       />
@@ -297,19 +300,19 @@ export default function AdminPosts() {
                         {inTrash ? (
                           <>
                             <button onClick={() => runBulk('restore', [post.id])} className="admin-btn admin-btn-secondary">
-                              Restore
+                              {t('Restore')}
                             </button>
                             <button onClick={() => runBulk('delete', [post.id])} className="admin-btn admin-btn-danger">
-                              Delete permanently
+                              {t('Delete permanently')}
                             </button>
                           </>
                         ) : (
                           <>
                             <Link href={`/admin/posts/${post.id}/edit`} className="admin-btn admin-btn-secondary">
-                              Edit
+                              {t('Edit')}
                             </Link>
                             <button onClick={() => trash(post.id)} className="admin-btn admin-btn-danger">
-                              Trash
+                              {t('Trash')}
                             </button>
                           </>
                         )}
@@ -322,7 +325,7 @@ export default function AdminPosts() {
           </table>
         )}
 
-        {meta && <Pagination meta={meta} onChange={setPage} noun="posts" />}
+        {meta && <Pagination meta={meta} onChange={setPage} noun={t('posts')} />}
       </div>
     </AdminLayout>
   )

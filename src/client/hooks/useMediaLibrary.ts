@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../../helpers/api'
+import { t } from '../i18n'
 
 /**
  * The media library, shared by the admin page and the editor's picker.
@@ -147,7 +148,7 @@ export function useMediaLibrary() {
     })
 
     if (!signed?.uploadUrl) {
-      throw new Error(signed?.error || 'Could not start the upload.')
+      throw new Error(signed?.error || t('Could not start the upload.'))
     }
 
     await new Promise<void>((resolve, reject) => {
@@ -166,8 +167,8 @@ export function useMediaLibrary() {
       xhr.onload = () =>
         xhr.status >= 200 && xhr.status < 300
           ? resolve()
-          : reject(new Error(`Storage refused the upload (${xhr.status}).`))
-      xhr.onerror = () => reject(new Error('The upload could not reach storage.'))
+          : reject(new Error(t('Storage refused the upload ({status}).', { status: xhr.status })))
+      xhr.onerror = () => reject(new Error(t('The upload could not reach storage.')))
       xhr.send(file)
     })
 
@@ -178,7 +179,7 @@ export function useMediaLibrary() {
     })
 
     if (!confirmed?.media) {
-      throw new Error(confirmed?.error || 'The upload could not be confirmed.')
+      throw new Error(confirmed?.error || t('The upload could not be confirmed.'))
     }
 
     return confirmed.media
@@ -247,7 +248,7 @@ export function useMediaLibrary() {
   const saveAlt = async (id: number, alt: string) => {
     const res = await api.put<{ media: MediaItem }>(`/api/media/${id}`, { alt_text: alt })
     const updated = res?.media
-    if (!updated) throw new Error('The update returned no media.')
+    if (!updated) throw new Error(t('The update returned no media.'))
 
     setItems(prev => prev.map(item => (item.id === updated.id ? updated : item)))
     return updated

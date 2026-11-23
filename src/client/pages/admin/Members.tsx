@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import { Pagination, type PageMeta } from '../../components/admin/Pagination'
+import { useT, currentLocale, slots } from '../../i18n'
 
 interface Member {
   id: number
@@ -52,7 +53,7 @@ type SettingKey = (typeof SETTING_KEYS)[number]
 const date = (value: string | null) => {
   if (!value) return '—'
   const parsed = new Date(/Z|[+-]\d\d:?\d\d$/.test(value) ? value : value.replace(' ', 'T') + 'Z')
-  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString()
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString(currentLocale())
 }
 
 /**
@@ -64,6 +65,9 @@ const date = (value: string | null) => {
  * other people's email addresses.
  */
 export default function AdminMembers() {
+  const { t } = useT()
+  const SOURCES: Record<Member['source'], string> = { signup: t('signup'), admin: t('admin'), import: t('import') }
+  const SEND_STATUSES: Record<Send['status'], string> = { preparing: t('preparing'), sending: t('sending'), sent: t('sent') }
   const [members, setMembers] = useState<Member[]>([])
   const [counts, setCounts] = useState<Counts>({ total: 0, active: 0, unsubscribed: 0 })
   const [meta, setMeta] = useState<PageMeta | null>(null)
@@ -139,7 +143,7 @@ export default function AdminMembers() {
       setForm(EMPTY)
       load(page, search, status)
     } catch (err: any) {
-      setError(err.message || 'Failed to add member')
+      setError(err.message || t('Failed to add member'))
     }
   }
 
@@ -148,17 +152,17 @@ export default function AdminMembers() {
       await api.put(`/api/members/${member.id}`, { newsletter: !member.newsletter })
       load(page, search, status)
     } catch (err: any) {
-      alert(err.message || 'Failed to update member')
+      alert(err.message || t('Failed to update member'))
     }
   }
 
   const handleDelete = async (member: Member) => {
-    if (!confirm(`Delete ${member.email}? They are signed out and receive no further newsletters. This cannot be undone.`)) return
+    if (!confirm(t('Delete {email}? They are signed out and receive no further newsletters. This cannot be undone.', { email: member.email }))) return
     try {
       await api.delete(`/api/members/${member.id}`)
       load(page, search, status)
     } catch (err: any) {
-      alert(err.message || 'Failed to delete member')
+      alert(err.message || t('Failed to delete member'))
     }
   }
 
@@ -180,7 +184,7 @@ export default function AdminMembers() {
       load(1, search, status)
       setPage(1)
     } catch (err: any) {
-      alert(err.message || 'Import failed')
+      alert(err.message || t('Import failed'))
     } finally {
       setImporting(false)
       if (fileInput.current) fileInput.current.value = ''
@@ -195,7 +199,7 @@ export default function AdminMembers() {
     try {
       const token = localStorage.getItem('token')
       const res = await fetch('/api/members/export', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      if (!res.ok) throw new Error(`Export failed (${res.status})`)
+      if (!res.ok) throw new Error(t('Export failed ({status})', { status: res.status }))
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -204,7 +208,7 @@ export default function AdminMembers() {
       link.click()
       URL.revokeObjectURL(url)
     } catch (err: any) {
-      alert(err.message || 'Export failed')
+      alert(err.message || t('Export failed'))
     }
   }
 
@@ -213,9 +217,9 @@ export default function AdminMembers() {
     setSettingsMessage('')
     try {
       await api.put('/api/settings', { settings })
-      setSettingsMessage('Saved.')
+      setSettingsMessage(t('Saved.'))
     } catch (err: any) {
-      setSettingsMessage(err.message || 'Failed to save settings')
+      setSettingsMessage(err.message || t('Failed to save settings'))
     }
   }
 
@@ -224,107 +228,117 @@ export default function AdminMembers() {
 
   if (loading) {
     return (
-      <AdminLayout title="Members">
-        <div className="admin-loading">Loading...</div>
+      <AdminLayout title={t('Members')}>
+        <div className="admin-loading">{t('Loading...')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title="Members">
+    <AdminLayout title={t('Members')}>
       <div className="admin-grid admin-grid-3">
         <div className="admin-card">
-          <h3 className="admin-card-title">Members</h3>
+          <h3 className="admin-card-title">{t('Members')}</h3>
           <p style={{ fontSize: '1.75rem', margin: 0 }}>{counts.total}</p>
         </div>
         <div className="admin-card">
-          <h3 className="admin-card-title">Subscribed</h3>
+          <h3 className="admin-card-title">{t('Subscribed')}</h3>
           <p style={{ fontSize: '1.75rem', margin: 0 }}>{counts.active}</p>
         </div>
         <div className="admin-card">
-          <h3 className="admin-card-title">Unsubscribed</h3>
+          <h3 className="admin-card-title">{t('Unsubscribed')}</h3>
           <p style={{ fontSize: '1.75rem', margin: 0 }}>{counts.unsubscribed}</p>
         </div>
       </div>
 
       <div className="admin-card">
-        <h3 className="admin-card-title">Add a member</h3>
+        <h3 className="admin-card-title">{t('Add a member')}</h3>
         <form onSubmit={handleAdd}>
           <div className="admin-grid admin-grid-3">
             <div className="admin-form-group">
-              <label className="admin-label">Email</label>
+              <label className="admin-label">{t('Email')}</label>
               <input type="email" required className="admin-input" value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="admin-form-group">
-              <label className="admin-label">Name</label>
+              <label className="admin-label">{t('Name')}</label>
               <input type="text" className="admin-input" value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="admin-form-group">
-              <label className="admin-label">Labels</label>
-              <input type="text" className="admin-input" placeholder="comma, separated" value={form.labels}
+              <label className="admin-label">{t('Labels')}</label>
+              <input type="text" className="admin-input" placeholder={t('comma, separated')} value={form.labels}
                 onChange={e => setForm({ ...form, labels: e.target.value })} />
             </div>
           </div>
           <div className="admin-form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input type="checkbox" checked={form.newsletter} onChange={e => setForm({ ...form, newsletter: e.target.checked })} />
-              Subscribed to the newsletter
+              {t('Subscribed to the newsletter')}
             </label>
           </div>
           {error && <p style={{ color: 'var(--danger)', marginBottom: '0.75rem' }}>{error}</p>}
-          <button type="submit" className="admin-btn admin-btn-primary">Add member</button>
+          <button type="submit" className="admin-btn admin-btn-primary">{t('Add member')}</button>
         </form>
         <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.75rem' }}>
-          No email is sent. They sign in with a magic link whenever they choose, from your front end.
+          {t('No email is sent. They sign in with a magic link whenever they choose, from your front end.')}
         </p>
       </div>
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h3 className="admin-card-title">All members</h3>
+          <h3 className="admin-card-title">{t('All members')}</h3>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem' }}>
               <input type="search" value={search} onChange={e => setSearch(e.target.value)}
-                className="admin-input" placeholder="Search email, name, labels" />
-              <button type="submit" className="admin-btn admin-btn-secondary">Search</button>
+                className="admin-input" placeholder={t('Search email, name, labels')} />
+              <button type="submit" className="admin-btn admin-btn-secondary">{t('Search')}</button>
             </form>
             <select className="admin-select" value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}>
-              <option value="">Everyone</option>
-              <option value="active">Subscribed</option>
-              <option value="unsubscribed">Unsubscribed</option>
+              <option value="">{t('Everyone')}</option>
+              <option value="active">{t('Subscribed')}</option>
+              <option value="unsubscribed">{t('Unsubscribed')}</option>
             </select>
             <button type="button" className="admin-btn admin-btn-secondary" onClick={() => fileInput.current?.click()} disabled={importing}>
-              {importing ? 'Importing…' : 'Import CSV'}
+              {importing ? t('Importing…') : t('Import CSV')}
             </button>
             <input ref={fileInput} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleImport} />
-            <button type="button" className="admin-btn admin-btn-secondary" onClick={handleExport}>Export CSV</button>
+            <button type="button" className="admin-btn admin-btn-secondary" onClick={handleExport}>{t('Export CSV')}</button>
           </div>
         </div>
 
         {importResult && (
           <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
-            Imported {importResult.imported}; {importResult.existing} already members (left unchanged);
-            {' '}{importResult.invalid} invalid
-            {importResult.errors.length > 0 && ` — first problem on row ${importResult.errors[0].row}: ${importResult.errors[0].error}`}.
+            {importResult.errors.length > 0
+              ? t('Imported {imported}; {existing} already members (left unchanged); {invalid} invalid — first problem on row {row}: {error}.', {
+                imported: importResult.imported,
+                existing: importResult.existing,
+                invalid: importResult.invalid,
+                row: importResult.errors[0].row,
+                error: importResult.errors[0].error
+              })
+              : t('Imported {imported}; {existing} already members (left unchanged); {invalid} invalid.', {
+                imported: importResult.imported,
+                existing: importResult.existing,
+                invalid: importResult.invalid
+              })}
           </p>
         )}
 
         {members.length === 0 ? (
-          <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>No members.</p>
+          <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>{t('No members.')}</p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Newsletter</th>
-                <th>Labels</th>
-                <th>Source</th>
-                <th>Joined</th>
-                <th>Last seen</th>
-                <th>Actions</th>
+                <th>{t('Email')}</th>
+                <th>{t('Name')}</th>
+                <th>{t('Newsletter')}</th>
+                <th>{t('Labels')}</th>
+                <th>{t('Source')}</th>
+                <th>{t('Joined')}</th>
+                <th>{t('Last seen')}</th>
+                <th>{t('Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -333,27 +347,27 @@ export default function AdminMembers() {
                   <td>
                     {member.email}
                     {!member.email_verified_at && (
-                      <span className="admin-badge admin-badge-warning" style={{ marginLeft: '0.5rem' }} title="Has never followed a sign-in link">
-                        unverified
+                      <span className="admin-badge admin-badge-warning" style={{ marginLeft: '0.5rem' }} title={t('Has never followed a sign-in link')}>
+                        {t('unverified')}
                       </span>
                     )}
                   </td>
                   <td>{member.name || '—'}</td>
                   <td>
                     <span className={`admin-badge ${member.newsletter ? 'admin-badge-success' : 'admin-badge-warning'}`}>
-                      {member.newsletter ? 'Subscribed' : 'Unsubscribed'}
+                      {member.newsletter ? t('Subscribed') : t('Unsubscribed')}
                     </span>
                   </td>
                   <td>{member.labels || '—'}</td>
-                  <td>{member.source}</td>
+                  <td>{SOURCES[member.source] ?? member.source}</td>
                   <td>{date(member.created_at)}</td>
                   <td>{date(member.last_seen_at)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button onClick={() => toggleNewsletter(member)} className="admin-btn admin-btn-secondary">
-                        {member.newsletter ? 'Unsubscribe' : 'Subscribe'}
+                        {member.newsletter ? t('Unsubscribe') : t('Subscribe')}
                       </button>
-                      <button onClick={() => handleDelete(member)} className="admin-btn admin-btn-danger">Delete</button>
+                      <button onClick={() => handleDelete(member)} className="admin-btn admin-btn-danger">{t('Delete')}</button>
                     </div>
                   </td>
                 </tr>
@@ -362,86 +376,94 @@ export default function AdminMembers() {
           </table>
         )}
 
-        {meta && <Pagination meta={meta} onChange={setPage} noun="members" />}
+        {meta && <Pagination meta={meta} onChange={setPage} noun={t('members')} />}
 
         <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.75rem' }}>
-          CSV import reads a header row with <code>email</code> and optionally <code>name</code>, <code>labels</code>,
-          {' '}<code>note</code> and <code>subscribed</code> (yes/no). Existing members are skipped, never overwritten.
+          {slots(t('CSV import reads a header row with {email} and optionally {name}, {labels}, {note} and {subscribed} (yes/no). Existing members are skipped, never overwritten.'), {
+            email: <code>{'email'}</code>,
+            name: <code>{'name'}</code>,
+            labels: <code>{'labels'}</code>,
+            note: <code>{'note'}</code>,
+            subscribed: <code>{'subscribed'}</code>
+          })}
         </p>
       </div>
 
       <form onSubmit={saveSettings}>
         <div className="admin-grid admin-grid-2">
           <div className="admin-card">
-            <h3 className="admin-card-title">Membership</h3>
+            <h3 className="admin-card-title">{t('Membership')}</h3>
             <div className="admin-form-group">
-              <label className="admin-label" htmlFor="members_signup">Who can sign up</label>
+              <label className="admin-label" htmlFor="members_signup">{t('Who can sign up')}</label>
               <select id="members_signup" className="admin-select" value={settings.members_signup || 'open'} onChange={setSetting('members_signup')}>
-                <option value="open">Anyone</option>
-                <option value="invite">Only members added or imported here</option>
-                <option value="closed">Nobody — sign-in links are not sent</option>
+                <option value="open">{t('Anyone')}</option>
+                <option value="invite">{t('Only members added or imported here')}</option>
+                <option value="closed">{t('Nobody — sign-in links are not sent')}</option>
               </select>
             </div>
             <div className="admin-form-group">
-              <label className="admin-label" htmlFor="members_signin_url">Sign-in page on your front end</label>
-              <input id="members_signin_url" type="url" className="admin-input" placeholder="https://example.com/members/verify"
+              <label className="admin-label" htmlFor="members_signin_url">{t('Sign-in page on your front end')}</label>
+              <input id="members_signin_url" type="url" className="admin-input" placeholder={'https://example.com/members/verify'}
                 value={settings.members_signin_url} onChange={setSetting('members_signin_url')} />
               <small style={{ color: 'var(--fg-muted)' }}>
-                Magic links open this page with <code>?token=</code>; it POSTs the token to
-                {' '}<code>/api/v1/members/verify</code>. Blank uses SITE_URL + <code>/members/verify</code>.
+                {slots(t('Magic links open this page with {token}; it POSTs the token to {endpoint}. Blank uses SITE_URL + {path}.'), {
+                  token: <code>?token=</code>,
+                  endpoint: <code>{'/api/v1/members/verify'}</code>,
+                  path: <code>{'/members/verify'}</code>
+                })}
               </small>
             </div>
           </div>
 
           <div className="admin-card">
-            <h3 className="admin-card-title">Newsletter</h3>
+            <h3 className="admin-card-title">{t('Newsletter')}</h3>
             <div className="admin-form-group">
-              <label className="admin-label" htmlFor="newsletter_sender_name">Sender name</label>
-              <input id="newsletter_sender_name" type="text" className="admin-input" placeholder="Defaults to the site name"
+              <label className="admin-label" htmlFor="newsletter_sender_name">{t('Sender name')}</label>
+              <input id="newsletter_sender_name" type="text" className="admin-input" placeholder={t('Defaults to the site name')}
                 value={settings.newsletter_sender_name} onChange={setSetting('newsletter_sender_name')} />
             </div>
             <div className="admin-form-group">
-              <label className="admin-label" htmlFor="newsletter_reply_to">Reply-to address</label>
+              <label className="admin-label" htmlFor="newsletter_reply_to">{t('Reply-to address')}</label>
               <input id="newsletter_reply_to" type="email" className="admin-input"
                 value={settings.newsletter_reply_to} onChange={setSetting('newsletter_reply_to')} />
             </div>
             <div className="admin-form-group">
-              <label className="admin-label" htmlFor="newsletter_footer">Footer text</label>
+              <label className="admin-label" htmlFor="newsletter_footer">{t('Footer text')}</label>
               <textarea id="newsletter_footer" className="admin-input" rows={3}
                 value={settings.newsletter_footer} onChange={setSetting('newsletter_footer')} />
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <button type="submit" className="admin-btn admin-btn-primary">Save settings</button>
+          <button type="submit" className="admin-btn admin-btn-primary">{t('Save settings')}</button>
           {settingsMessage && <span style={{ color: 'var(--fg-muted)' }}>{settingsMessage}</span>}
         </div>
       </form>
 
       <div className="admin-card">
-        <h3 className="admin-card-title">Recent newsletters</h3>
+        <h3 className="admin-card-title">{t('Recent newsletters')}</h3>
         {sends.length === 0 ? (
           <p style={{ color: 'var(--fg-muted)' }}>
-            Nothing sent yet. Tick “Email to subscribed members” in a post’s editor; it is sent once, when the post goes live.
+            {t('Nothing sent yet. Tick “Email to subscribed members” in a post’s editor; it is sent once, when the post goes live.')}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Post</th>
-                <th>Status</th>
-                <th>Delivered</th>
-                <th>Failed</th>
-                <th>Skipped</th>
-                <th>Started</th>
+                <th>{t('Post')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Delivered')}</th>
+                <th>{t('Failed')}</th>
+                <th>{t('Skipped')}</th>
+                <th>{t('Started')}</th>
               </tr>
             </thead>
             <tbody>
               {sends.map(send => (
                 <tr key={send.id}>
-                  <td>{send.post_title || `Post ${send.post_id}`}</td>
+                  <td>{send.post_title || t('Post {id}', { id: send.post_id })}</td>
                   <td>
-                    <span className={`admin-badge ${send.status === 'sent' ? 'admin-badge-success' : 'admin-badge-warning'}`}>{send.status}</span>
+                    <span className={`admin-badge ${send.status === 'sent' ? 'admin-badge-success' : 'admin-badge-warning'}`}>{SEND_STATUSES[send.status] ?? send.status}</span>
                   </td>
                   <td>{send.sent_count} / {send.total_count}</td>
                   <td>{send.failed_count}</td>

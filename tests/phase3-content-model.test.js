@@ -380,6 +380,14 @@ describe('the reference theme templates', () => {
     assert.ok(page.includes('<p>Old live post body</p>'))
     assert.ok(!page.includes('<script>x</script>'))
   })
+
+  test('a members-only entry renders a notice, not an empty article', async () => {
+    const post = await PublicContent.post('old-live')
+    const page = templates.renderEntry({ ...ctx(), path: '/blog/old-live' }, { ...post, content: null, fields: null, gated: true, excerpt: 'A <teaser>' })
+    assert.ok(page.includes('This post is for members.'))
+    assert.ok(page.includes('A &lt;teaser&gt;'))
+    assert.ok(!page.includes('Old live post body'))
+  })
 })
 
 describe('oEmbed', () => {

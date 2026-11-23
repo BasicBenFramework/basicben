@@ -314,7 +314,12 @@ export function renderEntry(ctx: ThemeContext, post: PublicPost): string {
   </header>
   ${post.featured_image ? html`<figure class="hero">${responsiveImg(post.featured_image, { eager: true, alt: '' })}</figure>` : ''}
   ${customFields(ctx, post)}
-  <div class="content">${post.format === 'html' ? raw(post.content) : html`<p>${post.content}</p>`}</div>
+  ${post.gated
+    // The theme always renders the anonymous view, so a members-only entry
+    // is its excerpt (when it is a teaser, not the whole body) and a notice —
+    // never an empty article that reads as a broken page.
+    ? html`<div class="content">${post.excerpt ? html`<p>${post.excerpt}</p>` : ''}<p class="gated"><em>This post is for members.</em></p></div>`
+    : html`<div class="content">${post.format === 'html' ? raw(post.content) : html`<p>${post.content}</p>`}</div>`}
   ${termLinks(post)}
 </article>`
 

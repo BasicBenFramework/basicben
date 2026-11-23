@@ -3,6 +3,7 @@ import { useAuth } from '@basicbenframework/core/client'
 import { can } from '@basicbenframework/core/auth/permissions'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import { useT, currentLocale, slots } from '../../i18n'
 
 interface Day {
   day: string
@@ -16,7 +17,7 @@ interface Summary {
   to: string
   totals: { views: number; visitors: number }
   series: Day[]
-  top_paths: Array<{ path: string; views: number; visitors: number }>
+  top_paths: { path: string; views: number; visitors: number }[]
   top_referrers: Array<{ domain: string; views: number }>
 }
 
@@ -27,7 +28,7 @@ interface AnalyticsSettings {
 }
 
 const RANGES = [7, 30, 90]
-const fmt = (n: number) => n.toLocaleString()
+const fmt = (n: number) => n.toLocaleString(currentLocale())
 
 /**
  * Page views and visitors, counted without cookies.
@@ -39,6 +40,7 @@ const fmt = (n: number) => n.toLocaleString()
  * across days are deleted every day.
  */
 export default function AdminAnalytics() {
+  const { t, tn } = useT()
   const { user } = useAuth() as { user: { role?: string } | null }
   const mayConfigure = can(user as { role?: string } | null, 'settings.manage')
 
@@ -73,17 +75,17 @@ export default function AdminAnalytics() {
           analytics_retention_days: settings.analytics_retention_days
         }
       })
-      setSaved('Saved.')
+      setSaved(t('Saved.'))
     } catch (err) {
       setSaved((err as Error).message)
     }
   }
 
   return (
-    <AdminLayout title="Analytics">
+    <AdminLayout title={t('Analytics')}>
       <style>{analyticsStyles}</style>
 
-      <div className="an-toolbar" role="group" aria-label="Range">
+      <div className="an-toolbar" role="group" aria-label={t('Range')}>
         {RANGES.map((n) => (
           <button
             key={n}
@@ -92,7 +94,7 @@ export default function AdminAnalytics() {
             aria-pressed={n === days}
             onClick={() => setDays(n)}
           >
-            {n} days
+            {tn('{count} day', '{count} days', n)}
           </button>
         ))}
       </div>
@@ -103,25 +105,25 @@ export default function AdminAnalytics() {
         <>
           <div className="an-tiles">
             <div className="admin-card an-tile">
-              <div className="an-tile-label">Page views</div>
+              <div className="an-tile-label">{t('Page views')}</div>
               <div className="an-tile-value">{fmt(data.totals.views)}</div>
             </div>
             <div className="admin-card an-tile">
-              <div className="an-tile-label">Daily visitors, summed</div>
+              <div className="an-tile-label">{t('Daily visitors, summed')}</div>
               <div className="an-tile-value">{fmt(data.totals.visitors)}</div>
             </div>
             <div className="admin-card an-tile">
-              <div className="an-tile-label">Views per day</div>
+              <div className="an-tile-label">{t('Views per day')}</div>
               <div className="an-tile-value">{fmt(Math.round(data.totals.views / data.days))}</div>
             </div>
           </div>
 
           <div className="admin-card">
             <div className="admin-card-header">
-              <h2 className="admin-card-title">{data.from} to {data.to} (UTC)</h2>
+              <h2 className="admin-card-title">{t('{from} to {to} (UTC)', { from: data.from, to: data.to })}</h2>
               <div className="an-legend">
-                <span><i className="an-key an-key-views" /> Views</span>
-                <span><i className="an-key an-key-visitors" /> Visitors</span>
+                <span><i className="an-key an-key-views" /> {t('Views')}</span>
+                <span><i className="an-key an-key-visitors" /> {t('Visitors')}</span>
               </div>
             </div>
             <Chart series={data.series} />
@@ -129,10 +131,10 @@ export default function AdminAnalytics() {
 
           <div className="an-columns">
             <div className="admin-card">
-              <div className="admin-card-header"><h2 className="admin-card-title">Top pages</h2></div>
-              {data.top_paths.length === 0 ? <p className="an-muted">No page views yet.</p> : (
+              <div className="admin-card-header"><h2 className="admin-card-title">{t('Top pages')}</h2></div>
+              {data.top_paths.length === 0 ? <p className="an-muted">{t('No page views yet.')}</p> : (
                 <table className="admin-table">
-                  <thead><tr><th>Path</th><th className="an-num">Views</th><th className="an-num">Visitors</th></tr></thead>
+                  <thead><tr><th>{t('Path')}</th><th className="an-num">{t('Views')}</th><th className="an-num">{t('Visitors')}</th></tr></thead>
                   <tbody>
                     {data.top_paths.map((row) => (
                       <tr key={row.path}>
@@ -147,10 +149,10 @@ export default function AdminAnalytics() {
             </div>
 
             <div className="admin-card">
-              <div className="admin-card-header"><h2 className="admin-card-title">Top referrers</h2></div>
-              {data.top_referrers.length === 0 ? <p className="an-muted">No referred visits yet.</p> : (
+              <div className="admin-card-header"><h2 className="admin-card-title">{t('Top referrers')}</h2></div>
+              {data.top_referrers.length === 0 ? <p className="an-muted">{t('No referred visits yet.')}</p> : (
                 <table className="admin-table">
-                  <thead><tr><th>Domain</th><th className="an-num">Views</th></tr></thead>
+                  <thead><tr><th>{t('Domain')}</th><th className="an-num">{t('Views')}</th></tr></thead>
                   <tbody>
                     {data.top_referrers.map((row) => (
                       <tr key={row.domain}>
@@ -167,17 +169,13 @@ export default function AdminAnalytics() {
       )}
 
       <div className="admin-card">
-        <div className="admin-card-header"><h2 className="admin-card-title">How this is counted</h2></div>
+        <div className="admin-card-header"><h2 className="admin-card-title">{t('How this is counted')}</h2></div>
         <div className="an-body">
           <p>
-            No cookies, no stored IP addresses or user agents. A visitor is a hash of their address, browser and a
-            random salt that changes every UTC day and is then deleted, so nobody — including you — can tell who
-            visited, or link one day's visitors to the next. Browsers sending Do Not Track or Global Privacy
-            Control are not counted at all, and neither are known bots.
+            {t("No cookies, no stored IP addresses or user agents. A visitor is a hash of their address, browser and a random salt that changes every UTC day and is then deleted, so nobody — including you — can tell who visited, or link one day's visitors to the next. Browsers sending Do Not Track or Global Privacy Control are not counted at all, and neither are known bots.")}
           </p>
           <p className="an-muted">
-            Your front end reports page views with a short snippet: <code>POST /api/v1/analytics/hit</code>.
-            See <code>docs/analytics.md</code>.
+            {slots(t('Your front end reports page views with a short snippet: {endpoint}. See {doc}.'), { endpoint: <code>{'POST /api/v1/analytics/hit'}</code>, doc: <code>{'docs/analytics.md'}</code> })}
           </p>
         </div>
 
@@ -189,10 +187,10 @@ export default function AdminAnalytics() {
                 checked={settings.analytics_enabled}
                 onChange={(e) => setSettings({ ...settings, analytics_enabled: e.target.checked })}
               />
-              Count page views
+              {t('Count page views')}
             </label>
             <label>
-              Forget visitor hashes after (hours, 1–24)
+              {t('Forget visitor hashes after (hours, 1–24)')}
               <input
                 className="admin-input"
                 type="number"
@@ -203,7 +201,7 @@ export default function AdminAnalytics() {
               />
             </label>
             <label>
-              Keep daily counts for (days, 0 = forever)
+              {t('Keep daily counts for (days, 0 = forever)')}
               <input
                 className="admin-input"
                 type="number"
@@ -214,7 +212,7 @@ export default function AdminAnalytics() {
               />
             </label>
             <div className="an-save">
-              <button type="submit" className="admin-btn admin-btn-primary">Save</button>
+              <button type="submit" className="admin-btn admin-btn-primary">{t('Save')}</button>
               {saved && <span className="an-muted">{saved}</span>}
             </div>
           </form>
@@ -232,6 +230,7 @@ export default function AdminAnalytics() {
  * accessible text for the value.
  */
 function Chart({ series }: { series: Day[] }) {
+  const { t, tn } = useT()
   const W = 720
   const H = 220
   const pad = { top: 12, right: 8, bottom: 24, left: 40 }
@@ -249,7 +248,7 @@ function Chart({ series }: { series: Day[] }) {
   const labelEvery = Math.ceil(series.length / 6)
 
   return (
-    <svg className="an-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Views and visitors per day">
+    <svg className="an-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('Views and visitors per day')}>
       <line x1={pad.left} x2={W - pad.right} y1={pad.top + innerH} y2={pad.top + innerH} className="an-axis" />
       <line x1={pad.left} x2={W - pad.right} y1={pad.top} y2={pad.top} className="an-grid" />
       <text x={pad.left - 6} y={pad.top + 4} textAnchor="end" className="an-label">{fmt(max)}</text>
@@ -264,7 +263,7 @@ function Chart({ series }: { series: Day[] }) {
           height={pad.top + innerH - y(d.views)}
           className="an-bar"
         >
-          <title>{`${d.day}: ${fmt(d.views)} views, ${fmt(d.visitors)} visitors`}</title>
+          <title>{t('{day}: {views}, {visitors}', { day: d.day, views: tn('{count} view', '{count} views', d.views), visitors: tn('{count} visitor', '{count} visitors', d.visitors) })}</title>
         </rect>
       ))}
 

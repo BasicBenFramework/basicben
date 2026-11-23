@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import { useT } from '../../i18n'
 
 interface Tag {
   id: number
@@ -10,6 +11,7 @@ interface Tag {
 }
 
 export default function AdminTags() {
+  const { t } = useT()
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -44,7 +46,7 @@ export default function AdminTags() {
       setEditingId(null)
       loadTags()
     } catch (error: any) {
-      alert(error.message || 'Failed to save tag')
+      alert(error.message || t('Failed to save tag'))
     }
   }
 
@@ -54,13 +56,13 @@ export default function AdminTags() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this tag?')) return
+    if (!confirm(t('Are you sure you want to delete this tag?'))) return
 
     try {
       await api.delete(`/api/tags/${id}`)
-      setTags(tags.filter(t => t.id !== id))
+      setTags(tags.filter(tag => tag.id !== id))
     } catch (error) {
-      alert('Failed to delete tag')
+      alert(t('Failed to delete tag'))
     }
   }
 
@@ -71,51 +73,51 @@ export default function AdminTags() {
 
   if (loading) {
     return (
-      <AdminLayout title="Tags">
-        <div className="admin-loading">Loading...</div>
+      <AdminLayout title={t('Tags')}>
+        <div className="admin-loading">{t('Loading...')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title="Tags">
+    <AdminLayout title={t('Tags')}>
       <div className="admin-grid admin-grid-2">
         {/* Form */}
         <div className="admin-card">
           <h3 className="admin-card-title">
-            {editingId ? 'Edit Tag' : 'Add New Tag'}
+            {editingId ? t('Edit Tag') : t('Add New Tag')}
           </h3>
           <form onSubmit={handleSubmit}>
             <div className="admin-form-group">
-              <label className="admin-label">Name</label>
+              <label className="admin-label">{t('Name')}</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="admin-input"
-                placeholder="Tag name"
+                placeholder={t('Tag name')}
                 required
               />
             </div>
 
             <div className="admin-form-group">
-              <label className="admin-label">Slug</label>
+              <label className="admin-label">{t('Slug')}</label>
               <input
                 type="text"
                 value={formData.slug}
                 onChange={e => setFormData({ ...formData, slug: e.target.value })}
                 className="admin-input"
-                placeholder="tag-slug (auto-generated if empty)"
+                placeholder={t('tag-slug (auto-generated if empty)')}
               />
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button type="submit" className="admin-btn admin-btn-primary">
-                {editingId ? 'Update' : 'Add Tag'}
+                {editingId ? t('Update') : t('Add Tag')}
               </button>
               {editingId && (
                 <button type="button" onClick={handleCancel} className="admin-btn admin-btn-secondary">
-                  Cancel
+                  {t('Cancel')}
                 </button>
               )}
             </div>
@@ -124,9 +126,9 @@ export default function AdminTags() {
 
         {/* List */}
         <div className="admin-card">
-          <h3 className="admin-card-title">All Tags</h3>
+          <h3 className="admin-card-title">{t('All Tags')}</h3>
           {tags.length === 0 ? (
-            <p style={{ color: 'var(--fg-muted)' }}>No tags yet.</p>
+            <p style={{ color: 'var(--fg-muted)' }}>{t('No tags yet.')}</p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {tags.map(tag => (

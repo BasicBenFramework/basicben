@@ -33,7 +33,7 @@ const strings: Dictionary = {
   'System theme': 'Tema del sistema',
   'Light theme': 'Tema claro',
   'Dark theme': 'Tema oscuro',
-  'Admin': 'Administración',
+  'Admin': 'Administrador',
   'Log out': 'Cerrar sesión'
 }
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../../../helpers/api'
 import TermPicker from './TermPicker'
+import { useT } from '../../i18n'
 import type { AdminContentType } from '../../hooks/useContentTypes'
 
 /**
@@ -26,13 +27,14 @@ export function CustomFieldsPanel({
   onChange: (values: Record<string, unknown>) => void
   disabled?: boolean
 }) {
+  const { t } = useT()
   if (!type || !type.supports.custom_fields || type.fields.length === 0) return null
 
   const set = (key: string, value: unknown) => onChange({ ...values, [key]: value })
 
   return (
     <div className="admin-card">
-      <h3 className="admin-card-title">{type.singular_label} details</h3>
+      <h3 className="admin-card-title">{t('{type} details', { type: type.singular_label })}</h3>
       {type.fields.map(field => (
         <div className="admin-form-group" key={field.key}>
           {field.type === 'boolean' ? (
@@ -120,6 +122,7 @@ export function CustomTermsPanel({
   onChange: (ids: number[]) => void
   onReady: (ready: boolean) => void
 }) {
+  const { t } = useT()
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([])
   const [terms, setTerms] = useState<Record<number, Term[]>>({})
   const [busy, setBusy] = useState(false)
@@ -162,7 +165,7 @@ export function CustomTermsPanel({
       onChange([...selected, created.id])
       return true
     } catch (error: any) {
-      alert(error.message || `Could not add that ${taxonomy.singular_label.toLowerCase()}.`)
+      alert(error.message || t('Could not add that {term}.', { term: taxonomy.singular_label.toLowerCase() }))
       return false
     } finally {
       setBusy(false)
@@ -181,7 +184,7 @@ export function CustomTermsPanel({
           onToggle={toggle}
           onAdd={name => add(taxonomy, name)}
           busy={busy}
-          emptyText={`No ${taxonomy.plural_label.toLowerCase()} yet.`}
+          emptyText={t('No {terms} yet.', { terms: taxonomy.plural_label.toLowerCase() })}
         />
       ))}
     </>

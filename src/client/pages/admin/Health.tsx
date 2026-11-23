@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import { useT, slots } from '../../i18n'
 
 type Status = 'pass' | 'warn' | 'fail'
 
@@ -25,7 +26,6 @@ interface ProbeResult {
   steps: Array<{ step: string; ok: boolean; ms: number; error?: string }>
 }
 
-const LABEL: Record<Status, string> = { pass: 'OK', warn: 'Warning', fail: 'Problem' }
 const ORDER: Record<Status, number> = { fail: 0, warn: 1, pass: 2 }
 
 /**
@@ -39,6 +39,8 @@ const ORDER: Record<Status, number> = { fail: 0, warn: 1, pass: 2 }
  * rather than part of the page load, because each one writes something.
  */
 export default function AdminHealth() {
+  const { t, tn, locale } = useT()
+  const LABEL: Record<Status, string> = { pass: t('OK'), warn: t('Warning'), fail: t('Problem') }
   const [report, setReport] = useState<HealthReport | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -78,9 +80,9 @@ export default function AdminHealth() {
     setMailing(true)
     try {
       const res = await api.post<{ to: string; note: string | null }>('/api/admin/health/test-email')
-      setMail(res.note ? res.note : `Sent to ${res.to}. Check that inbox (and its spam folder).`)
+      setMail(res.note ? res.note : t('Sent to {to}. Check that inbox (and its spam folder).', { to: res.to }))
     } catch (err) {
-      setMail(`Not sent: ${(err as Error).message}`)
+      setMail(t('Not sent: {error}', { error: (err as Error).message }))
     } finally {
       setMailing(false)
     }
@@ -92,7 +94,7 @@ export default function AdminHealth() {
   for (const c of checks) counts[c.status]++
 
   return (
-    <AdminLayout title="Site health">
+    <AdminLayout title={t('Site health')}>
       <style>{healthStyles}</style>
 
       {error && <div className="health-banner health-fail">{error}</div>}
@@ -100,20 +102,25 @@ export default function AdminHealth() {
       {report && (
         <div className={`health-banner health-${report.status}`}>
           <strong>
-            {report.status === 'pass' ? 'Everything checks out.' : report.status === 'warn' ? 'Working, with things to look at.' : 'Something needs fixing.'}
+            {report.status === 'pass' ? t('Everything checks out.') : report.status === 'warn' ? t('Working, with things to look at.') : t('Something needs fixing.')}
           </strong>{' '}
-          {counts.fail} problem(s), {counts.warn} warning(s), {counts.pass} OK.
+          {t('{problems}, {warnings}, {count} OK.', {
+            problems: tn('{count} problem', '{count} problems', counts.fail),
+            warnings: tn('{count} warning', '{count} warnings', counts.warn),
+            count: counts.pass.toLocaleString(locale)
+          })}
           <span className="health-muted">
-            {' '}NODE_ENV {report.environment.node_env ?? 'unset'}{report.environment.serverless ? ', serverless' : ''} ·
-            checked {new Date(report.generated_at).toLocaleTimeString()}
+            {' '}{report.environment.serverless
+              ? t('NODE_ENV {env}, serverless · checked {time}', { env: report.environment.node_env ?? t('unset'), time: new Date(report.generated_at).toLocaleTimeString(locale) })
+              : t('NODE_ENV {env} · checked {time}', { env: report.environment.node_env ?? t('unset'), time: new Date(report.generated_at).toLocaleTimeString(locale) })}
           </span>
           <button type="button" className="admin-btn admin-btn-secondary health-refresh" onClick={load} disabled={loading}>
-            {loading ? 'Checking…' : 'Re-check'}
+            {loading ? t('Checking…') : t('Re-check')}
           </button>
         </div>
       )}
 
-      {loading && !report && <div className="admin-card">Checking…</div>}
+      {loading && !report && <div className="admin-card">{t('Checking…')}</div>}
 
       {checks.length > 0 && (
         <div className="admin-card">
@@ -134,22 +141,22 @@ export default function AdminHealth() {
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Live checks</h2>
+          <h2 className="admin-card-title">{t('Live checks')}</h2>
         </div>
         <div className="health-actions">
           <div>
             <p>
-              <strong>Storage probe.</strong> Writes a small file under <code>health-probe/</code>, reads it
-              back and deletes it, using the same credentials uploads use.
+              <strong>{t('Storage probe.')}</strong>{' '}
+              {slots(t('Writes a small file under {path}, reads it back and deletes it, using the same credentials uploads use.'), { path: <code>{'health-probe/'}</code> })}
             </p>
             <button type="button" className="admin-btn admin-btn-secondary" onClick={runProbe} disabled={probing}>
-              {probing ? 'Probing…' : 'Run storage probe'}
+              {probing ? t('Probing…') : t('Run storage probe')}
             </button>
             {probe && (
               <ul className="health-steps">
                 {probe.steps.map((s) => (
                   <li key={s.step} className={s.ok ? 'health-ok' : 'health-bad'}>
-                    {s.step}: {s.ok ? `ok (${s.ms} ms)` : s.error}
+                    {s.step}: {s.ok ? t('ok ({ms} ms)', { ms: s.ms }) : s.error}
                   </li>
                 ))}
               </ul>
@@ -158,10 +165,11 @@ export default function AdminHealth() {
 
           <div>
             <p>
-              <strong>Test email.</strong> Sends a short message to your own account's address — never to any other.
+              <strong>{t('Test email.')}</strong>{' '}
+              {t("Sends a short message to your own account's address — never to any other.")}
             </p>
             <button type="button" className="admin-btn admin-btn-secondary" onClick={sendTest} disabled={mailing}>
-              {mailing ? 'Sending…' : 'Send test email to me'}
+              {mailing ? t('Sending…') : t('Send test email to me')}
             </button>
             {mail && <p className="health-muted">{mail}</p>}
           </div>

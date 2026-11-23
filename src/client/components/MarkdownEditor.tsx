@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { renderContentSync } from '@basicbenframework/core/content'
 import MediaPicker, { markdownFor } from './admin/MediaPicker'
+import { t, useT } from '../i18n'
 
 /**
  * Markdown editor with a live preview.
@@ -46,6 +47,8 @@ type Mode = 'write' | 'preview'
 
 /** A toolbar button: what it inserts and how it treats the selection. */
 interface Mark {
+  /** Stable across languages, for the keyboard shortcuts and the React key. */
+  id: string
   label: string
   title: string
   before: string
@@ -55,17 +58,20 @@ interface Mark {
   placeholder?: string
 }
 
-const MARKS: Mark[] = [
-  { label: 'B', title: 'Bold (⌘B)', before: '**', after: '**', placeholder: 'bold text' },
-  { label: 'I', title: 'Italic (⌘I)', before: '_', after: '_', placeholder: 'italic text' },
-  { label: 'S', title: 'Strikethrough', before: '~~', after: '~~', placeholder: 'struck out' },
-  { label: '<>', title: 'Code', before: '`', after: '`', placeholder: 'code' },
-  { label: 'H', title: 'Heading', before: '', linePrefix: '## ', placeholder: 'Heading' },
-  { label: '"', title: 'Quote', before: '', linePrefix: '> ', placeholder: 'Quoted' },
-  { label: '•', title: 'Bulleted list', before: '', linePrefix: '- ', placeholder: 'Item' },
-  { label: '1.', title: 'Numbered list', before: '', linePrefix: '1. ', placeholder: 'Item' },
-  { label: '🔗', title: 'Link (⌘K)', before: '[', after: '](https://)', placeholder: 'link text' }
-]
+/** The toolbar, in the current language: the titles and the text inserted when nothing is selected. */
+function marks(): Mark[] {
+  return [
+    { id: 'bold', label: 'B', title: t('Bold (⌘B)'), before: '**', after: '**', placeholder: t('bold text') },
+    { id: 'italic', label: 'I', title: t('Italic (⌘I)'), before: '_', after: '_', placeholder: t('italic text') },
+    { id: 'strike', label: 'S', title: t('Strikethrough'), before: '~~', after: '~~', placeholder: t('struck out') },
+    { id: 'code', label: '<>', title: t('Code'), before: '`', after: '`', placeholder: t('code') },
+    { id: 'heading', label: 'H', title: t('Heading'), before: '', linePrefix: '## ', placeholder: t('Heading') },
+    { id: 'quote', label: '"', title: t('Quote'), before: '', linePrefix: '> ', placeholder: t('Quoted') },
+    { id: 'bullets', label: '•', title: t('Bulleted list'), before: '', linePrefix: '- ', placeholder: t('Item') },
+    { id: 'numbers', label: '1.', title: t('Numbered list'), before: '', linePrefix: '1. ', placeholder: t('Item') },
+    { id: 'link', label: '🔗', title: t('Link (⌘K)'), before: '[', after: '](https://)', placeholder: t('link text') }
+  ]
+}
 
 export default function MarkdownEditor({
   name,
@@ -77,6 +83,8 @@ export default function MarkdownEditor({
   tools,
   readOnly = false
 }: MarkdownEditorProps) {
+  const { t, locale } = useT()
+  const MARKS = marks()
   const [mode, setMode] = useState<Mode>('write')
   const [picking, setPicking] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -88,9 +96,9 @@ export default function MarkdownEditor({
     try {
       return renderContentSync(value || '')
     } catch (error) {
-      return `<p class="markdown-editor-error">Preview failed: ${(error as Error).message}</p>`
+      return `<p class="markdown-editor-error">${t('Preview failed: {message}', { message: (error as Error).message })}</p>`
     }
-  }, [value])
+  }, [value, locale])
 
   /**
    * Report a toolbar edit through the same handler a keystroke uses.
@@ -201,11 +209,11 @@ export default function MarkdownEditor({
 
     if (!event.metaKey && !event.ctrlKey) return
 
-    const shortcuts: Record<string, string> = { b: 'Bold (⌘B)', i: 'Italic (⌘I)', k: 'Link (⌘K)' }
-    const title = shortcuts[event.key.toLowerCase()]
-    if (!title) return
+    const shortcuts: Record<string, string> = { b: 'bold', i: 'italic', k: 'link' }
+    const id = shortcuts[event.key.toLowerCase()]
+    if (!id) return
 
-    const mark = MARKS.find((m) => m.title === title)
+    const mark = MARKS.find((m) => m.id === id)
     if (!mark) return
 
     event.preventDefault()
@@ -217,7 +225,7 @@ export default function MarkdownEditor({
       <div className="markdown-editor-bar">
         {MARKS.map((mark) => (
           <button
-            key={mark.title}
+            key={mark.id}
             type="button"
             title={mark.title}
             onClick={() => applyMark(mark)}
@@ -235,7 +243,7 @@ export default function MarkdownEditor({
 
         <button
           type="button"
-          title="Insert media"
+          title={t('Insert media')}
           onClick={() => setPicking(true)}
           disabled={mode === 'preview'}
           className="markdown-editor-mark"
@@ -253,7 +261,7 @@ export default function MarkdownEditor({
               onClick={() => setMode(tab)}
               className={`markdown-editor-tab ${mode === tab ? 'active' : ''}`}
             >
-              {tab}
+              {tab === 'write' ? t('Write') : t('Preview')}
             </button>
           ))}
         </div>
@@ -279,14 +287,13 @@ export default function MarkdownEditor({
           // The HTML here came from renderContentSync, which sanitizes against
           // the same allowlist the server uses before storing anything.
           dangerouslySetInnerHTML={{
-            __html: preview || '<p class="markdown-editor-empty">Nothing to preview yet.</p>'
+            __html: preview || `<p class="markdown-editor-empty">${t('Nothing to preview yet.')}</p>`
           }}
         />
       )}
 
       <p className="markdown-editor-hint">
-        Markdown supported — headings, lists, links, tables, and fenced code.
-        HTML is shown as text rather than rendered.
+        {t('Markdown supported — headings, lists, links, tables, and fenced code. HTML is shown as text rather than rendered.')}
       </p>
 
       {picking && (

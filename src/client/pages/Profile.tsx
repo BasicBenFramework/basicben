@@ -10,6 +10,7 @@ import { api } from '../../helpers/api'
 import { useMediaLibrary } from '../hooks/useMediaLibrary'
 import { useToast } from '../contexts/ToastContext'
 import { useTheme } from '../components/ThemeContext'
+import { useT, ADMIN_LOCALES, localeOverride, chooseLocale, applySiteLocale } from '../i18n'
 
 /**
  * The account and the author profile, which are the same record.
@@ -36,7 +37,8 @@ interface ProfileResponse {
 export function Profile() {
   const { user, setUser } = useAuth()
   const toast = useToast()
-  const { t } = useTheme()
+  const { t: theme } = useTheme()
+  const { t } = useT()
   const library = useMediaLibrary()
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -57,6 +59,9 @@ export function Profile() {
   const [emailPassword, setEmailPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  // This browser's admin language; '' follows the site's setting.
+  const [adminLocale, setAdminLocale] = useState(() => localeOverride() ?? '')
+  const [siteLocale, setSiteLocale] = useState<string | null>(null)
 
   // `useAuth` carries the name and the address and nothing else, so the profile
   // is fetched rather than assumed — otherwise the first save would post empty
@@ -80,6 +85,25 @@ export function Profile() {
       })
   }, [])
 
+  // The site's admin language, so "Site default" goes back to it rather than
+  // to English.
+  useEffect(() => {
+    api<{ locale?: string | null }>('/api/admin/menu')
+      .then(data => {
+        setSiteLocale(data?.locale ?? null)
+        // This page may render outside the admin layout, which is what
+        // otherwise applies the site's language.
+        void applySiteLocale(data?.locale)
+      })
+      .catch(() => {})
+  }, [])
+
+  const changeAdminLocale = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value
+    setAdminLocale(value)
+    void chooseLocale(value || null, siteLocale)
+  }
+
   const updateProfile = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -97,7 +121,7 @@ export function Profile() {
       setForm(prev => ({ ...prev, slug: data.user.slug || prev.slug }))
       setSavedEmail(data.user.email || '')
       setEmailPassword('')
-      toast.success(changed ? 'Profile updated — check your new address for a verification link' : 'Profile updated')
+      toast.success(changed ? t('Profile updated — check your new address for a verification link') : t('Profile updated'))
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -122,10 +146,10 @@ export function Profile() {
     try {
       const [uploaded] = await library.upload([file])
 
-      if (!uploaded) throw new Error('The upload did not complete.')
+      if (!uploaded) throw new Error(t('The upload did not complete.'))
 
       setAvatar({ id: uploaded.id, url: uploaded.url || uploaded.path })
-      toast.success('Picture uploaded — save to keep it')
+      toast.success(t('Picture uploaded — save to keep it'))
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -142,7 +166,7 @@ export function Profile() {
       // response carries its replacement.
       if (data?.token) localStorage.setItem('token', data.token)
       setPwForm({ currentPassword: '', newPassword: '' })
-      toast.success('Password changed')
+      toast.success(t('Password changed'))
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -152,11 +176,11 @@ export function Profile() {
 
   return (
     <div className="max-w-md mx-auto space-y-6">
-      <PageHeader title="Profile" />
+      <PageHeader title={t('Profile')} />
 
       <Card>
         <form onSubmit={updateProfile} className="space-y-3">
-          <h2 className="font-medium mb-2">Author profile</h2>
+          <h2 className="font-medium mb-2">{t('Author profile')}</h2>
 
           <div className="flex items-center gap-3">
             <Avatar name={form.name} src={avatar.url} size="lg" />
@@ -170,24 +194,24 @@ export function Profile() {
               />
               <div className="flex gap-2">
                 <Button type="button" onClick={() => fileInput.current?.click()} disabled={uploading}>
-                  {uploading ? 'Uploading...' : avatar.url ? 'Change picture' : 'Add picture'}
+                  {uploading ? t('Uploading...') : avatar.url ? t('Change picture') : t('Add picture')}
                 </Button>
                 {avatar.url && (
                   <Button type="button" onClick={() => setAvatar({ id: null, url: null })}>
-                    Remove
+                    {t('Remove')}
                   </Button>
                 )}
               </div>
-              <p className={`text-xs ${t.muted}`}>Shown on every post you write.</p>
+              <p className={`text-xs ${theme.muted}`}>{t('Shown on every post you write.')}</p>
             </div>
           </div>
 
-          <Input placeholder="Name" required value={form.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, name: e.target.value })} />
-          <Input type="email" placeholder="Email" required value={form.email} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, email: e.target.value })} />
+          <Input placeholder={t('Name')} required value={form.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, name: e.target.value })} />
+          <Input type="email" placeholder={t('Email')} required value={form.email} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, email: e.target.value })} />
           {form.email !== savedEmail && (
             <Input
               type="password"
-              placeholder="Current password, to change your email"
+              placeholder={t('Current password, to change your email')}
               required
               value={emailPassword}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailPassword(e.target.value)}
@@ -197,34 +221,52 @@ export function Profile() {
           {/* The author archive segment. Blank asks for one derived from the
               name, which is how it was set at registration. */}
           <Input
-            placeholder="Profile URL — leave blank to use your name"
+            placeholder={t('Profile URL — leave blank to use your name')}
             value={form.slug}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, slug: e.target.value })}
           />
           <Input
             type="url"
-            placeholder="Website"
+            placeholder={t('Website')}
             value={form.website}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, website: e.target.value })}
           />
           <Textarea
             rows={4}
-            placeholder="A short biography, shown under your byline"
+            placeholder={t('A short biography, shown under your byline')}
             value={form.bio}
             onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setForm({ ...form, bio: e.target.value })}
           />
 
-          <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : 'Save'}</Button>
+          <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : t('Save')}</Button>
         </form>
       </Card>
 
       <Card>
         <form onSubmit={changePassword} className="space-y-3">
-          <h2 className="font-medium mb-2">Change Password</h2>
-          <Input type="password" placeholder="Current password" required value={pwForm.currentPassword} onChange={(e: ChangeEvent<HTMLInputElement>) => setPwForm({ ...pwForm, currentPassword: e.target.value })} />
-          <Input type="password" placeholder="New password" required minLength={8} value={pwForm.newPassword} onChange={(e: ChangeEvent<HTMLInputElement>) => setPwForm({ ...pwForm, newPassword: e.target.value })} />
-          <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : 'Change Password'}</Button>
+          <h2 className="font-medium mb-2">{t('Change Password')}</h2>
+          <Input type="password" placeholder={t('Current password')} required value={pwForm.currentPassword} onChange={(e: ChangeEvent<HTMLInputElement>) => setPwForm({ ...pwForm, currentPassword: e.target.value })} />
+          <Input type="password" placeholder={t('New password')} required minLength={8} value={pwForm.newPassword} onChange={(e: ChangeEvent<HTMLInputElement>) => setPwForm({ ...pwForm, newPassword: e.target.value })} />
+          <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : t('Change Password')}</Button>
         </form>
+      </Card>
+
+      {/* Applies at once and is kept in this browser, so it is not part of
+          either form above. */}
+      <Card>
+        <div className="space-y-2">
+          <label htmlFor="admin-locale" className="font-medium block">{t('Admin language')}</label>
+          <select
+            id="admin-locale"
+            className={`w-full px-3 py-2 text-sm rounded-lg ${theme.card} border ${theme.border} focus:outline-none`}
+            value={adminLocale}
+            onChange={changeAdminLocale}
+          >
+            <option value="">{t('Site default')}</option>
+            {ADMIN_LOCALES.map(entry => <option key={entry.code} value={entry.code}>{entry.name}</option>)}
+          </select>
+          <p className={`text-xs ${theme.muted}`}>{t('Only on this browser. Leave on the site default to follow the site\'s setting.')}</p>
+        </div>
       </Card>
     </div>
   )

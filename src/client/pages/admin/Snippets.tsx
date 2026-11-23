@@ -3,6 +3,7 @@ import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
 import type { SnippetItem } from '../../components/admin/SnippetPicker'
+import { useT } from '../../i18n'
 
 interface Draft {
   id: number | null
@@ -25,6 +26,7 @@ const EMPTY: Draft = { id: null, name: '', content: '' }
  * copies the text.
  */
 export default function AdminSnippets() {
+  const { t } = useT()
   const [snippets, setSnippets] = useState<SnippetItem[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -43,8 +45,8 @@ export default function AdminSnippets() {
       setNotice({
         tone: 'error',
         text: (error as Error).message === 'Forbidden'
-          ? 'Snippets are available to authors and editors.'
-          : 'Could not load snippets.'
+          ? t('Snippets are available to authors and editors.')
+          : t('Could not load snippets.')
       })
     } finally {
       setLoading(false)
@@ -61,38 +63,38 @@ export default function AdminSnippets() {
       if (draft.id) await api.put(`/api/snippets/${draft.id}`, body)
       else await api.post('/api/snippets', body)
 
-      setNotice({ tone: 'ok', text: draft.id ? `"${draft.name}" updated.` : `"${draft.name}" added.` })
+      setNotice({ tone: 'ok', text: draft.id ? t('"{name}" updated.', { name: draft.name }) : t('"{name}" added.', { name: draft.name }) })
       setDraft(EMPTY)
       await load()
     } catch (error) {
-      setNotice({ tone: 'error', text: (error as Error).message || 'Could not save the snippet.' })
+      setNotice({ tone: 'error', text: (error as Error).message || t('Could not save the snippet.') })
     } finally {
       setSaving(false)
     }
   }
 
   const handleDelete = async (snippet: SnippetItem) => {
-    if (!confirm(`Delete "${snippet.name}"? Posts that already use it keep their copy.`)) return
+    if (!confirm(t('Delete "{name}"? Posts that already use it keep their copy.', { name: snippet.name }))) return
 
     try {
       await api.delete(`/api/snippets/${snippet.id}`)
       setSnippets(current => current.filter(s => s.id !== snippet.id))
       if (draft.id === snippet.id) setDraft(EMPTY)
     } catch (error) {
-      setNotice({ tone: 'error', text: (error as Error).message || 'Could not delete the snippet.' })
+      setNotice({ tone: 'error', text: (error as Error).message || t('Could not delete the snippet.') })
     }
   }
 
   if (loading) {
     return (
-      <AdminLayout title="Snippets">
-        <div className="admin-loading">Loading…</div>
+      <AdminLayout title={t('Snippets')}>
+        <div className="admin-loading">{t('Loading…')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title="Snippets">
+    <AdminLayout title={t('Snippets')}>
       {notice && (
         <div
           className="admin-card"
@@ -104,38 +106,38 @@ export default function AdminSnippets() {
       )}
 
       <div className="admin-card">
-        <h2 className="admin-card-title">{draft.id ? 'Edit snippet' : 'New snippet'}</h2>
+        <h2 className="admin-card-title">{draft.id ? t('Edit snippet') : t('New snippet')}</h2>
         <form onSubmit={handleSave}>
           <div className="admin-form-group">
-            <label className="admin-label" htmlFor="snippet-name">Name</label>
+            <label className="admin-label" htmlFor="snippet-name">{t('Name')}</label>
             <input
               id="snippet-name"
               className="admin-input"
               value={draft.name}
               maxLength={100}
               onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
-              placeholder="Affiliate disclosure"
+              placeholder={t('Affiliate disclosure')}
               required
             />
           </div>
           <div className="admin-form-group">
-            <label className="admin-label">Content</label>
+            <label className="admin-label">{t('Content')}</label>
             <MarkdownEditor
               name="content"
               value={draft.content}
               onChange={e => setDraft(d => ({ ...d, content: e.target.value }))}
               minHeight="180px"
-              placeholder="The Markdown that gets inserted."
+              placeholder={t('The Markdown that gets inserted.')}
               required
             />
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button type="submit" className="admin-btn admin-btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : draft.id ? 'Update snippet' : 'Add snippet'}
+              {saving ? t('Saving…') : draft.id ? t('Update snippet') : t('Add snippet')}
             </button>
             {draft.id && (
               <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setDraft(EMPTY)}>
-                Cancel
+                {t('Cancel')}
               </button>
             )}
           </div>
@@ -143,18 +145,18 @@ export default function AdminSnippets() {
       </div>
 
       <div className="admin-card">
-        <h2 className="admin-card-title">Library</h2>
+        <h2 className="admin-card-title">{t('Library')}</h2>
         {snippets.length === 0 ? (
           <p style={{ color: 'var(--fg-muted)' }}>
-            No snippets yet. Add one above, then use "Insert snippet" in the post editor's toolbar.
+            {t('No snippets yet. Add one above, then use "Insert snippet" in the post editor\'s toolbar.')}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Preview</th>
-                <th>Added by</th>
+                <th>{t('Name')}</th>
+                <th>{t('Preview')}</th>
+                <th>{t('Added by')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -174,10 +176,10 @@ export default function AdminSnippets() {
                           className="admin-btn admin-btn-secondary"
                           onClick={() => setDraft({ id: snippet.id, name: snippet.name, content: snippet.content })}
                         >
-                          Edit
+                          {t('Edit')}
                         </button>{' '}
                         <button type="button" className="admin-btn admin-btn-secondary" onClick={() => handleDelete(snippet)}>
-                          Delete
+                          {t('Delete')}
                         </button>
                       </>
                     )}

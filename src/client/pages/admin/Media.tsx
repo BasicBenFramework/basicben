@@ -7,8 +7,10 @@ import {
   mediaUrl,
   useMediaLibrary
 } from '../../hooks/useMediaLibrary'
+import { useT } from '../../i18n'
 
 export default function AdminMedia() {
+  const { t, tn } = useT()
   const library = useMediaLibrary()
 
   const [selected, setSelected] = useState<MediaItem | null>(null)
@@ -46,7 +48,7 @@ export default function AdminMedia() {
       const updated = await library.saveAlt(selected.id, altDraft)
       setSelected(updated)
     } catch {
-      alert('Failed to save the alt text')
+      alert(t('Failed to save the alt text'))
     } finally {
       setSavingAlt(false)
     }
@@ -54,10 +56,10 @@ export default function AdminMedia() {
 
   const handleDelete = async (ids: number[]) => {
     const many = ids.length > 1
-    if (!confirm(many ? `Delete ${ids.length} files?` : 'Delete this file?')) return
+    if (!confirm(many ? tn('Delete {count} file?', 'Delete {count} files?', ids.length) : t('Delete this file?'))) return
 
     const removed = await library.remove(ids)
-    if (removed.length < ids.length) alert('Some files could not be deleted.')
+    if (removed.length < ids.length) alert(t('Some files could not be deleted.'))
 
     setBulk(prev => prev.filter(id => !removed.includes(id)))
   }
@@ -67,14 +69,14 @@ export default function AdminMedia() {
   }
 
   const formatFileSize = (bytes?: number) => {
-    if (!bytes) return 'Unknown'
+    if (!bytes) return t('Unknown')
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   return (
-    <AdminLayout title="Media Library">
+    <AdminLayout title={t('Media Library')}>
       <div
         onDragOver={event => {
           event.preventDefault()
@@ -99,7 +101,7 @@ export default function AdminMedia() {
               for the column and wrapped the upload button onto its own line. */}
           <div className="admin-card-header">
             <h2 className="admin-card-title">
-              All Media
+              {t('All Media')}
               {library.total > 0 && (
                 <span style={{ color: 'var(--fg-muted)', fontWeight: 400 }}> ({library.total})</span>
               )}
@@ -117,7 +119,7 @@ export default function AdminMedia() {
               }}
             />
             <button onClick={() => fileInput.current?.click()} className="admin-btn admin-btn-primary">
-              Upload
+              {t('Upload')}
             </button>
           </div>
 
@@ -126,7 +128,7 @@ export default function AdminMedia() {
               type="search"
               value={library.search}
               onChange={event => library.setSearch(event.target.value)}
-              placeholder="Search files"
+              placeholder={t('Search files')}
               className="admin-input"
               style={{ flex: 1, minWidth: 0 }}
             />
@@ -137,19 +139,19 @@ export default function AdminMedia() {
               className="admin-select"
               style={{ width: '140px', flexShrink: 0 }}
             >
-              <option value="">All types</option>
-              <option value="image">Images</option>
-              <option value="video">Video</option>
-              <option value="audio">Audio</option>
-              <option value="other">Documents</option>
+              <option value="">{t('All types')}</option>
+              <option value="image">{t('Images')}</option>
+              <option value="video">{t('Video')}</option>
+              <option value="audio">{t('Audio')}</option>
+              <option value="other">{t('Documents')}</option>
             </select>
 
             <button
               onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
               className="admin-btn admin-btn-secondary"
               style={{ flexShrink: 0 }}
-              title={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
-              aria-label={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+              title={view === 'grid' ? t('Switch to list view') : t('Switch to grid view')}
+              aria-label={view === 'grid' ? t('Switch to list view') : t('Switch to grid view')}
             >
               {view === 'grid' ? '☰' : '▦'}
             </button>
@@ -162,7 +164,7 @@ export default function AdminMedia() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>{upload.name}</span>
                     <span style={{ color: upload.error ? 'var(--danger)' : 'var(--fg-muted)' }}>
-                      {upload.error || (upload.percent === null ? 'starting…' : `${upload.percent}%`)}
+                      {upload.error || (upload.percent === null ? t('starting…') : `${upload.percent}%`)}
                     </span>
                   </div>
                   {!upload.error && (
@@ -182,7 +184,7 @@ export default function AdminMedia() {
               ))}
               {library.uploads.some(u => u.error) && (
                 <button className="admin-btn admin-btn-secondary" onClick={library.dismissUploads}>
-                  Dismiss
+                  {t('Dismiss')}
                 </button>
               )}
             </div>
@@ -197,18 +199,18 @@ export default function AdminMedia() {
                 marginBottom: '1rem'
               }}
             >
-              <span style={{ fontSize: '0.85rem' }}>{bulk.length} selected</span>
+              <span style={{ fontSize: '0.85rem' }}>{tn('{count} selected', '{count} selected', bulk.length)}</span>
               <button className="admin-btn admin-btn-danger" onClick={() => handleDelete(bulk)}>
-                Delete selected
+                {t('Delete selected')}
               </button>
               <button className="admin-btn admin-btn-secondary" onClick={() => setBulk([])}>
-                Clear
+                {t('Clear')}
               </button>
             </div>
           )}
 
           {library.loading ? (
-            <div className="admin-loading">Loading...</div>
+            <div className="admin-loading">{t('Loading...')}</div>
           ) : (
             <MediaGrid
               items={library.items}
@@ -223,20 +225,20 @@ export default function AdminMedia() {
                   type="checkbox"
                   checked={bulk.includes(item.id)}
                   onChange={() => toggleBulk(item.id)}
-                  aria-label={`Select ${item.original_name}`}
+                  aria-label={t('Select {name}', { name: item.original_name })}
                 />
               )}
               emptyMessage={
                 library.search || library.type
-                  ? 'Nothing matches that.'
-                  : 'No media files yet — upload or drop files here.'
+                  ? t('Nothing matches that.')
+                  : t('No media files yet — upload or drop files here.')
               }
             />
           )}
         </div>
 
         <div className="admin-card">
-          <h3 className="admin-card-title">Details</h3>
+          <h3 className="admin-card-title">{t('Details')}</h3>
 
           {selected ? (
             <div>
@@ -249,21 +251,21 @@ export default function AdminMedia() {
               )}
 
               <div style={{ marginBottom: '1rem' }}>
-                <p><strong>Filename:</strong> {selected.original_name}</p>
-                <p><strong>Type:</strong> {selected.mime_type || 'Unknown'}</p>
-                <p><strong>Size:</strong> {formatFileSize(selected.size)}</p>
-                <p><strong>Uploaded:</strong> {new Date(selected.created_at).toLocaleDateString()}</p>
+                <p><strong>{t('Filename:')}</strong> {selected.original_name}</p>
+                <p><strong>{t('Type:')}</strong> {selected.mime_type || t('Unknown')}</p>
+                <p><strong>{t('Size:')}</strong> {formatFileSize(selected.size)}</p>
+                <p><strong>{t('Uploaded:')}</strong> {new Date(selected.created_at).toLocaleDateString()}</p>
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label" htmlFor="media-alt">Alt text</label>
+                <label className="admin-label" htmlFor="media-alt">{t('Alt text')}</label>
                 <input
                   id="media-alt"
                   type="text"
                   value={altDraft}
                   onChange={event => setAltDraft(event.target.value)}
                   className="admin-input"
-                  placeholder="Describe the image for screen readers"
+                  placeholder={t('Describe the image for screen readers')}
                 />
                 <button
                   onClick={handleSaveAlt}
@@ -271,7 +273,7 @@ export default function AdminMedia() {
                   disabled={savingAlt || altDraft === (selected.alt_text || '')}
                   style={{ marginTop: '0.5rem' }}
                 >
-                  {savingAlt ? 'Saving...' : 'Save alt text'}
+                  {savingAlt ? t('Saving...') : t('Save alt text')}
                 </button>
               </div>
 
@@ -291,18 +293,18 @@ export default function AdminMedia() {
                   onClick={() => navigator.clipboard.writeText(mediaUrl(selected))}
                   className="admin-btn admin-btn-secondary"
                 >
-                  Copy URL
+                  {t('Copy URL')}
                 </button>
                 <button
                   onClick={() => handleDelete([selected.id])}
                   className="admin-btn admin-btn-danger"
                 >
-                  Delete
+                  {t('Delete')}
                 </button>
               </div>
             </div>
           ) : (
-            <p style={{ color: 'var(--fg-muted)' }}>Select a file to view details</p>
+            <p style={{ color: 'var(--fg-muted)' }}>{t('Select a file to view details')}</p>
           )}
         </div>
       </div>

@@ -25,7 +25,7 @@
  * `Intl.PluralRules`, so languages with more than two forms can supply them.
  */
 
-import { useSyncExternalStore } from 'react'
+import { createElement, Fragment, useSyncExternalStore, type ReactNode } from 'react'
 
 export type PluralForms = Partial<Record<Intl.LDMLPluralRule, string>> & { other: string }
 export type Dictionary = Record<string, string | PluralForms>
@@ -131,6 +131,20 @@ export function tn(one: string, other: string, count: number, vars?: Vars): stri
   }
 
   return fill(count === 1 ? one : other, all)
+}
+
+/**
+ * A translated sentence with elements in its `{name}` slots:
+ * `slots(t('Entries live at {code}.'), { code: <code>/recipes</code> })`.
+ *
+ * For markup inside a sentence. The sentence stays one string, so a
+ * translation can move the element to wherever its grammar puts it. A slot
+ * with no element is left as written, so a typo shows rather than vanishing.
+ */
+export function slots(text: string, parts: Record<string, ReactNode>): ReactNode[] {
+  return text.split(/\{(\w+)\}/g).map((piece, index) =>
+    index % 2 ? createElement(Fragment, { key: index }, parts[piece] ?? `{${piece}}`) : piece
+  )
 }
 
 /** How a plural pair is keyed in a dictionary. */

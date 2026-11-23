@@ -3,6 +3,7 @@ import { useAuth } from '@basicbenframework/core/client'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import { Pagination, type PageMeta } from '../../components/admin/Pagination'
+import { useT } from '../../i18n'
 
 interface UserRow {
   id: number
@@ -28,15 +29,6 @@ interface Invitation {
 
 type Notice = { tone: 'ok' | 'error'; text: string } | null
 
-/** What each role can do, in a phrase — the select alone says nothing. */
-const ROLE_HINTS: Record<string, string> = {
-  admin: 'Everything, including users and settings',
-  editor: 'Publish and manage everyone’s content',
-  author: 'Write and publish their own posts',
-  contributor: 'Write drafts for review',
-  subscriber: 'Comment and keep a profile'
-}
-
 const FALLBACK_ROLES = ['admin', 'editor', 'author', 'contributor', 'subscriber']
 
 /**
@@ -52,6 +44,36 @@ const FALLBACK_ROLES = ['admin', 'editor', 'author', 'contributor', 'subscriber'
  */
 export default function AdminUsers() {
   const { user: me } = useAuth() as { user: { id: number } | null }
+  const { t, tn, locale } = useT()
+
+  /** What each role can do, in a phrase — the select alone says nothing. */
+  const ROLE_HINTS: Record<string, string> = {
+    admin: t('Everything, including users and settings'),
+    editor: t('Publish and manage everyone’s content'),
+    author: t('Write and publish their own posts'),
+    contributor: t('Write drafts for review'),
+    subscriber: t('Comment and keep a profile')
+  }
+
+  // The built-in roles by name; a role the server adds later shows as it is.
+  const ROLE_LABELS: Record<string, string> = {
+    admin: t('Admin'),
+    editor: t('Editor'),
+    author: t('Author'),
+    contributor: t('Contributor'),
+    subscriber: t('Subscriber')
+  }
+  const roleLabel = (role: string) => ROLE_LABELS[role] ?? capitalise(role)
+
+  // The role as it reads after "Make Jane …" / "Jane is now …".
+  const ROLE_ARTICLED: Record<string, string> = {
+    admin: t('an admin'),
+    editor: t('an editor'),
+    author: t('an author'),
+    contributor: t('a contributor'),
+    subscriber: t('a subscriber')
+  }
+  const roleArticled = (role: string) => ROLE_ARTICLED[role] ?? articled(role)
 
   const [users, setUsers] = useState<UserRow[]>([])
   const [roles, setRoles] = useState<string[]>(FALLBACK_ROLES)
@@ -91,7 +113,7 @@ export default function AdminUsers() {
       if (res?.roles?.length) setRoles(res.roles)
       setMeta(res?.meta ?? null)
     } catch (error) {
-      setNotice({ tone: 'error', text: (error as Error).message || 'Could not load users.' })
+      setNotice({ tone: 'error', text: (error as Error).message || t('Could not load users.') })
     } finally {
       setLoading(false)
     }
@@ -108,13 +130,13 @@ export default function AdminUsers() {
   }
 
   /** Run a change, show the server's verdict, and reload the window. */
-  const act = async (work: () => Promise<unknown>, success: string) => {
+  const act = async (work: { (): Promise<unknown> }, success: string) => {
     setNotice(null)
     try {
       await work()
       setNotice({ tone: 'ok', text: success })
     } catch (error) {
-      setNotice({ tone: 'error', text: (error as Error).message || 'That did not work.' })
+      setNotice({ tone: 'error', text: (error as Error).message || t('That did not work.') })
     }
     // Reloaded on failure too: a refusal often means someone else changed the
     // row, and what is on screen is now out of date.
@@ -123,28 +145,28 @@ export default function AdminUsers() {
 
   const changeRole = (target: UserRow, role: string) => {
     if (role === target.role) return
-    if (!confirm(`Make ${target.name} ${articled(role)}? They will be signed out and sign in again with the new role.`)) return
+    if (!confirm(t('Make {name} {role}? They will be signed out and sign in again with the new role.', { name: target.name, role: roleArticled(role) }))) return
 
-    act(() => api.put(`/api/users/${target.id}`, { role }), `${target.name} is now ${articled(role)}.`)
+    act(() => api.put(`/api/users/${target.id}`, { role }), t('{name} is now {role}.', { name: target.name, role: roleArticled(role) }))
   }
 
   const toggleDisabled = (target: UserRow) => {
     if (target.disabled_at) {
-      act(() => api.post(`/api/users/${target.id}/enable`), `${target.name} can sign in again.`)
+      act(() => api.post(`/api/users/${target.id}/enable`), t('{name} can sign in again.', { name: target.name }))
       return
     }
 
-    if (!confirm(`Disable ${target.name}? They are signed out everywhere and cannot sign in until enabled. Their posts stay up.`)) return
+    if (!confirm(t('Disable {name}? They are signed out everywhere and cannot sign in until enabled. Their posts stay up.', { name: target.name }))) return
 
-    act(() => api.post(`/api/users/${target.id}/disable`), `${target.name} has been disabled.`)
+    act(() => api.post(`/api/users/${target.id}/disable`), t('{name} has been disabled.', { name: target.name }))
   }
 
   const startDelete = async (target: UserRow) => {
     setNotice(null)
 
     if (target.post_count === 0) {
-      if (!confirm(`Delete ${target.name}? This cannot be undone.`)) return
-      act(() => api.delete(`/api/users/${target.id}`), `${target.name} was deleted.`)
+      if (!confirm(t('Delete {name}? This cannot be undone.', { name: target.name }))) return
+      act(() => api.delete(`/api/users/${target.id}`), t('{name} was deleted.', { name: target.name }))
       return
     }
 
@@ -170,7 +192,7 @@ export default function AdminUsers() {
 
     await act(
       () => api.delete(`/api/users/${target.id}?reassign=${encodeURIComponent(reassignTo)}`),
-      `${target.name} was deleted. Their posts now belong to ${receiver?.name ?? 'the user you chose'}.`
+      t('{name} was deleted. Their posts now belong to {receiver}.', { name: target.name, receiver: receiver?.name ?? t('the user you chose') })
     )
   }
 
@@ -195,34 +217,34 @@ export default function AdminUsers() {
       setInvite({ email: '', name: '', role: invite.role })
       await loadInvitations()
     } catch (error) {
-      setNotice({ tone: 'error', text: (error as Error).message || 'Could not send the invitation.' })
+      setNotice({ tone: 'error', text: (error as Error).message || t('Could not send the invitation.') })
     } finally {
       setInviting(false)
     }
   }
 
   const revokeInvitation = async (invitation: Invitation) => {
-    if (!confirm(`Revoke the invitation to ${invitation.email}? The link they were sent stops working.`)) return
+    if (!confirm(t('Revoke the invitation to {email}? The link they were sent stops working.', { email: invitation.email }))) return
 
     try {
       await api.delete(`/api/invitations/${invitation.id}`)
-      setNotice({ tone: 'ok', text: `Invitation to ${invitation.email} revoked.` })
+      setNotice({ tone: 'ok', text: t('Invitation to {email} revoked.', { email: invitation.email }) })
     } catch (error) {
-      setNotice({ tone: 'error', text: (error as Error).message || 'Could not revoke the invitation.' })
+      setNotice({ tone: 'error', text: (error as Error).message || t('Could not revoke the invitation.') })
     }
     await loadInvitations()
   }
 
   if (loading) {
     return (
-      <AdminLayout title="Users">
-        <div className="admin-loading">Loading…</div>
+      <AdminLayout title={t('Users')}>
+        <div className="admin-loading">{t('Loading…')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title="Users">
+    <AdminLayout title={t('Users')}>
       <style>{userStyles}</style>
 
       {notice && (
@@ -231,10 +253,10 @@ export default function AdminUsers() {
 
       {deleting && (
         <form className="users-reassign" onSubmit={confirmDelete}>
-          <p className="users-reassign-title">Delete {deleting.name}?</p>
+          <p className="users-reassign-title">{t('Delete {name}?', { name: deleting.name })}</p>
           <p className="users-hint">
-            They have written {deleting.post_count} post{deleting.post_count === 1 ? '' : 's'}.
-            Choose who they should belong to — nothing is deleted with the account. This cannot be undone.
+            {tn('They have written {count} post.', 'They have written {count} posts.', deleting.post_count)}
+            {' '}{t('Choose who they should belong to — nothing is deleted with the account. This cannot be undone.')}
           </p>
           <div className="users-row">
             <select
@@ -242,9 +264,9 @@ export default function AdminUsers() {
               value={reassignTo}
               onChange={e => setReassignTo(e.target.value)}
               required
-              aria-label="Reassign posts to"
+              aria-label={t('Reassign posts to')}
             >
-              <option value="">Reassign posts to…</option>
+              <option value="">{t('Reassign posts to…')}</option>
               {candidates.map(candidate => (
                 <option key={candidate.id} value={candidate.id}>
                   {candidate.name} ({candidate.email})
@@ -252,10 +274,10 @@ export default function AdminUsers() {
               ))}
             </select>
             <button type="submit" className="admin-btn admin-btn-danger" disabled={!reassignTo}>
-              Reassign and delete
+              {t('Reassign and delete')}
             </button>
             <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setDeleting(null)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </form>
@@ -263,7 +285,7 @@ export default function AdminUsers() {
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Users</h2>
+          <h2 className="admin-card-title">{t('Users')}</h2>
           {meta && <span className="users-count">{meta.total}</span>}
         </div>
 
@@ -273,35 +295,35 @@ export default function AdminUsers() {
             type="search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name or email"
-            aria-label="Search users"
+            placeholder={t('Search by name or email')}
+            aria-label={t('Search users')}
           />
           <select
             className="admin-select"
             value={roleFilter}
             onChange={e => { setPage(1); setRoleFilter(e.target.value) }}
-            aria-label="Filter by role"
+            aria-label={t('Filter by role')}
           >
-            <option value="">All roles</option>
-            {roles.map(role => <option key={role} value={role}>{capitalise(role)}</option>)}
+            <option value="">{t('All roles')}</option>
+            {roles.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}
           </select>
-          <button type="submit" className="admin-btn admin-btn-secondary">Search</button>
+          <button type="submit" className="admin-btn admin-btn-secondary">{t('Search')}</button>
         </form>
 
         {users.length === 0 ? (
           <div className="users-empty">
-            <p>{query || roleFilter ? 'Nobody matches that search.' : 'No users yet.'}</p>
+            <p>{query || roleFilter ? t('Nobody matches that search.') : t('No users yet.')}</p>
           </div>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Posts</th>
-                <th>Status</th>
-                <th>Joined</th>
-                <th>Actions</th>
+                <th>{t('Name')}</th>
+                <th>{t('Role')}</th>
+                <th>{t('Posts')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Joined')}</th>
+                <th>{t('Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -314,7 +336,7 @@ export default function AdminUsers() {
                 return (
                   <tr key={row.id}>
                     <td>
-                      <strong>{row.name}</strong>{isMe && <span className="users-muted"> (you)</span>}
+                      <strong>{row.name}</strong>{isMe && <span className="users-muted"> {t('(you)')}</span>}
                       <div className="users-muted">{row.email}</div>
                     </td>
                     <td>
@@ -323,23 +345,23 @@ export default function AdminUsers() {
                         value={row.role}
                         disabled={isMe}
                         onChange={e => changeRole(row, e.target.value)}
-                        aria-label={`Role for ${row.name}`}
-                        title={isMe ? 'You cannot change your own role' : ROLE_HINTS[row.role]}
+                        aria-label={t('Role for {name}', { name: row.name })}
+                        title={isMe ? t('You cannot change your own role') : ROLE_HINTS[row.role]}
                       >
-                        {roles.map(role => <option key={role} value={role}>{capitalise(role)}</option>)}
+                        {roles.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}
                       </select>
                     </td>
                     <td>{row.post_count}</td>
                     <td>
                       {row.disabled_at ? (
-                        <span className="admin-badge admin-badge-danger">Disabled</span>
+                        <span className="admin-badge admin-badge-danger">{t('Disabled')}</span>
                       ) : row.email_verified ? (
-                        <span className="admin-badge admin-badge-success">Active</span>
+                        <span className="admin-badge admin-badge-success">{t('Active')}</span>
                       ) : (
-                        <span className="admin-badge admin-badge-warning">Unverified</span>
+                        <span className="admin-badge admin-badge-warning">{t('Unverified')}</span>
                       )}
                     </td>
-                    <td className="users-muted">{new Date(row.created_at).toLocaleDateString()}</td>
+                    <td className="users-muted">{new Date(row.created_at).toLocaleDateString(locale)}</td>
                     <td>
                       <div className="users-row">
                         <button
@@ -347,14 +369,14 @@ export default function AdminUsers() {
                           className="admin-btn admin-btn-secondary"
                           disabled={isMe}
                         >
-                          {row.disabled_at ? 'Enable' : 'Disable'}
+                          {row.disabled_at ? t('Enable') : t('Disable')}
                         </button>
                         <button
                           onClick={() => startDelete(row)}
                           className="admin-btn admin-btn-danger"
                           disabled={isMe}
                         >
-                          Delete
+                          {t('Delete')}
                         </button>
                       </div>
                     </td>
@@ -365,78 +387,78 @@ export default function AdminUsers() {
           </table>
         )}
 
-        {meta && <Pagination meta={meta} onChange={setPage} noun="users" />}
+        {meta && <Pagination meta={meta} onChange={setPage} noun={t('users')} />}
       </div>
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Invite someone</h2>
+          <h2 className="admin-card-title">{t('Invite someone')}</h2>
         </div>
 
         <form onSubmit={handleInvite} className="users-form">
           <label className="users-field">
-            <span className="users-label">Email</span>
+            <span className="users-label">{t('Email')}</span>
             <input
               className="admin-input"
               type="email"
               value={invite.email}
               onChange={e => setInvite({ ...invite, email: e.target.value })}
-              placeholder="jane@example.com"
+              placeholder={'jane@example.com'}
               required
             />
           </label>
 
           <label className="users-field">
-            <span className="users-label">Name (optional)</span>
+            <span className="users-label">{t('Name (optional)')}</span>
             <input
               className="admin-input"
               value={invite.name}
               onChange={e => setInvite({ ...invite, name: e.target.value })}
-              placeholder="Filled in on their sign-up form; they can change it"
+              placeholder={t('Filled in on their sign-up form; they can change it')}
             />
           </label>
 
           <label className="users-field">
-            <span className="users-label">Role</span>
+            <span className="users-label">{t('Role')}</span>
             <select
               className="admin-select"
               value={invite.role}
               onChange={e => setInvite({ ...invite, role: e.target.value })}
             >
-              {roles.map(role => <option key={role} value={role}>{capitalise(role)}</option>)}
+              {roles.map(role => <option key={role} value={role}>{roleLabel(role)}</option>)}
             </select>
             <span className="users-hint">{ROLE_HINTS[invite.role] ?? ''}</span>
           </label>
 
           <div>
             <button type="submit" className="admin-btn admin-btn-primary" disabled={inviting}>
-              {inviting ? 'Sending…' : 'Send invitation'}
+              {inviting ? t('Sending…') : t('Send invitation')}
             </button>
           </div>
           <span className="users-hint">
-            They get an email with a link that works once, for 7 days — even while sign-ups are closed.
+            {t('They get an email with a link that works once, for 7 days — even while sign-ups are closed.')}
           </span>
         </form>
       </div>
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Pending invitations</h2>
+          <h2 className="admin-card-title">{t('Pending invitations')}</h2>
           <span className="users-count">{invitations.length}</span>
         </div>
 
         {invitations.length === 0 ? (
           <div className="users-empty">
-            <p>No pending invitations.</p>
+            <p>{t('No pending invitations.')}</p>
           </div>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Invited by</th>
-                <th>Expires</th>
+                <th>{t('Email')}</th>
+                <th>{t('Role')}</th>
+                <th>{t('Invited by')}</th>
+                <th>{t('Expires')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -447,15 +469,15 @@ export default function AdminUsers() {
                     <strong>{invitation.email}</strong>
                     {invitation.name && <div className="users-muted">{invitation.name}</div>}
                   </td>
-                  <td>{capitalise(invitation.role)}</td>
+                  <td>{roleLabel(invitation.role)}</td>
                   <td className="users-muted">{invitation.invited_by ?? '—'}</td>
-                  <td className="users-muted">{new Date(invitation.expires_at).toLocaleDateString()}</td>
+                  <td className="users-muted">{new Date(invitation.expires_at).toLocaleDateString(locale)}</td>
                   <td>
                     <button
                       onClick={() => revokeInvitation(invitation)}
                       className="admin-btn admin-btn-secondary"
                     >
-                      Revoke
+                      {t('Revoke')}
                     </button>
                   </td>
                 </tr>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import { Pagination, type PageMeta } from '../../components/admin/Pagination'
+import { useT, t, slots } from '../../i18n'
 
 type Status = 'pending' | 'approved' | 'spam' | 'trash'
 type Tab = 'all' | Status
@@ -39,13 +40,35 @@ interface CommentSettings {
   comment_notify: 'author' | 'moderators' | 'both' | 'none'
 }
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'approved', label: 'Approved' },
-  { key: 'spam', label: 'Spam' },
-  { key: 'trash', label: 'Trash' }
+const TABS: { key: Tab }[] = [
+  { key: 'all' },
+  { key: 'pending' },
+  { key: 'approved' },
+  { key: 'spam' },
+  { key: 'trash' }
 ]
+
+/** A tab's name. Called while rendering, so it follows the admin's language. */
+function tabLabel(tab: Tab): string {
+  switch (tab) {
+    case 'all': return t('All')
+    case 'pending': return t('Pending')
+    case 'approved': return t('Approved')
+    case 'spam': return t('Spam')
+    case 'trash': return t('Trash')
+  }
+}
+
+/** A comment's status, as its badge shows it. */
+function statusLabel(status: Status): string {
+  switch (status) {
+    case 'pending': return t('pending')
+    case 'approved': return t('approved')
+    case 'spam': return t('spam')
+    case 'trash': return t('trash')
+    default: return status
+  }
+}
 
 const BADGES: Record<Status, string> = {
   pending: 'admin-badge-warning',
@@ -72,6 +95,7 @@ const excerpt = (text = '', length = 80) => (text.length > length ? `${text.slic
  * the results they produce.
  */
 export default function AdminComments() {
+  const { t, tn, locale } = useT()
   const [tab, setTab] = useState<Tab>(initialTab)
   const [page, setPage] = useState(1)
   const [comments, setComments] = useState<Comment[]>([])
@@ -110,39 +134,42 @@ export default function AdminComments() {
       await api.put(`/api/comments/${id}/status`, { status })
       await load()
     } catch (error) {
-      alert((error as Error).message || 'Failed to update comment')
+      alert((error as Error).message || t('Failed to update comment'))
     }
   }
 
   const deleteForever = async (id: number) => {
-    if (!confirm('Delete this comment permanently? Its replies stay, moved up a level. This cannot be undone.')) return
+    if (!confirm(t('Delete this comment permanently? Its replies stay, moved up a level. This cannot be undone.'))) return
     try {
       await api.delete(`/api/comments/${id}?force=true`)
       await load()
     } catch (error) {
-      alert((error as Error).message || 'Failed to delete comment')
+      alert((error as Error).message || t('Failed to delete comment'))
     }
   }
 
   const bulk = async (action: string) => {
     if (!selected.size) return
-    if (action === 'delete' && !confirm(`Delete ${selected.size} comment(s) permanently? This cannot be undone.`)) return
+    if (action === 'delete' && !confirm(tn('Delete {count} comment permanently? This cannot be undone.', 'Delete {count} comments permanently? This cannot be undone.', selected.size))) return
     try {
       await api.post('/api/comments/bulk', { ids: [...selected], action })
       await load()
     } catch (error) {
-      alert((error as Error).message || 'Bulk action failed')
+      alert((error as Error).message || t('Bulk action failed'))
     }
   }
 
   const empty = async (status: 'spam' | 'trash') => {
     const n = counts?.[status] ?? 0
-    if (!confirm(`Permanently delete all ${n} comment(s) in ${status}? This cannot be undone.`)) return
+    const question = status === 'spam'
+      ? tn('Permanently delete the {count} comment in spam? This cannot be undone.', 'Permanently delete all {count} comments in spam? This cannot be undone.', n)
+      : tn('Permanently delete the {count} comment in the trash? This cannot be undone.', 'Permanently delete all {count} comments in the trash? This cannot be undone.', n)
+    if (!confirm(question)) return
     try {
       await api.post('/api/comments/empty', { status })
       await load()
     } catch (error) {
-      alert((error as Error).message || `Failed to empty ${status}`)
+      alert((error as Error).message || (status === 'spam' ? t('Failed to empty spam') : t('Failed to empty the trash')))
     }
   }
 
@@ -156,22 +183,22 @@ export default function AdminComments() {
   const allChecked = comments.length > 0 && comments.every(c => selected.has(c.id))
 
   return (
-    <AdminLayout title="Comments">
+    <AdminLayout title={t('Comments')}>
       <div className="admin-card">
         <div className="admin-card-header" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-          <h2 className="admin-card-title">Comments</h2>
+          <h2 className="admin-card-title">{t('Comments')}</h2>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {TABS.map(({ key, label }) => (
+            {TABS.map(({ key }) => (
               <button
                 key={key}
                 onClick={() => switchTab(key)}
                 className={`admin-btn ${tab === key ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
               >
-                {label}{counts ? ` (${counts[key]})` : ''}
+                {tabLabel(key)}{counts ? ` (${counts[key]})` : ''}
               </button>
             ))}
             <button onClick={() => setShowSettings(!showSettings)} className="admin-btn admin-btn-secondary">
-              {showSettings ? 'Hide settings' : 'Spam settings'}
+              {showSettings ? t('Hide settings') : t('Spam settings')}
             </button>
           </div>
         </div>
@@ -185,29 +212,35 @@ export default function AdminComments() {
               type="checkbox"
               checked={allChecked}
               onChange={() => setSelected(allChecked ? new Set() : new Set(comments.map(c => c.id)))}
-              aria-label="Select all on this page"
+              aria-label={t('Select all on this page')}
             />
-            <span style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>{selected.size} selected</span>
+            <span style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>{tn('{count} selected', '{count} selected', selected.size)}</span>
           </label>
-          {tab !== 'approved' && tab !== 'trash' && <BulkButton label="Approve" onClick={() => bulk('approve')} disabled={!selected.size} />}
-          {(tab === 'all' || tab === 'approved') && <BulkButton label="Unapprove" onClick={() => bulk('pending')} disabled={!selected.size} />}
-          {tab !== 'spam' && <BulkButton label="Mark spam" onClick={() => bulk('spam')} disabled={!selected.size} />}
-          {tab === 'spam' && <BulkButton label="Not spam" onClick={() => bulk('pending')} disabled={!selected.size} />}
-          {tab === 'trash' && <BulkButton label="Restore" onClick={() => bulk('pending')} disabled={!selected.size} />}
-          {tab !== 'trash' && tab !== 'spam' && <BulkButton label="Trash" onClick={() => bulk('trash')} disabled={!selected.size} />}
-          {(tab === 'trash' || tab === 'spam') && <BulkButton label="Delete permanently" danger onClick={() => bulk('delete')} disabled={!selected.size} />}
+          {tab !== 'approved' && tab !== 'trash' && <BulkButton label={t('Approve')} onClick={() => bulk('approve')} disabled={!selected.size} />}
+          {(tab === 'all' || tab === 'approved') && <BulkButton label={t('Unapprove')} onClick={() => bulk('pending')} disabled={!selected.size} />}
+          {tab !== 'spam' && <BulkButton label={t('Mark spam')} onClick={() => bulk('spam')} disabled={!selected.size} />}
+          {tab === 'spam' && <BulkButton label={t('Not spam')} onClick={() => bulk('pending')} disabled={!selected.size} />}
+          {tab === 'trash' && <BulkButton label={t('Restore')} onClick={() => bulk('pending')} disabled={!selected.size} />}
+          {tab !== 'trash' && tab !== 'spam' && <BulkButton label={t('Trash')} onClick={() => bulk('trash')} disabled={!selected.size} />}
+          {(tab === 'trash' || tab === 'spam') && <BulkButton label={t('Delete permanently')} danger onClick={() => bulk('delete')} disabled={!selected.size} />}
           {(tab === 'spam' || tab === 'trash') && (counts?.[tab] ?? 0) > 0 && (
             <button onClick={() => empty(tab)} className="admin-btn admin-btn-danger" style={{ marginLeft: 'auto' }}>
-              Empty {tab}
+              {tab === 'spam' ? t('Empty spam') : t('Empty trash')}
             </button>
           )}
         </div>
 
         {loading ? (
-          <div className="admin-loading">Loading...</div>
+          <div className="admin-loading">{t('Loading...')}</div>
         ) : comments.length === 0 ? (
           <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>
-            No {tab === 'all' ? '' : `${tab} `}comments.
+            {{
+              all: t('No comments.'),
+              pending: t('No pending comments.'),
+              approved: t('No approved comments.'),
+              spam: t('No spam comments.'),
+              trash: t('No trash comments.')
+            }[tab]}
           </p>
         ) : (
           <div>
@@ -225,19 +258,19 @@ export default function AdminComments() {
                     type="checkbox"
                     checked={selected.has(comment.id)}
                     onChange={() => toggle(comment.id)}
-                    aria-label="Select comment"
+                    aria-label={t('Select comment')}
                     style={{ marginTop: '0.25rem' }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
                       <div>
-                        <strong>{comment.user_name || comment.author_name || 'Anonymous'}</strong>
+                        <strong>{comment.user_name || comment.author_name || t('Anonymous')}</strong>
                         {comment.post_title && (
-                          <span style={{ color: 'var(--fg-muted)' }}> on {comment.post_title}</span>
+                          <span style={{ color: 'var(--fg-muted)' }}> {t('on {title}', { title: comment.post_title })}</span>
                         )}
                       </div>
                       <span style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
-                        {new Date(comment.created_at).toLocaleString()}
+                        {new Date(comment.created_at).toLocaleString(locale)}
                       </span>
                     </div>
 
@@ -249,7 +282,7 @@ export default function AdminComments() {
 
                     {comment.parent_id && (
                       <div style={{ color: 'var(--fg-muted)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-                        &#8627; In reply to <strong>{comment.parent_author_name || 'a comment'}</strong>
+                        &#8627; {slots(t('In reply to {name}'), { name: <strong>{comment.parent_author_name || t('a comment')}</strong> })}
                         {comment.parent_content && <>: &ldquo;{excerpt(comment.parent_content)}&rdquo;</>}
                       </div>
                     )}
@@ -257,9 +290,9 @@ export default function AdminComments() {
                     <p style={{ margin: '0.5rem 0', color: 'var(--fg)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{comment.content}</p>
 
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span className={`admin-badge ${BADGES[comment.status]}`}>{comment.status}</span>
+                      <span className={`admin-badge ${BADGES[comment.status]}`}>{statusLabel(comment.status)}</span>
                       {comment.held_reason && (
-                        <span style={{ color: 'var(--fg-muted)', fontSize: '0.8125rem' }} title="Why a check held this comment">
+                        <span style={{ color: 'var(--fg-muted)', fontSize: '0.8125rem' }} title={t('Why a check held this comment')}>
                           {comment.held_reason}
                         </span>
                       )}
@@ -268,7 +301,7 @@ export default function AdminComments() {
                           onClick={() => setThreadFor(threadFor?.id === comment.id ? null : comment)}
                           className="admin-btn admin-btn-secondary"
                         >
-                          {threadFor?.id === comment.id ? 'Hide thread' : 'Thread'}
+                          {threadFor?.id === comment.id ? t('Hide thread') : t('Thread')}
                         </button>
                         <RowActions comment={comment} setStatus={setStatus} deleteForever={deleteForever} />
                       </div>
@@ -284,7 +317,7 @@ export default function AdminComments() {
           </div>
         )}
 
-        {meta && <Pagination meta={meta} onChange={setPage} noun="comments" />}
+        {meta && <Pagination meta={meta} onChange={setPage} noun={t('comments')} />}
       </div>
     </AdminLayout>
   )
@@ -303,35 +336,36 @@ function RowActions({ comment, setStatus, deleteForever }: {
   setStatus: (id: number, status: Status) => void
   deleteForever: (id: number) => void
 }) {
+  const { t } = useT()
   const button = (label: string, onClick: () => void, kind = 'admin-btn-secondary') => (
     <button key={label} onClick={onClick} className={`admin-btn ${kind}`}>{label}</button>
   )
 
   switch (comment.status) {
     case 'pending':
-      return <>
-        {button('Approve', () => setStatus(comment.id, 'approved'), 'admin-btn-primary')}
-        {button('Spam', () => setStatus(comment.id, 'spam'))}
-        {button('Trash', () => setStatus(comment.id, 'trash'), 'admin-btn-danger')}
-      </>
+      return (<>
+        {button(t('Approve'), () => setStatus(comment.id, 'approved'), 'admin-btn-primary')}
+        {button(t('Spam'), () => setStatus(comment.id, 'spam'))}
+        {button(t('Trash'), () => setStatus(comment.id, 'trash'), 'admin-btn-danger')}
+      </>)
     case 'approved':
-      return <>
-        {button('Unapprove', () => setStatus(comment.id, 'pending'))}
-        {button('Spam', () => setStatus(comment.id, 'spam'))}
-        {button('Trash', () => setStatus(comment.id, 'trash'), 'admin-btn-danger')}
-      </>
+      return (<>
+        {button(t('Unapprove'), () => setStatus(comment.id, 'pending'))}
+        {button(t('Spam'), () => setStatus(comment.id, 'spam'))}
+        {button(t('Trash'), () => setStatus(comment.id, 'trash'), 'admin-btn-danger')}
+      </>)
     case 'spam':
       // Back to the queue rather than straight to approved: "not spam" is
       // not the same judgement as "worth publishing".
-      return <>
-        {button('Not spam', () => setStatus(comment.id, 'pending'))}
-        {button('Delete permanently', () => deleteForever(comment.id), 'admin-btn-danger')}
-      </>
+      return (<>
+        {button(t('Not spam'), () => setStatus(comment.id, 'pending'))}
+        {button(t('Delete permanently'), () => deleteForever(comment.id), 'admin-btn-danger')}
+      </>)
     case 'trash':
-      return <>
-        {button('Restore', () => setStatus(comment.id, 'pending'))}
-        {button('Delete permanently', () => deleteForever(comment.id), 'admin-btn-danger')}
-      </>
+      return (<>
+        {button(t('Restore'), () => setStatus(comment.id, 'pending'))}
+        {button(t('Delete permanently'), () => deleteForever(comment.id), 'admin-btn-danger')}
+      </>)
   }
 }
 
@@ -346,10 +380,11 @@ function ThreadView({ postId, highlight, onChange }: { postId: number; highlight
   const [thread, setThread] = useState<Comment[] | null>(null)
   const [replyTo, setReplyTo] = useState<number | null>(null)
   const [text, setText] = useState('')
+  const { t, locale } = useT()
 
-  const load = () => api.get<{ comments: Comment[] }>(`/api/posts/${postId}/comments?all=true`)
+  const load = () => (api.get<{ comments: Comment[] }>(`/api/posts/${postId}/comments?all=true`)
     .then(res => setThread(res?.comments || []))
-    .catch(() => setThread([]))
+    .catch(() => setThread([])))
 
   useEffect(() => { load() }, [postId])
 
@@ -361,7 +396,7 @@ function ThreadView({ postId, highlight, onChange }: { postId: number; highlight
       await load()
       onChange()
     } catch (error) {
-      alert((error as Error).message || 'Failed to post reply')
+      alert((error as Error).message || t('Failed to post reply'))
     }
   }
 
@@ -375,21 +410,21 @@ function ThreadView({ postId, highlight, onChange }: { postId: number; highlight
             outline: node.id === highlight ? '2px solid var(--accent, var(--border))' : undefined
           }}>
             <div style={{ fontSize: '0.8125rem' }}>
-              <strong>{node.user_name || node.author_name || 'Anonymous'}</strong>{' '}
-              <span className={`admin-badge ${BADGES[node.status]}`}>{node.status}</span>{' '}
-              <span style={{ color: 'var(--fg-muted)' }}>{new Date(node.created_at).toLocaleString()}</span>
+              <strong>{node.user_name || node.author_name || t('Anonymous')}</strong>{' '}
+              <span className={`admin-badge ${BADGES[node.status]}`}>{statusLabel(node.status)}</span>{' '}
+              <span style={{ color: 'var(--fg-muted)' }}>{new Date(node.created_at).toLocaleString(locale)}</span>
             </div>
             <p style={{ margin: '0.25rem 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{node.content}</p>
             {node.status === 'approved' && (
               <button className="admin-btn admin-btn-secondary" onClick={() => setReplyTo(replyTo === node.id ? null : node.id)}>
-                {replyTo === node.id ? 'Cancel' : 'Reply'}
+                {replyTo === node.id ? t('Cancel') : t('Reply')}
               </button>
             )}
             {replyTo === node.id && (
               <div style={{ marginTop: '0.5rem' }}>
-                <textarea className="admin-textarea" rows={3} value={text} onChange={e => setText(e.target.value)} aria-label="Reply" />
+                <textarea className="admin-textarea" rows={3} value={text} onChange={e => setText(e.target.value)} aria-label={t('Reply')} />
                 <button className="admin-btn admin-btn-primary" style={{ marginTop: '0.5rem' }} onClick={() => reply(node.id)} disabled={text.trim().length < 3}>
-                  Post reply
+                  {t('Post reply')}
                 </button>
               </div>
             )}
@@ -402,7 +437,7 @@ function ThreadView({ postId, highlight, onChange }: { postId: number; highlight
 
   return (
     <div style={{ marginTop: '0.75rem' }}>
-      {thread === null ? <div className="admin-loading">Loading thread...</div> : render(thread)}
+      {thread === null ? <div className="admin-loading">{t('Loading thread...')}</div> : render(thread)}
     </div>
   )
 }
@@ -417,6 +452,7 @@ function SettingsPanel() {
   const [settings, setSettings] = useState<CommentSettings | null>(null)
   const [canManage, setCanManage] = useState(false)
   const [saved, setSaved] = useState(false)
+  const { t } = useT()
 
   useEffect(() => {
     api.get<{ settings: CommentSettings; can_manage: boolean }>('/api/comments/settings')
@@ -427,7 +463,7 @@ function SettingsPanel() {
       .catch(() => setSettings(null))
   }, [])
 
-  if (!settings) return <div className="admin-loading">Loading settings...</div>
+  if (!settings) return <div className="admin-loading">{t('Loading settings...')}</div>
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -437,14 +473,14 @@ function SettingsPanel() {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (error) {
-      alert((error as Error).message || 'Failed to save settings')
+      alert((error as Error).message || t('Failed to save settings'))
     }
   }
 
   return (
     <form onSubmit={save} style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
       <div className="admin-form-group">
-        <label className="admin-label" htmlFor="comment-blocklist">Blocklist</label>
+        <label className="admin-label" htmlFor="comment-blocklist">{t('Blocklist')}</label>
         <textarea
           id="comment-blocklist"
           className="admin-textarea"
@@ -452,16 +488,17 @@ function SettingsPanel() {
           value={settings.comment_blocklist}
           disabled={!canManage}
           onChange={e => setSettings({ ...settings, comment_blocklist: e.target.value })}
-          placeholder={'One per line:\ncheap pills\nspammer@example.com\n@spam-domain.example\n203.0.113.7\n198.51.100.0/24'}
+          placeholder={`${t('One per line:')}\n${t('cheap pills')}\nspammer@example.com\n@spam-domain.example\n203.0.113.7\n198.51.100.0/24`}
         />
         <p style={{ color: 'var(--fg-muted)', fontSize: '0.8125rem' }}>
-          Words or phrases, email addresses, <code>@domains</code>, and IP addresses or ranges. A comment that
-          matches goes straight to spam. IPv6 entries cover their whole /64. Lines starting with # are ignored.
+          {slots(t('Words or phrases, email addresses, {domains}, and IP addresses or ranges. A comment that matches goes straight to spam. IPv6 entries cover their whole /64. Lines starting with # are ignored.'), {
+            domains: <code>{t('@domains')}</code>
+          })}
         </p>
       </div>
 
       <div className="admin-form-group">
-        <label className="admin-label" htmlFor="comment-max-links">Hold comments with more than this many links</label>
+        <label className="admin-label" htmlFor="comment-max-links">{t('Hold comments with more than this many links')}</label>
         <input
           id="comment-max-links"
           className="admin-input"
@@ -475,7 +512,7 @@ function SettingsPanel() {
       </div>
 
       <div className="admin-form-group">
-        <label className="admin-label" htmlFor="comment-notify">Email about comments awaiting moderation</label>
+        <label className="admin-label" htmlFor="comment-notify">{t('Email about comments awaiting moderation')}</label>
         <select
           id="comment-notify"
           className="admin-select"
@@ -483,17 +520,17 @@ function SettingsPanel() {
           disabled={!canManage}
           onChange={e => setSettings({ ...settings, comment_notify: e.target.value as CommentSettings['comment_notify'] })}
         >
-          <option value="author">The post's author</option>
-          <option value="moderators">Everyone who can moderate</option>
-          <option value="both">The author and everyone who can moderate</option>
-          <option value="none">Nobody</option>
+          <option value="author">{t('The post\'s author')}</option>
+          <option value="moderators">{t('Everyone who can moderate')}</option>
+          <option value="both">{t('The author and everyone who can moderate')}</option>
+          <option value="none">{t('Nobody')}</option>
         </select>
       </div>
 
       {canManage ? (
-        <button type="submit" className="admin-btn admin-btn-primary">{saved ? 'Saved' : 'Save settings'}</button>
+        <button type="submit" className="admin-btn admin-btn-primary">{saved ? t('Saved') : t('Save settings')}</button>
       ) : (
-        <p style={{ color: 'var(--fg-muted)', fontSize: '0.8125rem' }}>Only administrators can change these.</p>
+        <p style={{ color: 'var(--fg-muted)', fontSize: '0.8125rem' }}>{t('Only administrators can change these.')}</p>
       )}
     </form>
   )

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import { useT } from '../../i18n'
 
 interface Token {
   id: number
@@ -9,13 +10,6 @@ interface Token {
   lastUsedAt: string | null
   expiresAt: string | null
   createdAt: string
-}
-
-const SCOPE_LABELS: Record<string, string> = {
-  'content:read': 'Read published posts, pages, categories and tags (/api/v1)',
-  'content:write': 'Create, edit and trash posts; manage tags and categories — as you',
-  'media:read': 'Read media (/api/v1)',
-  'media:write': 'Upload and edit media — as you'
 }
 
 /** Scopes that let a program change the site rather than only read it. */
@@ -29,6 +23,13 @@ const WRITE_SCOPES = ['content:write', 'media:write']
  * clearly enough that nobody closes the panel expecting to find it later.
  */
 export default function AdminTokens() {
+  const { t, locale } = useT()
+  const SCOPE_LABELS: Record<string, string> = {
+    'content:read': t('Read published posts, pages, categories and tags (/api/v1)'),
+    'content:write': t('Create, edit and trash posts; manage tags and categories — as you'),
+    'media:read': t('Read media (/api/v1)'),
+    'media:write': t('Upload and edit media — as you')
+  }
   const [tokens, setTokens] = useState<Token[]>([])
   const [available, setAvailable] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,7 +52,7 @@ export default function AdminTokens() {
       setTokens(res?.tokens || [])
       setAvailable(res?.scopes || [])
     } catch {
-      setNotice({ tone: 'error', text: 'Could not load tokens.' })
+      setNotice({ tone: 'error', text: t('Could not load tokens.') })
     } finally {
       setLoading(false)
     }
@@ -82,21 +83,21 @@ export default function AdminTokens() {
       setExpiresInDays('')
       await load()
     } catch (error) {
-      setNotice({ tone: 'error', text: (error as Error).message || 'Could not create the token.' })
+      setNotice({ tone: 'error', text: (error as Error).message || t('Could not create the token.') })
     } finally {
       setCreating(false)
     }
   }
 
   const handleRevoke = async (token: Token) => {
-    if (!confirm(`Revoke "${token.name}"? Anything using it stops working immediately.`)) return
+    if (!confirm(t('Revoke "{name}"? Anything using it stops working immediately.', { name: token.name }))) return
 
     try {
       await api.delete(`/api/tokens/${token.id}`)
       setTokens(tokens.filter(t => t.id !== token.id))
-      setNotice({ tone: 'ok', text: `"${token.name}" revoked.` })
+      setNotice({ tone: 'ok', text: t('"{name}" revoked.', { name: token.name }) })
     } catch {
-      setNotice({ tone: 'error', text: 'Could not revoke the token.' })
+      setNotice({ tone: 'error', text: t('Could not revoke the token.') })
     }
   }
 
@@ -115,14 +116,14 @@ export default function AdminTokens() {
 
   if (loading) {
     return (
-      <AdminLayout title="API tokens">
-        <div className="admin-loading">Loading…</div>
+      <AdminLayout title={t('API tokens')}>
+        <div className="admin-loading">{t('Loading…')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title="API tokens">
+    <AdminLayout title={t('API tokens')}>
       <style>{tokenStyles}</style>
 
       {notice && (
@@ -131,15 +132,14 @@ export default function AdminTokens() {
 
       {issued && (
         <div className="token-issued">
-          <p className="token-issued-title">Copy this token now</p>
+          <p className="token-issued-title">{t('Copy this token now')}</p>
           <p className="token-issued-body">
-            It will not be shown again — only a hash is stored, so it cannot be recovered.
-            Losing it means issuing another.
+            {t('It will not be shown again — only a hash is stored, so it cannot be recovered. Losing it means issuing another.')}
           </p>
           <div className="token-issued-value">
             <code>{issued}</code>
             <button type="button" onClick={copy} className="admin-btn admin-btn-secondary">
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? t('Copied') : t('Copy')}
             </button>
           </div>
           <button
@@ -147,31 +147,31 @@ export default function AdminTokens() {
             onClick={() => setIssued(null)}
             className="admin-btn admin-btn-secondary"
           >
-            I have saved it
+            {t('I have saved it')}
           </button>
         </div>
       )}
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">New token</h2>
+          <h2 className="admin-card-title">{t('New token')}</h2>
         </div>
 
         <form onSubmit={handleCreate} className="token-form">
           <label className="token-field">
-            <span className="token-label">Name</span>
+            <span className="token-label">{t('Name')}</span>
             <input
               className="admin-input"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Static site build"
+              placeholder={t('Static site build')}
               required
             />
-            <span className="token-hint">What this token is for, so you can recognise it later.</span>
+            <span className="token-hint">{t('What this token is for, so you can recognise it later.')}</span>
           </label>
 
           <fieldset className="token-field">
-            <legend className="token-label">Scopes</legend>
+            <legend className="token-label">{t('Scopes')}</legend>
             {available.map(scope => (
               <label key={scope} className="token-scope">
                 <input
@@ -184,7 +184,7 @@ export default function AdminTokens() {
               </label>
             ))}
             <span className="token-hint">
-              A write scope also grants the matching read.
+              {t('A write scope also grants the matching read.')}
             </span>
 
             {/* Said before the token exists, not after: the moment to decide
@@ -192,26 +192,21 @@ export default function AdminTokens() {
                 while the box is still unticked. */}
             {scopes.some(scope => WRITE_SCOPES.includes(scope)) && (
               <div className="token-write-warning" role="alert">
-                <strong>This token can change your site.</strong> It acts as you, with your
-                role: anything you can create, edit, publish or trash, a program holding it
-                can too — including publishing posts if your role allows it. It cannot manage
-                users, settings or other tokens, cannot empty the trash, and is refused while
-                someone has a post open in the editor. Writes are rate limited per token and
-                logged with its id. Give it an expiry, keep it out of client-side code, and
-                revoke it the moment it might have leaked.
+                <strong>{t('This token can change your site.')}</strong>{' '}
+                {t('It acts as you, with your role: anything you can create, edit, publish or trash, a program holding it can too — including publishing posts if your role allows it. It cannot manage users, settings or other tokens, cannot empty the trash, and is refused while someone has a post open in the editor. Writes are rate limited per token and logged with its id. Give it an expiry, keep it out of client-side code, and revoke it the moment it might have leaked.')}
               </div>
             )}
           </fieldset>
 
           <label className="token-field">
-            <span className="token-label">Expires after (days)</span>
+            <span className="token-label">{t('Expires after (days)')}</span>
             <input
               className="admin-input"
               type="number"
               min="1"
               value={expiresInDays}
               onChange={e => setExpiresInDays(e.target.value)}
-              placeholder="Leave blank for no expiry"
+              placeholder={t('Leave blank for no expiry')}
             />
           </label>
 
@@ -221,7 +216,7 @@ export default function AdminTokens() {
               className="admin-btn admin-btn-primary"
               disabled={creating || scopes.length === 0}
             >
-              {creating ? 'Creating…' : 'Create token'}
+              {creating ? t('Creating…') : t('Create token')}
             </button>
           </div>
         </form>
@@ -229,22 +224,22 @@ export default function AdminTokens() {
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Your tokens</h2>
+          <h2 className="admin-card-title">{t('Your tokens')}</h2>
           <span className="token-count">{tokens.length}</span>
         </div>
 
         {tokens.length === 0 ? (
           <div className="token-empty">
-            <p>No tokens yet. Create one above to read — or, with a write scope, change — this site's content from elsewhere.</p>
+            <p>{t("No tokens yet. Create one above to read — or, with a write scope, change — this site's content from elsewhere.")}</p>
           </div>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Scopes</th>
-                <th>Last used</th>
-                <th>Expires</th>
+                <th>{t('Name')}</th>
+                <th>{t('Scopes')}</th>
+                <th>{t('Last used')}</th>
+                <th>{t('Expires')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -257,20 +252,20 @@ export default function AdminTokens() {
                       <code
                         key={scope}
                         className={`token-scope-chip ${WRITE_SCOPES.includes(scope) ? 'token-scope-write' : ''}`}
-                        title={WRITE_SCOPES.includes(scope) ? 'Can change the site' : undefined}
+                        title={WRITE_SCOPES.includes(scope) ? t('Can change the site') : undefined}
                       >
                         {scope}
                       </code>
                     ))}
                   </td>
-                  <td className="token-muted">{formatDate(token.lastUsedAt) ?? 'Never'}</td>
-                  <td className="token-muted">{formatDate(token.expiresAt) ?? 'Never'}</td>
+                  <td className="token-muted">{formatDate(token.lastUsedAt, locale) ?? t('Never')}</td>
+                  <td className="token-muted">{formatDate(token.expiresAt, locale) ?? t('Never')}</td>
                   <td>
                     <button
                       onClick={() => handleRevoke(token)}
                       className="admin-btn admin-btn-secondary"
                     >
-                      Revoke
+                      {t('Revoke')}
                     </button>
                   </td>
                 </tr>
@@ -284,12 +279,12 @@ export default function AdminTokens() {
 }
 
 /** Dates arrive as ISO strings, or null for "has not happened". */
-function formatDate(value: string | null): string | null {
+function formatDate(value: string | null, locale: string): string | null {
   if (!value) return null
 
   const date = new Date(value)
 
-  return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString()
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString(locale)
 }
 
 const tokenStyles = `

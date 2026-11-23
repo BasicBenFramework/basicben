@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import { useT, slots } from '../../i18n'
 
 /**
  * Custom taxonomies and their terms.
@@ -39,6 +40,7 @@ const EMPTY_TAXONOMY = { key: '', singular_label: '', plural_label: '', descript
 const EMPTY_TERM = { name: '', slug: '', description: '', parent_id: '' as number | '' }
 
 export default function AdminTaxonomies() {
+  const { t } = useT()
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([])
   const [types, setTypes] = useState<ContentTypeOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,7 +65,7 @@ export default function AdminTaxonomies() {
       ])
       setTaxonomies(taxRes?.taxonomies || [])
       setTypes(typeRes?.content_types || [])
-      if (selected) setSelected((taxRes?.taxonomies || []).find(t => t.id === selected.id) ?? null)
+      if (selected) setSelected((taxRes?.taxonomies || []).find(tx => tx.id === selected.id) ?? null)
     } catch (error) {
       console.error('Failed to load taxonomies:', error)
     } finally {
@@ -91,18 +93,18 @@ export default function AdminTaxonomies() {
       setEditingTaxonomy(null)
       await load()
     } catch (error: any) {
-      alert(error.message || 'Could not save the taxonomy')
+      alert(error.message || t('Could not save the taxonomy'))
     }
   }
 
   const removeTaxonomy = async (taxonomy: Taxonomy) => {
-    if (!confirm(`Delete ${taxonomy.plural_label} and all of its terms? Posts keep everything else.`)) return
+    if (!confirm(t('Delete {name} and all of its terms? Posts keep everything else.', { name: taxonomy.plural_label }))) return
     try {
       await api.delete(`/api/taxonomies/${taxonomy.id}`)
       if (selected?.id === taxonomy.id) setSelected(null)
       await load()
     } catch (error: any) {
-      alert(error.message || 'Could not delete the taxonomy')
+      alert(error.message || t('Could not delete the taxonomy'))
     }
   }
 
@@ -117,17 +119,17 @@ export default function AdminTaxonomies() {
       setEditingTerm(null)
       await loadTerms(selected)
     } catch (error: any) {
-      alert(error.message || 'Could not save the term')
+      alert(error.message || t('Could not save the term'))
     }
   }
 
   const removeTerm = async (term: Term) => {
-    if (!selected || !confirm(`Delete “${term.name}”? Posts filed under it lose it.`)) return
+    if (!selected || !confirm(t('Delete “{name}”? Posts filed under it lose it.', { name: term.name }))) return
     try {
       await api.delete(`/api/terms/${term.id}`)
       await loadTerms(selected)
     } catch (error: any) {
-      alert(error.message || 'Could not delete the term')
+      alert(error.message || t('Could not delete the term'))
     }
   }
 
@@ -140,31 +142,31 @@ export default function AdminTaxonomies() {
 
   if (loading) {
     return (
-      <AdminLayout title="Taxonomies">
-        <div className="admin-loading">Loading...</div>
+      <AdminLayout title={t('Taxonomies')}>
+        <div className="admin-loading">{t('Loading...')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title="Taxonomies">
+    <AdminLayout title={t('Taxonomies')}>
       <div className="admin-grid admin-grid-2">
         <div>
           <div className="admin-card">
             <div className="admin-card-header">
-              <h2 className="admin-card-title">Taxonomies</h2>
+              <h2 className="admin-card-title">{t('Taxonomies')}</h2>
               <button type="button" className="admin-btn admin-btn-primary" onClick={() => {
                 setEditingTaxonomy(null)
                 setTaxonomyForm(EMPTY_TAXONOMY)
                 setShowTaxonomyForm(true)
-              }}>+ New taxonomy</button>
+              }}>{t('+ New taxonomy')}</button>
             </div>
             <p style={{ color: 'var(--fg-muted)', marginTop: 0 }}>
-              Categories and tags are built in. Add others — a cuisine, a season — and choose which content types use them.
+              {t('Categories and tags are built in. Add others — a cuisine, a season — and choose which content types use them.')}
             </p>
 
             {taxonomies.length === 0 ? (
-              <p style={{ color: 'var(--fg-muted)' }}>No custom taxonomies yet.</p>
+              <p style={{ color: 'var(--fg-muted)' }}>{t('No custom taxonomies yet.')}</p>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.5rem' }}>
                 {taxonomies.map(taxonomy => (
@@ -174,14 +176,14 @@ export default function AdminTaxonomies() {
                       {taxonomy.plural_label}
                     </button>
                     <small style={{ color: 'var(--fg-muted)', marginRight: 'auto' }}>
-                      <code>{taxonomy.key}</code> · {taxonomy.content_types.join(', ') || 'no types'}
+                      <code>{taxonomy.key}</code> · {taxonomy.content_types.join(', ') || t('no types')}
                     </small>
                     <button type="button" className="admin-btn admin-btn-secondary" onClick={() => {
                       setEditingTaxonomy(taxonomy)
                       setTaxonomyForm({ ...taxonomy, description: taxonomy.description ?? '' })
                       setShowTaxonomyForm(true)
-                    }}>Edit</button>
-                    <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeTaxonomy(taxonomy)}>Delete</button>
+                    }}>{t('Edit')}</button>
+                    <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeTaxonomy(taxonomy)}>{t('Delete')}</button>
                   </li>
                 ))}
               </ul>
@@ -190,30 +192,30 @@ export default function AdminTaxonomies() {
 
           {showTaxonomyForm && (
             <form className="admin-card" onSubmit={saveTaxonomy}>
-              <h3 className="admin-card-title">{editingTaxonomy ? `Edit ${editingTaxonomy.plural_label}` : 'New taxonomy'}</h3>
+              <h3 className="admin-card-title">{editingTaxonomy ? t('Edit {name}', { name: editingTaxonomy.plural_label }) : t('New taxonomy')}</h3>
               <div className="admin-form-group">
-                <label className="admin-label" htmlFor="tx-singular">Singular label</label>
+                <label className="admin-label" htmlFor="tx-singular">{t('Singular label')}</label>
                 <input id="tx-singular" className="admin-input" required value={taxonomyForm.singular_label}
-                  onChange={e => setTaxonomyForm({ ...taxonomyForm, singular_label: e.target.value })} placeholder="Cuisine" />
+                  onChange={e => setTaxonomyForm({ ...taxonomyForm, singular_label: e.target.value })} placeholder={t('Cuisine')} />
               </div>
               <div className="admin-form-group">
-                <label className="admin-label" htmlFor="tx-plural">Plural label</label>
+                <label className="admin-label" htmlFor="tx-plural">{t('Plural label')}</label>
                 <input id="tx-plural" className="admin-input" required value={taxonomyForm.plural_label}
-                  onChange={e => setTaxonomyForm({ ...taxonomyForm, plural_label: e.target.value })} placeholder="Cuisines" />
+                  onChange={e => setTaxonomyForm({ ...taxonomyForm, plural_label: e.target.value })} placeholder={t('Cuisines')} />
               </div>
               <div className="admin-form-group">
-                <label className="admin-label" htmlFor="tx-key">Key</label>
+                <label className="admin-label" htmlFor="tx-key">{t('Key')}</label>
                 <input id="tx-key" className="admin-input" required disabled={Boolean(editingTaxonomy)} value={taxonomyForm.key}
-                  onChange={e => setTaxonomyForm({ ...taxonomyForm, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })} placeholder="cuisine" />
-                <small style={{ color: 'var(--fg-muted)' }}>Used in <code>?tax=key:slug</code>. Fixed once created.</small>
+                  onChange={e => setTaxonomyForm({ ...taxonomyForm, key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })} placeholder={t('cuisine')} />
+                <small style={{ color: 'var(--fg-muted)' }}>{slots(t('Used in {code}. Fixed once created.'), { code: <code>?tax=key:slug</code> })}</small>
               </div>
               <div className="admin-form-group">
-                <label className="admin-label" htmlFor="tx-description">Description</label>
+                <label className="admin-label" htmlFor="tx-description">{t('Description')}</label>
                 <textarea id="tx-description" className="admin-textarea" value={taxonomyForm.description}
                   onChange={e => setTaxonomyForm({ ...taxonomyForm, description: e.target.value })} style={{ minHeight: '60px' }} />
               </div>
               <fieldset className="admin-form-group" style={{ border: 'none', padding: 0 }}>
-                <legend className="admin-label">Used by</legend>
+                <legend className="admin-label">{t('Used by')}</legend>
                 {types.map(type => (
                   <label key={type.key} style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                     <input type="checkbox" checked={taxonomyForm.content_types.includes(type.key)} onChange={() => toggleType(type.key)} />
@@ -224,16 +226,16 @@ export default function AdminTaxonomies() {
               <div className="admin-form-group">
                 <label style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                   <input type="checkbox" checked={taxonomyForm.hierarchical} onChange={e => setTaxonomyForm({ ...taxonomyForm, hierarchical: e.target.checked })} />
-                  Terms can have parents
+                  {t('Terms can have parents')}
                 </label>
                 <label style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                   <input type="checkbox" checked={taxonomyForm.public} onChange={e => setTaxonomyForm({ ...taxonomyForm, public: e.target.checked })} />
-                  Public — in the content API and on the public site
+                  {t('Public — in the content API and on the public site')}
                 </label>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button type="submit" className="admin-btn admin-btn-primary">Save</button>
-                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setShowTaxonomyForm(false)}>Cancel</button>
+                <button type="submit" className="admin-btn admin-btn-primary">{t('Save')}</button>
+                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setShowTaxonomyForm(false)}>{t('Cancel')}</button>
               </div>
             </form>
           )}
@@ -241,43 +243,43 @@ export default function AdminTaxonomies() {
 
         <div className="admin-card">
           {!selected ? (
-            <p style={{ color: 'var(--fg-muted)' }}>Choose a taxonomy to manage its terms.</p>
+            <p style={{ color: 'var(--fg-muted)' }}>{t('Choose a taxonomy to manage its terms.')}</p>
           ) : (
             <>
               <h3 className="admin-card-title">{selected.plural_label}</h3>
               <form onSubmit={saveTerm} style={{ marginBottom: '1rem' }}>
                 <div className="admin-form-group">
-                  <label className="admin-label" htmlFor="term-name">{editingTerm ? `Edit ${selected.singular_label.toLowerCase()}` : `New ${selected.singular_label.toLowerCase()}`}</label>
+                  <label className="admin-label" htmlFor="term-name">{editingTerm ? t('Edit {name}', { name: selected.singular_label.toLowerCase() }) : t('New {name}', { name: selected.singular_label.toLowerCase() })}</label>
                   <input id="term-name" className="admin-input" required value={termForm.name}
-                    onChange={e => setTermForm({ ...termForm, name: e.target.value })} placeholder="Name" />
+                    onChange={e => setTermForm({ ...termForm, name: e.target.value })} placeholder={t('Name')} />
                 </div>
                 <div className="admin-form-group">
-                  <input className="admin-input" aria-label="Slug" value={termForm.slug}
-                    onChange={e => setTermForm({ ...termForm, slug: e.target.value })} placeholder="slug (from the name if blank)" />
+                  <input className="admin-input" aria-label={t('Slug')} value={termForm.slug}
+                    onChange={e => setTermForm({ ...termForm, slug: e.target.value })} placeholder={t('slug (from the name if blank)')} />
                 </div>
                 {selected.hierarchical && (
                   <div className="admin-form-group">
-                    <select className="admin-input" aria-label="Parent" value={termForm.parent_id}
+                    <select className="admin-input" aria-label={t('Parent')} value={termForm.parent_id}
                       onChange={e => setTermForm({ ...termForm, parent_id: e.target.value ? Number(e.target.value) : '' })}>
-                      <option value="">No parent</option>
-                      {terms.filter(t => t.id !== editingTerm?.id).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      <option value="">{t('No parent')}</option>
+                      {terms.filter(term => term.id !== editingTerm?.id).map(term => <option key={term.id} value={term.id}>{term.name}</option>)}
                     </select>
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="submit" className="admin-btn admin-btn-primary">{editingTerm ? 'Update' : 'Add'}</button>
+                  <button type="submit" className="admin-btn admin-btn-primary">{editingTerm ? t('Update') : t('Add')}</button>
                   {editingTerm && (
-                    <button type="button" className="admin-btn admin-btn-secondary" onClick={() => { setEditingTerm(null); setTermForm(EMPTY_TERM) }}>Cancel</button>
+                    <button type="button" className="admin-btn admin-btn-secondary" onClick={() => { setEditingTerm(null); setTermForm(EMPTY_TERM) }}>{t('Cancel')}</button>
                   )}
                 </div>
               </form>
 
               {terms.length === 0 ? (
-                <p style={{ color: 'var(--fg-muted)' }}>No terms yet.</p>
+                <p style={{ color: 'var(--fg-muted)' }}>{t('No terms yet.')}</p>
               ) : (
                 <table className="admin-table">
                   <thead>
-                    <tr><th>Name</th><th>Slug</th><th>Posts</th><th>Actions</th></tr>
+                    <tr><th>{t('Name')}</th><th>{t('Slug')}</th><th>{t('Posts')}</th><th>{t('Actions')}</th></tr>
                   </thead>
                   <tbody>
                     {terms.map(term => (
@@ -290,8 +292,8 @@ export default function AdminTaxonomies() {
                             <button type="button" className="admin-btn admin-btn-secondary" onClick={() => {
                               setEditingTerm(term)
                               setTermForm({ name: term.name, slug: term.slug, description: term.description ?? '', parent_id: term.parent_id ?? '' })
-                            }}>Edit</button>
-                            <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeTerm(term)}>Delete</button>
+                            }}>{t('Edit')}</button>
+                            <button type="button" className="admin-btn admin-btn-danger" onClick={() => removeTerm(term)}>{t('Delete')}</button>
                           </div>
                         </td>
                       </tr>
@@ -306,3 +308,4 @@ export default function AdminTaxonomies() {
     </AdminLayout>
   )
 }
+

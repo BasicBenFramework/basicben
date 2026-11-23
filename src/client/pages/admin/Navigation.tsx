@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
+import { useT, slots } from '../../i18n'
 
 type TargetType = 'post' | 'page' | 'category'
 
@@ -59,6 +60,7 @@ function displayOrder(items: MenuItem[]): MenuItem[] {
  * it is unpublished or trashed — see /api/v1/navigation.
  */
 export default function AdminNavigation() {
+  const { t, tn } = useT()
   const [menus, setMenus] = useState<Menu[]>([])
   const [activeId, setActiveId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
@@ -109,10 +111,13 @@ export default function AdminNavigation() {
   const menu = menus.find(m => m.id === activeId) || null
   const ordered = menu ? displayOrder(menu.items) : []
 
+  const kindLabels: Record<TargetType, string> = { post: t('Post'), page: t('Page'), category: t('Category') }
+  const whichLabels: Record<TargetType, string> = { post: t('Which post'), page: t('Which page'), category: t('Which category') }
+
   const describe = (item: MenuItem) => {
     if (!item.target_type) return item.url
     const found = options[item.target_type].find(o => o.id === item.target_id)
-    return `${item.target_type}: ${found?.label ?? `#${item.target_id}`}`
+    return t('{kind}: {target}', { kind: kindLabels[item.target_type], target: found?.label ?? `#${item.target_id}` })
   }
 
   const resetForm = () => {
@@ -141,7 +146,7 @@ export default function AdminNavigation() {
       resetForm()
       loadMenus(menu.id)
     } catch (err: any) {
-      setError(err.message || 'Failed to save item')
+      setError(err.message || t('Failed to save item'))
     }
   }
 
@@ -160,14 +165,16 @@ export default function AdminNavigation() {
 
   const handleDelete = async (item: MenuItem) => {
     const children = menu?.items.filter(i => i.parent_id === item.id).length || 0
-    const warning = children ? ` Its ${children} nested item(s) will be removed too.` : ''
-    if (!confirm(`Remove "${item.label}" from this menu?${warning}`)) return
+    const question = children
+      ? tn('Remove "{label}" from this menu? Its {count} nested item will be removed too.', 'Remove "{label}" from this menu? Its {count} nested items will be removed too.', children, { label: item.label })
+      : t('Remove "{label}" from this menu?', { label: item.label })
+    if (!confirm(question)) return
 
     try {
       await api.delete(`/api/navigation/items/${item.id}`)
       loadMenus(menu?.id)
     } catch {
-      alert('Failed to delete item')
+      alert(t('Failed to delete item'))
     }
   }
 
@@ -178,7 +185,7 @@ export default function AdminNavigation() {
       await api.put(`/api/navigation/menus/${menu.id}/reorder`, { items: next })
       loadMenus(menu.id)
     } catch (err: any) {
-      alert(err.message || 'Failed to reorder')
+      alert(err.message || t('Failed to reorder'))
     }
   }
 
@@ -228,25 +235,25 @@ export default function AdminNavigation() {
       setNewMenu({ name: '', location: '' })
       loadMenus(res.menu.id)
     } catch (err: any) {
-      alert(err.message || 'Failed to create menu')
+      alert(err.message || t('Failed to create menu'))
     }
   }
 
   const handleDeleteMenu = async () => {
-    if (!menu || !confirm(`Delete the "${menu.name}" menu and all its items?`)) return
+    if (!menu || !confirm(t('Delete the "{name}" menu and all its items?', { name: menu.name }))) return
     try {
       await api.delete(`/api/navigation/menus/${menu.id}`)
       setActiveId(null)
       loadMenus()
     } catch (err: any) {
-      alert(err.message || 'Failed to delete menu')
+      alert(err.message || t('Failed to delete menu'))
     }
   }
 
   if (loading) {
     return (
-      <AdminLayout title="Navigation">
-        <div className="admin-loading">Loading...</div>
+      <AdminLayout title={t('Navigation')}>
+        <div className="admin-loading">{t('Loading...')}</div>
       </AdminLayout>
     )
   }
@@ -254,7 +261,7 @@ export default function AdminNavigation() {
   const topLevel = ordered.filter(i => !i.parent_id && i.id !== editingId)
 
   return (
-    <AdminLayout title="Navigation">
+    <AdminLayout title={t('Navigation')}>
       <div className="admin-card">
         <div className="admin-card-header">
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -271,23 +278,22 @@ export default function AdminNavigation() {
           </div>
           {menu && !BUILT_IN.includes(menu.location) && (
             <button type="button" onClick={handleDeleteMenu} className="admin-btn admin-btn-danger">
-              Delete menu
+              {t('Delete menu')}
             </button>
           )}
         </div>
         <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
-          Your front end reads these from <code>/api/v1/navigation</code>, keyed by location. Links to
-          posts, pages and categories follow their slug and are hidden while unpublished.
+          {slots(t('Your front end reads these from {path}, keyed by location. Links to posts, pages and categories follow their slug and are hidden while unpublished.'), { path: <code>{'/api/v1/navigation'}</code> })}
         </p>
       </div>
 
       {menu && (
         <div className="admin-grid admin-grid-2">
           <div className="admin-card">
-            <h3 className="admin-card-title">{editingId ? 'Edit Item' : 'Add Item'}</h3>
+            <h3 className="admin-card-title">{editingId ? t('Edit Item') : t('Add Item')}</h3>
             <form onSubmit={handleSubmit}>
               <div className="admin-form-group">
-                <label className="admin-label">Label</label>
+                <label className="admin-label">{t('Label')}</label>
                 <input
                   type="text"
                   value={form.label}
@@ -298,16 +304,16 @@ export default function AdminNavigation() {
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label">Links to</label>
+                <label className="admin-label">{t('Links to')}</label>
                 <select
                   value={form.kind}
                   onChange={e => setForm({ ...form, kind: e.target.value as typeof form.kind, target_id: '' })}
                   className="admin-select"
                 >
-                  <option value="url">A URL</option>
-                  <option value="page">A page</option>
-                  <option value="post">A post</option>
-                  <option value="category">A category</option>
+                  <option value="url">{t('A URL')}</option>
+                  <option value="page">{t('A page')}</option>
+                  <option value="post">{t('A post')}</option>
+                  <option value="category">{t('A category')}</option>
                 </select>
               </div>
 
@@ -319,20 +325,20 @@ export default function AdminNavigation() {
                     value={form.url}
                     onChange={e => setForm({ ...form, url: e.target.value })}
                     className="admin-input"
-                    placeholder="/about, https://example.com or mailto:hi@example.com"
+                    placeholder={t('/about, https://example.com or mailto:hi@example.com')}
                     required
                   />
                 </div>
               ) : (
                 <div className="admin-form-group">
-                  <label className="admin-label">Which {form.kind}</label>
+                  <label className="admin-label">{whichLabels[form.kind]}</label>
                   <select
                     value={form.target_id}
                     onChange={e => setForm({ ...form, target_id: e.target.value })}
                     className="admin-select"
                     required
                   >
-                    <option value="">Choose…</option>
+                    <option value="">{t('Choose…')}</option>
                     {options[form.kind].map(o => (
                       <option key={o.id} value={o.id}>{o.label}</option>
                     ))}
@@ -341,13 +347,13 @@ export default function AdminNavigation() {
               )}
 
               <div className="admin-form-group">
-                <label className="admin-label">Parent</label>
+                <label className="admin-label">{t('Parent')}</label>
                 <select
                   value={form.parent_id}
                   onChange={e => setForm({ ...form, parent_id: e.target.value })}
                   className="admin-select"
                 >
-                  <option value="">None (top level)</option>
+                  <option value="">{t('None (top level)')}</option>
                   {topLevel.map(i => (
                     <option key={i.id} value={i.id}>{i.label}</option>
                   ))}
@@ -361,7 +367,7 @@ export default function AdminNavigation() {
                     checked={form.open_in_new_tab}
                     onChange={e => setForm({ ...form, open_in_new_tab: e.target.checked })}
                   />
-                  Open in a new tab
+                  {t('Open in a new tab')}
                 </label>
               </div>
 
@@ -369,11 +375,11 @@ export default function AdminNavigation() {
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button type="submit" className="admin-btn admin-btn-primary">
-                  {editingId ? 'Update' : 'Add Item'}
+                  {editingId ? t('Update') : t('Add Item')}
                 </button>
                 {editingId && (
                   <button type="button" onClick={resetForm} className="admin-btn admin-btn-secondary">
-                    Cancel
+                    {t('Cancel')}
                   </button>
                 )}
               </div>
@@ -381,9 +387,9 @@ export default function AdminNavigation() {
           </div>
 
           <div className="admin-card">
-            <h3 className="admin-card-title">{menu.name} menu</h3>
+            <h3 className="admin-card-title">{t('{name} menu', { name: menu.name })}</h3>
             {ordered.length === 0 ? (
-              <p style={{ color: 'var(--fg-muted)' }}>No items yet.</p>
+              <p style={{ color: 'var(--fg-muted)' }}>{t('No items yet.')}</p>
             ) : (
               <div className="admin-stack">
                 {ordered.map(item => (
@@ -405,13 +411,13 @@ export default function AdminNavigation() {
                         {describe(item)}
                       </div>
                     </div>
-                    <button type="button" title="Move up" onClick={() => move(item, -1)} className="admin-btn admin-btn-secondary">↑</button>
-                    <button type="button" title="Move down" onClick={() => move(item, 1)} className="admin-btn admin-btn-secondary">↓</button>
+                    <button type="button" title={t('Move up')} onClick={() => move(item, -1)} className="admin-btn admin-btn-secondary">↑</button>
+                    <button type="button" title={t('Move down')} onClick={() => move(item, 1)} className="admin-btn admin-btn-secondary">↓</button>
                     {item.parent_id
-                      ? <button type="button" title="Move to top level" onClick={() => outdent(item)} className="admin-btn admin-btn-secondary">←</button>
-                      : <button type="button" title="Nest under the item above" onClick={() => indent(item)} className="admin-btn admin-btn-secondary">→</button>}
-                    <button type="button" onClick={() => handleEdit(item)} className="admin-btn admin-btn-secondary">Edit</button>
-                    <button type="button" onClick={() => handleDelete(item)} className="admin-btn admin-btn-danger">Delete</button>
+                      ? <button type="button" title={t('Move to top level')} onClick={() => outdent(item)} className="admin-btn admin-btn-secondary">←</button>
+                      : <button type="button" title={t('Nest under the item above')} onClick={() => indent(item)} className="admin-btn admin-btn-secondary">→</button>}
+                    <button type="button" onClick={() => handleEdit(item)} className="admin-btn admin-btn-secondary">{t('Edit')}</button>
+                    <button type="button" onClick={() => handleDelete(item)} className="admin-btn admin-btn-danger">{t('Delete')}</button>
                   </div>
                 ))}
               </div>
@@ -421,32 +427,32 @@ export default function AdminNavigation() {
       )}
 
       <div className="admin-card">
-        <h3 className="admin-card-title">Add a Menu Location</h3>
+        <h3 className="admin-card-title">{t('Add a Menu Location')}</h3>
         <form onSubmit={handleCreateMenu} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div className="admin-form-group" style={{ marginBottom: 0 }}>
-            <label className="admin-label">Name</label>
+            <label className="admin-label">{t('Name')}</label>
             <input
               type="text"
               value={newMenu.name}
               onChange={e => setNewMenu({ ...newMenu, name: e.target.value })}
               className="admin-input"
-              placeholder="Social links"
+              placeholder={t('Social links')}
               required
             />
           </div>
           <div className="admin-form-group" style={{ marginBottom: 0 }}>
-            <label className="admin-label">Location</label>
+            <label className="admin-label">{t('Location')}</label>
             <input
               type="text"
               value={newMenu.location}
               onChange={e => setNewMenu({ ...newMenu, location: e.target.value })}
               className="admin-input"
-              placeholder="social"
+              placeholder={'social'}
               pattern="[a-z][a-z0-9_\-]*"
               required
             />
           </div>
-          <button type="submit" className="admin-btn admin-btn-secondary">Add Menu</button>
+          <button type="submit" className="admin-btn admin-btn-secondary">{t('Add Menu')}</button>
         </form>
       </div>
     </AdminLayout>

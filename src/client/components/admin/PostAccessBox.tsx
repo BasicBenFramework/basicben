@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../../helpers/api'
+import { useT } from '../../i18n'
 
 /**
  * Who may read a post, and whether it is emailed to members.
@@ -33,6 +34,7 @@ interface PostAccessBoxProps {
 }
 
 export default function PostAccessBox({ postId, visibility, sendNewsletter, disabled, onChange }: PostAccessBoxProps) {
+  const { t } = useT()
   const [send, setSend] = useState<NewsletterSend | null>(null)
   const [maySend, setMaySend] = useState(true)
   const [testing, setTesting] = useState(false)
@@ -64,9 +66,9 @@ export default function PostAccessBox({ postId, visibility, sendNewsletter, disa
     setMessage('')
     try {
       const res = await api.post<{ message: string }>(`/api/posts/${postId}/newsletter/test`, {})
-      setMessage(res?.message || 'Sent.')
+      setMessage(res?.message || t('Sent.'))
     } catch (err: any) {
-      setMessage(err.message || 'Could not send the test.')
+      setMessage(err.message || t('Could not send the test.'))
     } finally {
       setTesting(false)
     }
@@ -74,10 +76,10 @@ export default function PostAccessBox({ postId, visibility, sendNewsletter, disa
 
   return (
     <div className="admin-card">
-      <h3 className="admin-card-title">Access &amp; newsletter</h3>
+      <h3 className="admin-card-title">{t('Access & newsletter')}</h3>
 
       <div className="admin-form-group">
-        <label className="admin-label" htmlFor="visibility">Who can read it</label>
+        <label className="admin-label" htmlFor="visibility">{t('Who can read it')}</label>
         <select
           id="visibility"
           value={visibility}
@@ -85,14 +87,14 @@ export default function PostAccessBox({ postId, visibility, sendNewsletter, disa
           onChange={e => onChange({ visibility: e.target.value as Visibility })}
           className="admin-input"
         >
-          <option value="public">Everyone</option>
-          <option value="members">Members only</option>
-          <option value="paid">Paid members (treated as members for now)</option>
+          <option value="public">{t('Everyone')}</option>
+          <option value="members">{t('Members only')}</option>
+          <option value="paid">{t('Paid members (treated as members for now)')}</option>
         </select>
         <small style={{ color: 'var(--fg-muted)' }}>
           {visibility === 'public'
-            ? 'The whole post is public.'
-            : 'Title, excerpt and image stay public; the body needs a member sign-in.'}
+            ? t('The whole post is public.')
+            : t('Title, excerpt and image stay public; the body needs a member sign-in.')}
         </small>
       </div>
 
@@ -100,14 +102,18 @@ export default function PostAccessBox({ postId, visibility, sendNewsletter, disa
         <div className="admin-form-group">
           <p style={{ margin: 0 }}>
             <span className={`admin-badge ${send.status === 'sent' ? 'admin-badge-success' : 'admin-badge-warning'}`}>
-              {send.status === 'sent' ? 'Newsletter sent' : 'Newsletter sending'}
+              {send.status === 'sent' ? t('Newsletter sent') : t('Newsletter sending')}
             </span>
           </p>
           <small style={{ color: 'var(--fg-muted)' }}>
-            {send.sent_count} of {send.total_count} delivered
-            {send.failed_count ? `, ${send.failed_count} failed` : ''}
-            {send.skipped_count ? `, ${send.skipped_count} skipped` : ''}.
-            {' '}A post is only ever sent once.
+            {(() => {
+              const counts = { sent: send.sent_count, total: send.total_count, failed: send.failed_count, skipped: send.skipped_count }
+              if (send.failed_count && send.skipped_count) return t('{sent} of {total} delivered, {failed} failed, {skipped} skipped.', counts)
+              if (send.failed_count) return t('{sent} of {total} delivered, {failed} failed.', counts)
+              if (send.skipped_count) return t('{sent} of {total} delivered, {skipped} skipped.', counts)
+              return t('{sent} of {total} delivered.', counts)
+            })()}
+            {' '}{t('A post is only ever sent once.')}
           </small>
         </div>
       ) : (
@@ -119,12 +125,12 @@ export default function PostAccessBox({ postId, visibility, sendNewsletter, disa
               disabled={disabled || !maySend}
               onChange={e => onChange({ send_newsletter: e.target.checked })}
             />
-            Email to subscribed members when it goes live
+            {t('Email to subscribed members when it goes live')}
           </label>
           <small style={{ color: 'var(--fg-muted)' }}>
             {maySend
-              ? 'Sent once, when the post is published (or when its schedule arrives).'
-              : 'An editor or admin can send a post as a newsletter.'}
+              ? t('Sent once, when the post is published (or when its schedule arrives).')
+              : t('An editor or admin can send a post as a newsletter.')}
           </small>
         </div>
       )}
@@ -132,10 +138,10 @@ export default function PostAccessBox({ postId, visibility, sendNewsletter, disa
       {postId && (
         <div className="admin-form-group">
           <button type="button" className="admin-btn admin-btn-secondary" onClick={sendTest} disabled={testing}>
-            {testing ? 'Sending…' : 'Send a test to me'}
+            {testing ? t('Sending…') : t('Send a test to me')}
           </button>
           {message && <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem', margin: '0.5rem 0 0' }}>{message}</p>}
-          <small style={{ display: 'block', color: 'var(--fg-muted)' }}>Uses the last saved version.</small>
+          <small style={{ display: 'block', color: 'var(--fg-muted)' }}>{t('Uses the last saved version.')}</small>
         </div>
       )}
     </div>

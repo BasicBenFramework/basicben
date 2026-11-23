@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { t } from '../i18n'
 
 /**
  * The editor's side of the post edit lock (see src/models/PostLock.ts).
@@ -64,7 +65,7 @@ export function usePostLock(postId: number | null, enabled: boolean) {
     } else if (code === 409 && lock) {
       if (statusRef.current === 'held') setLostIt(true)
       setStatus('blocked')
-      setHolder(lock.user_name || 'Someone else')
+      setHolder(lock.user_name || t('Someone else'))
     } else if (code === 0 || code >= 500) {
       // A dropped request is not a lost lock: keep whatever we had and try
       // again on the next beat. The lock outlives four missed beats.

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import AdminLayout from '../../layouts/AdminLayout'
+import { useT, slots } from '../../i18n'
 
 /**
  * Export and import.
@@ -12,6 +13,7 @@ import AdminLayout from '../../layouts/AdminLayout'
  * from a shell with a dry run first, so this page explains how.
  */
 export default function AdminTools() {
+  const { t } = useT()
   const [revisions, setRevisions] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +32,7 @@ export default function AdminTools() {
 
       if (!res.ok) {
         const body = await res.json().catch(() => null)
-        throw new Error(body?.error || `Export failed (${res.status})`)
+        throw new Error(body?.error || t('Export failed ({status})', { status: res.status }))
       }
 
       const blob = await res.blob()
@@ -45,41 +47,39 @@ export default function AdminTools() {
       link.remove()
       URL.revokeObjectURL(url)
     } catch (err) {
-      setError((err as Error).message || 'Export failed')
+      setError((err as Error).message || t('Export failed'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <AdminLayout title="Tools">
+    <AdminLayout title={t('Tools')}>
       <style>{toolStyles}</style>
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Export</h2>
+          <h2 className="admin-card-title">{t('Export')}</h2>
         </div>
 
         <div className="tools-body">
           <p>
-            Download the whole site as one JSON file: posts, pages, categories, tags, comments,
-            users, media records, settings, and menus and redirects where those exist.
+            {t('Download the whole site as one JSON file: posts, pages, categories, tags, comments, users, media records, settings, and menus and redirects where those exist.')}
           </p>
           <p className="tools-muted">
-            Passwords, two-factor secrets, passkeys, API tokens and credential-looking settings
-            are never included. Media files themselves are not in the file — only their records.
+            {t('Passwords, two-factor secrets, passkeys, API tokens and credential-looking settings are never included. Media files themselves are not in the file — only their records.')}
           </p>
 
           <label className="tools-check">
             <input type="checkbox" checked={revisions} onChange={e => setRevisions(e.target.checked)} />
-            Include revision history (can make the file much larger)
+            {t('Include revision history (can make the file much larger)')}
           </label>
 
           {error && <div className="tools-error">{error}</div>}
 
           <div>
             <button type="button" className="admin-btn admin-btn-primary" onClick={handleExport} disabled={busy}>
-              {busy ? 'Exporting…' : 'Download export'}
+              {busy ? t('Exporting…') : t('Download export')}
             </button>
           </div>
         </div>
@@ -87,35 +87,30 @@ export default function AdminTools() {
 
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Import</h2>
+          <h2 className="admin-card-title">{t('Import')}</h2>
         </div>
 
         <div className="tools-body">
           <p>
-            Imports run from a terminal on a machine that can reach the database, not from this
-            page — they write a lot and can take a while. Every importer has a <code>--dry-run</code>{' '}
-            that reports what it would do and writes nothing. Run that first.
+            {slots(t('Imports run from a terminal on a machine that can reach the database, not from this page — they write a lot and can take a while. Every importer has a {flag} that reports what it would do and writes nothing. Run that first.'), { flag: <code>{'--dry-run'}</code> })}
           </p>
 
           <dl className="tools-list">
-            <dt>Another BasicBen site (an export from the button above)</dt>
+            <dt>{t('Another BasicBen site (an export from the button above)')}</dt>
             <dd><code>node --env-file=.env scripts/import-json.mjs basicben-export.json --dry-run</code></dd>
 
-            <dt>WordPress export file (Tools → Export in wp-admin)</dt>
+            <dt>{t('WordPress export file (Tools → Export in wp-admin)')}</dt>
             <dd><code>node --env-file=.env scripts/import-wxr.mjs wordpress.xml --dry-run</code></dd>
 
-            <dt>A live WordPress site, over its REST API</dt>
+            <dt>{t('A live WordPress site, over its REST API')}</dt>
             <dd><code>node --env-file=.env scripts/import-wordpress.mjs --url https://old.example.com --dry-run</code></dd>
 
-            <dt>Ghost export (Settings → Labs → Export)</dt>
+            <dt>{t('Ghost export (Settings → Labs → Export)')}</dt>
             <dd><code>node --env-file=.env scripts/import-ghost.mjs ghost.json --url https://old.example.com --dry-run</code></dd>
           </dl>
 
           <p className="tools-muted">
-            Content that already exists here (matched by slug) is left alone unless you pass{' '}
-            <code>--update</code>, so re-running is safe. Imported authors get the Author role and
-            no password; they sign in with “forgot password”. Media is recorded at its existing
-            address, not copied. See <code>docs/import-export.md</code> for the details.
+            {slots(t('Content that already exists here (matched by slug) is left alone unless you pass {flag}, so re-running is safe. Imported authors get the Author role and no password; they sign in with “forgot password”. Media is recorded at its existing address, not copied. See {doc} for the details.'), { flag: <code>{'--update'}</code>, doc: <code>{'docs/import-export.md'}</code> })}
           </p>
         </div>
       </div>

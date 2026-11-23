@@ -118,7 +118,7 @@ describe('admin translations', () => {
 })
 
 // Text that is the same in every language.
-const IGNORED = new Set(['BasicBen', 'B', 'URL', 'API', 'RSS', 'JSON', 'HTML', 'CSV', 'S3', 'SMTP', 'OK', 'ID', 'oEmbed', 'Markdown', 'TOTP'])
+const IGNORED = new Set(['BasicBen', 'B', 'URL', 'API', 'RSS', 'JSON', 'HTML', 'CSV', 'S3', 'SMTP', 'OK', 'ID', 'oEmbed', 'Markdown', 'TOTP', 'https://', 'robots.txt'])
 
 function stripComments(source) {
   return source
@@ -131,7 +131,13 @@ describe('no untranslated text in the admin', () => {
   for (const file of adminFiles().filter((f) => f.endsWith('.tsx') && !f.endsWith('AdminIcons.tsx'))) {
     test(file, () => {
       // Styles are template strings of CSS, not text.
-      const source = stripComments(read(file)).replace(/const \w*[sS]tyles = `[\s\S]*?`/g, '')
+      const source = stripComments(read(file))
+        .replace(/const \w*[sS]tyles = `[\s\S]*?`/g, '')
+        // Code samples are the same in every language.
+        .replace(/<code>[\s\S]*?<\/code>/g, '<code></code>')
+        // TypeScript generics (`api.get<{ … }>(`, `Promise<boolean>`) look like
+        // tags to a regex; nothing between an identifier and `<` is JSX text.
+        .replace(/(\w)<(?=[\w{[(])/g, '$1 ‹')
       const found = []
 
       // Text between tags: `>Save changes<`, `>Delete {name}?<` style fragments.
@@ -140,6 +146,8 @@ describe('no untranslated text in the admin', () => {
         if (!text || IGNORED.has(text) || /^[\s\W\d]*$/.test(text)) continue
         // Generic type arguments and arrow functions look like tags to a regex.
         if (/=>|\)\s*$|^\s*[,;)]|&&|\|\||[=(]/.test(text)) continue
+        // Statements between two JSX expressions (`</>\n case 'x': return <`).
+        if (/\b(return|case|default:)\b/.test(text)) continue
         found.push(text)
       }
 
