@@ -1,0 +1,27 @@
+<!-- Inline styles only: mail clients discard <style> blocks and stylesheets. -->
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #111;">
+  <h1 style="font-size: 20px; margin: 0 0 16px;">A comment is waiting for moderation</h1>
+
+  <p style="margin: 0 0 16px; line-height: 1.5;">
+    Hi {{name}}, {{commenterName}} left a comment on <strong>{{postTitle}}</strong>:
+  </p>
+
+  <blockquote style="margin: 0 0 24px; padding: 12px 16px; border-left: 3px solid #ddd; color: #333; line-height: 1.5; white-space: pre-wrap;">{{content}}</blockquote>
+
+  <p style="margin: 0 0 24px;">
+    <a href="{{actionUrl}}"
+       style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px;">
+      {{actionLabel}}
+    </a>
+  </p>
+
+  <p style="margin: 0 0 8px; font-size: 13px; color: #666; line-height: 1.5;">
+    Or paste this into your browser:<br>
+    <span style="word-break: break-all;">{{actionUrl}}</span>
+  </p>
+
+  <p style="margin: 16px 0 0; font-size: 13px; color: #666; line-height: 1.5;">
+    You are receiving this because comment notifications on {{siteName}} are
+    sent to {{audience}}. An administrator can change that on the Comments page.
+  </p>
+</div>
