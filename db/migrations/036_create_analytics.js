@@ -1,7 +1,7 @@
 /**
  * Privacy-friendly analytics: daily counts, and nothing that identifies anyone.
  *
- * The model is documented in docs/analytics.md. In short, what is kept long
+ * The model is documented in src/features/analytics/README.md. In short, what is kept long
  * term is only ever a count per day — views and unique visitors per path, for
  * the site as a whole, and views per referring domain. There is no table of
  * hits, so there is nothing to join a visitor's pages back together with, and

@@ -58,10 +58,15 @@ import AdminRedirects from '../client/pages/admin/Redirects'
 import AdminSnippets from '../client/pages/admin/Snippets'
 import AdminTools from '../client/pages/admin/Tools'
 import AdminHealth from '../client/pages/admin/Health'
-import AdminAnalytics from '../client/pages/admin/Analytics'
+import { registerAdminFeatures, featurePages } from '../client/host'
+import adminFeatures from '../client/features'
+import featureManifests from '../features.manifest'
 
 // Admin layout wrapper (no default layout)
 const NoLayout = ({ children }: { children: React.ReactNode }) => <>{children}</>
+
+// Features' admin screens. Registered once, at load, before the route table is built.
+registerAdminFeatures(adminFeatures, featureManifests)
 
 /**
  * The public site: the marketing page, the built-in blog, and the framework
@@ -160,8 +165,8 @@ export default createClientApp({
     '/admin/redirects': { component: AdminRedirects, layout: NoLayout, auth: true },
     '/admin/snippets': { component: AdminSnippets, layout: NoLayout, auth: true },
     '/admin/tools': { component: AdminTools, layout: NoLayout, auth: true },
-    '/admin/analytics': { component: AdminAnalytics, layout: NoLayout, auth: true },
     '/admin/health': { component: AdminHealth, layout: NoLayout, auth: true },
+    ...Object.fromEntries(featurePages().map(([path, component]) => [path, { component, layout: NoLayout, auth: true }])),
     '/admin/users': { component: AdminUsers, layout: NoLayout, auth: true },
     '/admin/members': { component: AdminMembers, layout: NoLayout, auth: true },
   }

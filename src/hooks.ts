@@ -18,7 +18,7 @@
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { deliver } from '@basicbenframework/core/webhooks'
 import { Settings } from './models/Settings.ts'
-import { publishDue } from './helpers/publish-due.ts'
+import { startCronInterval } from './host/cron.ts'
 import { queueNewsletterFor, processNewsletterQueue, kickNewsletterQueue } from './helpers/newsletter.ts'
 import { pruneMagicLinks } from './helpers/member-auth.ts'
 
@@ -107,22 +107,11 @@ for (const [event, kind] of CONTENT_EVENTS) {
 }
 
 /**
- * Announce scheduled posts as their time arrives, on a server that stays up.
- *
- * Serverless hosts have no process to run an interval in; there the content
- * API and `GET /api/cron/publish-due` do the same job. See
- * `helpers/publish-due.ts`.
+ * The scheduler, on a long-running server: every minute, run whatever core or
+ * a feature has scheduled and is due (src/host/cron.ts). On serverless there
+ * is no process to keep a timer, so a platform cron calls GET /api/cron/tick.
  */
-hooks.on(
-  HOOKS.SERVER_STARTED,
-  async () => {
-    if (process.env.VERCEL) return
-    const tick = () => publishDue().catch((err) => console.error('[publish-due]', err.message))
-    setInterval(tick, 60_000).unref()
-    await tick()
-  },
-  { name: 'publish-due:interval' }
-)
+hooks.on(HOOKS.SERVER_STARTED, async () => startCronInterval(), { name: 'cron:interval' })
 
 /**
  * Email a post to members when it goes live, if its author asked.

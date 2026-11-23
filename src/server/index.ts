@@ -10,6 +10,10 @@ import { createServer, createRouter } from '@basicbenframework/core/server'
 // Registers the application's hook listeners. Imported for its side effects —
 // the listeners have to be on the registry before the server starts.
 import '../hooks'
+// Core's scheduled work, in the registry features add to.
+import '../host/core-tasks'
+import { registerFeatures, mountFeatureRoutes } from '../host'
+import features from '../features'
 
 // Import routes explicitly for Vite bundling
 import authRoutes from '../routes/api/auth'
@@ -53,6 +57,10 @@ const app = await createServer({
   static: { dir: staticDir, spa: true }
 })
 
+// Features register their settings, tasks and routes before anything is
+// mounted, so a settings save or a health check sees all of them.
+await registerFeatures(features)
+
 // Register routes
 const router = createRouter()
 authRoutes(router)
@@ -83,6 +91,8 @@ membersRoutes(router)
 // repository, and read-only because the admin API already owns the writes.
 v1Routes(router)
 contentModelRoutes(router)
+// Features, after core and in the order src/features.ts lists them.
+mountFeatureRoutes(router)
 // Last: its /:slug and /:base/:slug routes would catch anything registered after it.
 themeRoutes(router)
 router.applyTo(app)

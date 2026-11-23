@@ -16,12 +16,13 @@
 
 import { isHttpUrl, isRelativePath, MAX_URL_LENGTH } from './content-paths.ts'
 
-export type SettingGroup = 'general' | 'reading' | 'discussion' | 'integrations' | 'identity' | 'locale' | 'code_injection' | 'analytics' | 'members'
+// Core's groups, plus any a feature names when it defines settings.
+export type SettingGroup = 'general' | 'reading' | 'discussion' | 'integrations' | 'identity' | 'locale' | 'code_injection' | 'members' | (string & {})
 
 /** A validator returns the value to store, or an error message. */
-type Check = (value: unknown) => { value: string } | { error: string }
+export type Check = (value: unknown) => { value: string } | { error: string }
 
-interface SettingDefinition {
+export interface SettingDefinition {
   group: SettingGroup
   check: Check
 }
@@ -223,18 +224,6 @@ export const SETTINGS: Record<string, SettingDefinition> = {
   code_injection_head: { group: 'code_injection', check: text(100_000) },
   code_injection_foot: { group: 'code_injection', check: text(100_000) },
 
-  // Cookieless page-view counting (docs/analytics.md). Unset means on: the
-  // ingest endpoint does nothing until a front end calls it anyway.
-  analytics_enabled: { group: 'analytics', check: flag },
-  // How long a visitor hash may live, in hours. Hashes are deleted when their
-  // UTC day ends regardless — the day's salt goes with it — so more than 24
-  // buys nothing; less trades accuracy (a reader returning later the same day
-  // counts again) for holding even pseudonymous data for a shorter time.
-  analytics_dedup_hours: { group: 'analytics', check: integer(1, 24) },
-  // Days of daily counts to keep. 0 keeps them indefinitely — they are counts,
-  // not personal data, so the default is to keep them.
-  analytics_retention_days: { group: 'analytics', check: integer(0, 3650) },
-
   // Members and newsletters. The sign-in URL is the front-end page a magic
   // link opens — a setting, not a request parameter, so a caller can never
   // have a link (and the token in it) delivered to a page of their choosing.
@@ -243,6 +232,25 @@ export const SETTINGS: Record<string, SettingDefinition> = {
   newsletter_sender_name: { group: 'members', check: text(100) },
   newsletter_reply_to: { group: 'members', check: emailOrBlank },
   newsletter_footer: { group: 'members', check: text(2000) }
+}
+
+/**
+ * The validators, for a feature defining its own settings
+ * (`host.settings.define`). Same rules as core's, so a feature's settings are
+ * checked exactly as strictly.
+ */
+export const checks = { text, flag, integer, oneOf, imageUrl, urlList, timeZone, locale, emailOrBlank, httpUrlOrBlank }
+
+/**
+ * Add a feature's settings to the allowlist. A key core or another feature
+ * already defines is refused: two owners for one setting is a bug to catch at
+ * boot, not a silent overwrite.
+ */
+export function defineSettings(definitions: Record<string, SettingDefinition>): void {
+  for (const [key, definition] of Object.entries(definitions)) {
+    if (Object.hasOwn(SETTINGS, key)) throw new Error(`Setting "${key}" is already defined`)
+    SETTINGS[key] = definition
+  }
 }
 
 export function isKnownSetting(key: string): boolean {

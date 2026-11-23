@@ -20,6 +20,8 @@ import { Page } from '../models/Page'
 import { Comment } from '../models/Comment'
 import { Media } from '../models/Media'
 import { Settings } from '../models/Settings'
+import { withFeaturePages } from '../host/menu'
+import featureManifests from '../features.manifest'
 import type { Request, Response } from '../types'
 
 /**
@@ -34,7 +36,7 @@ import type { Request, Response } from '../types'
  * two disagree — a difference is not a fallback, it is a flicker on every
  * navigation.
  */
-const DEFAULT_MENU = [
+const CORE_MENU = [
   { path: '/admin', label: 'Dashboard', icon: '📊' },
   { path: '/admin/posts', label: 'Posts', icon: '📝', section: 'Content' },
   { path: '/admin/pages', label: 'Pages', icon: '📄', section: 'Content' },
@@ -53,7 +55,6 @@ const DEFAULT_MENU = [
   // routes behind it refuse everyone else regardless — this is presentation.
   { path: '/admin/users', label: 'Users', icon: '👥', section: 'Site', capability: 'user.manage' },
   { path: '/admin/members', label: 'Members', icon: '✉️', section: 'Site', capability: 'user.manage' },
-  { path: '/admin/analytics', label: 'Analytics', icon: '📈', section: 'Site', capability: 'post.edit' },
   { path: '/admin/tools', label: 'Tools', icon: '🧰', section: 'Site', capability: 'user.manage' },
   { path: '/admin/health', label: 'Site health', icon: '🩺', section: 'Site', capability: 'user.manage' },
   // Where an author edits their own byline. It lives outside /admin because it
@@ -61,6 +62,9 @@ const DEFAULT_MENU = [
   // writing posts are in here, so the way to it has to be too.
   { path: '/profile', label: 'Profile', icon: '👤', section: 'Account' }
 ]
+
+/** Core's menu with each enabled feature's pages placed in it. */
+const DEFAULT_MENU = withFeaturePages(CORE_MENU, featureManifests)
 
 interface MenuItem {
   path: string

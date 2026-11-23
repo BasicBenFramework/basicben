@@ -1,4 +1,4 @@
-import { randomUUID, timingSafeEqual } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { getDb } from '@basicbenframework/core/db'
 import { loadConfig } from '@basicbenframework/core/server'
@@ -6,7 +6,8 @@ import { getStorage, resolveConfig } from '@basicbenframework/core/storage'
 import { sendMail } from '@basicbenframework/core/mail'
 import { Post } from '../models/Post'
 import { User } from '../models/User'
-import { purge } from '../models/Analytics'
+import { featureHealthChecks } from '../host'
+import { runCron, cronAuthorized } from '../host/cron'
 import { readHeartbeats } from '../helpers/heartbeat'
 import { evaluateHealth, overallStatus, databaseFacts, migrationFilesIn, isServerless, type HealthFacts } from '../helpers/health'
 import type { Request, Response } from '../types'
@@ -69,6 +70,17 @@ export const HealthController = {
     }
 
     const checks = evaluateHealth(process.env, facts, now)
+
+    // Features' own checks. One that throws reports itself as a warning rather
+    // than taking the page down.
+    for (const { name, run } of featureHealthChecks()) {
+      try {
+        const found = await run({ db, now, env: process.env })
+        if (found) checks.push(...(Array.isArray(found) ? found : [found]))
+      } catch (err) {
+        checks.push({ id: name, label: name, status: 'warn', message: `The check failed: ${short(err)}`, hint: '' })
+      }
+    }
 
     res.setHeader('Cache-Control', 'no-store')
     res.json({
@@ -162,42 +174,11 @@ export const HealthController = {
   },
 
   /**
-   * `GET /api/cron/maintenance` — the analytics purge and the rate-limit
-   * sweep, for a platform scheduler. Same CRON_SECRET rule as publish-due:
-   * disabled (404) until a secret is set.
+   * `GET /api/cron/maintenance`: kept as an alias of `/api/cron/tick`, which
+   * runs the rate-limit sweep and every feature's scheduled work.
    */
   async maintenance(req: Request, res: Response) {
-    const secret = process.env.CRON_SECRET
-    const given = String(req.headers.authorization ?? '')
-    const expected = `Bearer ${secret}`
-
-    if (!secret || given.length !== expected.length || !timingSafeEqual(Buffer.from(given), Buffer.from(expected))) {
-      return res.json({ error: 'Not found' }, 404)
-    }
-
-    const db = (await getDb()) as any
-    const result: Record<string, unknown> = {}
-
-    try {
-      result.analytics = await purge({}, db)
-    } catch (err) {
-      result.analytics = { error: short(err) }
-    }
-
-    // What DatabaseStore.sweep does, inline: nothing in the app calls the
-    // store's sweep, so lapsed rows otherwise stay forever. A row whose window
-    // and block have both passed is the state "never seen".
-    try {
-      const now = Date.now()
-      const swept = await db.run(
-        'DELETE FROM rate_limits WHERE updated_at < ? AND (blocked_until IS NULL OR blocked_until < ?)',
-        [now - 86_400_000, now]
-      )
-      result.rate_limits = { swept: Number(swept?.changes ?? 0) }
-    } catch (err) {
-      result.rate_limits = { error: short(err) }
-    }
-
-    res.json(result)
+    if (!cronAuthorized(req)) return res.json({ error: 'Not found' }, 404)
+    res.json(await runCron())
   }
 }

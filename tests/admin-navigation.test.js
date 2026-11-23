@@ -111,10 +111,33 @@ describe('the sidebar does not flicker on the way between screens', () => {
     // flicker: the sidebar draws one, the request lands, and whatever only the
     // server knew about appears a moment later. Profile did exactly that.
     assert.deepStrictEqual(
-      menuIn(layout, 'const DEFAULT_MENU'),
-      menuIn(controller, 'const DEFAULT_MENU'),
+      menuIn(layout, 'const CORE_MENU'),
+      menuIn(controller, 'const CORE_MENU'),
       'the two menus disagree — an item in one and not the other blinks on every navigation'
     )
+    assert.ok(menuIn(layout, 'const CORE_MENU').length > 10, 'the core menu was not found')
+    // Features' pages are added to both by the same function from the same list.
+    for (const source of [layout, controller]) {
+      assert.match(source, /const DEFAULT_MENU(?:: MenuItem\[\])? = withFeaturePages\(CORE_MENU, featureManifests\)/)
+    }
+  })
+
+  test("a feature's page goes in its section, and before Account when its section is new", async () => {
+    const { withFeaturePages } = await import('../src/host/menu.ts')
+    const core = [
+      { path: '/admin', label: 'Dashboard' },
+      { path: '/admin/posts', label: 'Posts', section: 'Content' },
+      { path: '/admin/settings', label: 'Settings', section: 'Site' },
+      { path: '/admin/health', label: 'Health', section: 'Site' },
+      { path: '/profile', label: 'Profile', section: 'Account' }
+    ]
+    const placed = withFeaturePages(core, [{ pages: [
+      { path: '/admin/a', label: 'A', section: 'Site' },
+      { path: '/admin/b', label: 'B', section: 'Shop' },
+      { path: '/admin/c', label: 'C', section: 'Content', capability: 'post.edit' }
+    ] }]).map((item) => item.path)
+    assert.deepStrictEqual(placed, ['/admin', '/admin/posts', '/admin/c', '/admin/settings', '/admin/health', '/admin/a', '/admin/b', '/profile'])
+    assert.strictEqual(core.length, 5, 'the core list was changed in place')
   })
 
   test('the fetched menu survives the next screen', () => {
@@ -151,9 +174,16 @@ describe('the sidebar does not flicker on the way between screens', () => {
       [...mapped.slice(0, mapped.indexOf('}')).matchAll(/'([^']+)':/g)].map(([, path]) => path)
     )
 
-    for (const entry of menuIn(layout, 'const DEFAULT_MENU')) {
+    for (const entry of menuIn(layout, 'const CORE_MENU')) {
       const [path] = entry.split(' ')
       assert.ok(known.has(path), `${path} has no icon, so it renders the server's emoji`)
+    }
+  })
+
+  test("every feature page brings its own icon", async () => {
+    const manifests = (await import('../src/features.manifest.ts')).default
+    for (const page of manifests.flatMap((m) => m.pages ?? [])) {
+      assert.match(page.iconPath ?? '', /^M[\d\s.,MLHVCSQTAZmlhvcsqtaz-]+$/, `${page.path} has no SVG path`)
     }
   })
 })

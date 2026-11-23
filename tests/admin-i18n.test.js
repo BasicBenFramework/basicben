@@ -32,7 +32,20 @@ export function adminFiles() {
     }
   }
 
+  // Each feature's admin half. Its strings may live in its own dictionary.
+  for (const feature of featureDirs()) {
+    for (const entry of readdirSync(join(ROOT, 'src/features', feature))) {
+      if (/\.tsx?$/.test(entry) && entry !== 'index.ts' && entry !== 'manifest.ts') files.push(`src/features/${feature}/${entry}`)
+    }
+  }
+
   return files.filter((file) => existsSync(join(ROOT, file)))
+}
+
+/** The feature folders in the tree, enabled or not. */
+export function featureDirs() {
+  const dir = join(ROOT, 'src/features')
+  return existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name) : []
 }
 
 /** A JS string literal's value, for the three quote styles (template literals without `${}` only). */
@@ -69,8 +82,17 @@ export function usedKeys() {
   // The menu labels and section names come from the server as English and are
   // translated with t(item.label), so the dictionary needs them too.
   const layout = read('src/client/layouts/AdminLayout.tsx')
-  const menu = layout.slice(layout.indexOf('const DEFAULT_MENU'), layout.indexOf(']', layout.indexOf('const DEFAULT_MENU')))
-  for (const match of menu.matchAll(/(?:label|section): '([^']+)'/g)) keys.set(match[1], { file: 'AdminLayout DEFAULT_MENU', plural: false })
+  const start = layout.indexOf('= [', layout.indexOf('const CORE_MENU'))
+  const menu = layout.slice(start, layout.indexOf(']', start))
+  for (const match of menu.matchAll(/(?:label|section): '([^']+)'/g)) keys.set(match[1], { file: 'AdminLayout CORE_MENU', plural: false })
+
+  // And a feature's page label and section, from its manifest.
+  for (const feature of featureDirs()) {
+    const path = `src/features/${feature}/manifest.ts`
+    if (!existsSync(join(ROOT, path))) continue
+    const pages = read(path)
+    for (const match of pages.matchAll(/(?:label|section): '([^']+)'/g)) keys.set(match[1], { file: path, plural: false })
+  }
 
   return keys
 }
@@ -86,13 +108,19 @@ function shippedLocales() {
 describe('admin translations', () => {
   test('the admin asks for translations at all', () => {
     assert.ok(usedKeys().size > 300, `only ${usedKeys().size} translatable strings found`)
+    assert.ok(usedKeys().has('Posts') && usedKeys().has('Account'), 'the menu labels were not found')
   })
 
   for (const code of shippedLocales()) {
     test(`${code} has every string, with the same placeholders`, async () => {
       const path = join(ROOT, `src/client/i18n/locales/${code}/index.ts`)
       assert.ok(existsSync(path), `no dictionary at src/client/i18n/locales/${code}/index.ts`)
-      const dictionary = (await import(pathToFileURL(path).href)).default
+      // Core's dictionary with every feature's merged over it, as setLocale does.
+      const dictionary = { ...(await import(pathToFileURL(path).href)).default }
+      for (const feature of featureDirs()) {
+        const own = join(ROOT, `src/features/${feature}/i18n/${code}.ts`)
+        if (existsSync(own)) Object.assign(dictionary, (await import(pathToFileURL(own).href)).default)
+      }
 
       const missing = []
       const mismatched = []

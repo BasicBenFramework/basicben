@@ -1,4 +1,4 @@
-import { clientIp } from '../middleware/rate-limits'
+import { clientIp } from '../../middleware/rate-limits.ts'
 import {
   normalizeAnalyticsPath,
   referrerDomain,
@@ -6,9 +6,9 @@ import {
   isBot,
   optedOut,
   parseHitBody
-} from '../helpers/analytics'
-import { recordHit, summary, analyticsSettings, purgeOpportunistically } from '../models/Analytics'
-import type { Request, Response } from '../types'
+} from './helpers.ts'
+import { recordHit, summary, analyticsSettings, purgeOpportunistically } from './model.ts'
+import type { Request, Response } from '../../types'
 
 /** The ranges the admin offers. Anything else is refused, not clamped. */
 const RANGES = [7, 30, 90]
@@ -20,7 +20,7 @@ function accepted(res: Response) {
 }
 
 /**
- * Cookieless page-view counting. The privacy model is docs/analytics.md.
+ * Cookieless page-view counting. The privacy model is in this folder's README.md.
  */
 export const AnalyticsController = {
   /**

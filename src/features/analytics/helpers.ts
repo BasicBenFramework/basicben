@@ -2,7 +2,7 @@
  * The pure half of page-view analytics: what counts as a page, a referrer, a
  * bot and an opt-out, and how a visitor becomes an unlinkable hash.
  *
- * The privacy model is in docs/analytics.md and migration 036. Everything
+ * The privacy model is in src/features/analytics/README.md and migration 036. Everything
  * here is a function of its arguments — no database, no environment — so the
  * rules a privacy review cares about are tested directly.
  */

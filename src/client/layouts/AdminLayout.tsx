@@ -5,6 +5,8 @@ import AdminIcon from '../components/admin/AdminIcons'
 import { Link } from '../components/Link'
 import { can } from '@basicbenframework/core/auth/permissions'
 import { applySiteLocale, useT } from '../i18n'
+import { withFeaturePages } from '../../host/menu'
+import featureManifests from '../../features.manifest'
 
 interface MenuItem {
   path: string
@@ -28,7 +30,7 @@ interface MenuItem {
   the server's list alone, so every navigation drew the sidebar without it and
   then put it back a moment later.
 */
-const DEFAULT_MENU: MenuItem[] = [
+const CORE_MENU: MenuItem[] = [
   { path: '/admin', label: 'Dashboard' },
   { path: '/admin/posts', label: 'Posts', section: 'Content' },
   { path: '/admin/pages', label: 'Pages', section: 'Content' },
@@ -45,11 +47,16 @@ const DEFAULT_MENU: MenuItem[] = [
   { path: '/admin/redirects', label: 'Redirects', section: 'Site', capability: 'settings.manage' },
   { path: '/admin/users', label: 'Users', section: 'Site', capability: 'user.manage' },
   { path: '/admin/members', label: 'Members', section: 'Site', capability: 'user.manage' },
-  { path: '/admin/analytics', label: 'Analytics', section: 'Site', capability: 'post.edit' },
   { path: '/admin/tools', label: 'Tools', section: 'Site', capability: 'user.manage' },
   { path: '/admin/health', label: 'Site health', section: 'Site', capability: 'user.manage' },
   { path: '/profile', label: 'Profile', section: 'Account' },
 ]
+
+/** Core's menu with each enabled feature's pages placed in it, exactly as the server places them. */
+const DEFAULT_MENU: MenuItem[] = withFeaturePages(CORE_MENU, featureManifests)
+
+/** Features' sidebar icons, from their manifests. */
+const featureIconPaths = new Map(featureManifests.flatMap((m) => (m.pages ?? []).filter((p) => p.iconPath).map((p) => [p.path, p.iconPath as string] as const)))
 
 /*
   The last menu the server gave us, kept for the life of the tab.
@@ -186,7 +193,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
                   className={`admin-nav-item ${currentPath === item.path ? 'active' : ''}`}
                   title={sidebarOpen ? undefined : t(item.label)}
                 >
-                  <AdminIcon path={item.path} fallback={item.icon} />
+                  <AdminIcon path={item.path} fallback={item.icon} iconPath={featureIconPaths.get(item.path)} />
                   {sidebarOpen && <span className="admin-nav-label">{t(item.label)}</span>}
                 </Link>
               ))}

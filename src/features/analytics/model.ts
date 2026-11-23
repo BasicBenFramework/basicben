@@ -5,13 +5,16 @@
  * Every function takes an optional `db` so the logic runs against an
  * in-memory database in tests; in the app it is always `getDb()`. The privacy
  * model — what is stored, for how long, and why — is in migration 036 and
- * docs/analytics.md; this file is where it is enforced.
+ * src/features/analytics/README.md; this file is where it is enforced.
  */
 
 import { randomBytes } from 'node:crypto'
 import { getDb } from '@basicbenframework/core/db'
-import { utcDay, daysBefore, visitorHash, fillSeries } from '../helpers/analytics.ts'
-import { recordHeartbeat, HEARTBEATS } from '../helpers/heartbeat.ts'
+import { utcDay, daysBefore, visitorHash, fillSeries } from './helpers.ts'
+import { recordHeartbeat } from '../../helpers/heartbeat.ts'
+
+/** The heartbeat the purge records; the analytics health check reads it. */
+export const PURGE_HEARTBEAT = 'analytics_purge'
 
 export interface AnalyticsDb {
   driver?: string
@@ -227,7 +230,7 @@ export async function purge(
     aggregates
   }
 
-  await recordHeartbeat(d, HEARTBEATS.ANALYTICS_PURGE, { ...result }, now)
+  await recordHeartbeat(d, PURGE_HEARTBEAT, { ...result }, now)
 
   return result
 }

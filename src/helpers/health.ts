@@ -50,8 +50,6 @@ export interface HealthFacts {
   adminsTotal: number
   /** Active admin accounts with no TOTP second factor. */
   adminsWithout2fa: number
-  /** Visitor hashes past their window, i.e. the purge is not running. */
-  staleAnalyticsHashes: number | null
 }
 
 /** A serverless platform: read-only disk, no long-running process. */
@@ -62,7 +60,7 @@ export function isServerless(env: Record<string, string | undefined>): boolean {
 const MIN_APP_KEY = 32
 const DAY = 86_400_000
 
-function check(id: string, label: string, status: HealthStatus, message: string, hint = ''): HealthCheck {
+export function check(id: string, label: string, status: HealthStatus, message: string, hint = ''): HealthCheck {
   return { id, label, status, message, hint }
 }
 
@@ -234,7 +232,7 @@ export function evaluateHealth(
   const cronSecret = env.CRON_SECRET ?? ''
   if (!cronSecret && serverless) {
     checks.push(check('cron_secret', 'CRON_SECRET', 'warn', 'Not set on a serverless host.',
-      'Without it the cron endpoints are disabled: scheduled posts are only announced when someone reads the API, and newsletters and the analytics purge wait for traffic. Set CRON_SECRET and add the crons to vercel.json.'))
+      'Without it GET /api/cron/tick is disabled, so scheduled work (announcing scheduled posts, sweeps, anything a feature schedules) waits for traffic. Set CRON_SECRET and schedule /api/cron/tick in vercel.json.'))
   } else if (cronSecret && cronSecret.length < 16) {
     checks.push(check('cron_secret', 'CRON_SECRET', 'warn', `Set, ${cronSecret.length} characters.`, 'Use at least 16 random characters.'))
   } else {
@@ -277,16 +275,10 @@ export function evaluateHealth(
   } else {
     checks.push(facts.rateLimitRows > 50_000
       ? check('rate_limits', 'Rate-limit table', 'warn', `${facts.rateLimitRows.toLocaleString('en')} rows.`,
-        'Stale entries are not being swept. Call GET /api/cron/maintenance from a cron (with CRON_SECRET).')
+        'Stale entries are not being swept. Call GET /api/cron/tick from a cron (with CRON_SECRET).')
       : check('rate_limits', 'Rate-limit table', 'pass', `${facts.rateLimitRows.toLocaleString('en')} rows.`))
   }
 
-  if (facts.staleAnalyticsHashes !== null) {
-    checks.push(facts.staleAnalyticsHashes > 0
-      ? check('analytics_purge', 'Analytics purge', 'warn', `${facts.staleAnalyticsHashes} visitor hash(es) are past their window.`,
-        'The purge runs on traffic and on GET /api/cron/maintenance; schedule the cron so the privacy promise holds on quiet days.')
-      : check('analytics_purge', 'Analytics purge', 'pass', 'No visitor hashes kept past their window.'))
-  }
 
   checks.push(facts.adminsWithout2fa > 0
     ? check('admin_2fa', 'Admin two-factor', 'warn', `${facts.adminsWithout2fa} of ${facts.adminsTotal} admin account(s) have no authenticator app set up.`,
@@ -360,10 +352,5 @@ export async function databaseFacts(db: FactsDb, now: Date = new Date()) {
     adminsWithout2fa: (await count(db,
       `SELECT COUNT(*) AS n FROM users WHERE ${activeAdmin}
        AND id NOT IN (SELECT user_id FROM user_two_factor WHERE totp_enabled_at IS NOT NULL)`)) ?? 0,
-    // An hour's grace past the longest window: the purge is throttled, and a
-    // hash from 23:59 is legitimately alive for a few minutes after midnight.
-    staleAnalyticsHashes: await count(db,
-      'SELECT COUNT(*) AS n FROM analytics_seen WHERE created_at < ?',
-      [now.getTime() - 25 * 3_600_000])
   }
 }

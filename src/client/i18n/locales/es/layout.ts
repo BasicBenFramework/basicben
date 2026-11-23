@@ -21,7 +21,6 @@ const strings: Dictionary = {
   'Redirects': 'Redirecciones',
   'Users': 'Usuarios',
   'Members': 'Miembros',
-  'Analytics': 'Analítica',
   'Tools': 'Herramientas',
   'Site health': 'Estado del sitio',
   'Profile': 'Perfil',

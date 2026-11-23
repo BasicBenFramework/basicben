@@ -30,7 +30,6 @@ export interface Heartbeat {
 /** The jobs that report in. Named so the health page can say which never has. */
 export const HEARTBEATS = {
   PUBLISH_DUE: 'publish_due',
-  ANALYTICS_PURGE: 'analytics_purge',
   BACKUP: 'backup'
 } as const
 

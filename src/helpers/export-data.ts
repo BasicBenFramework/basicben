@@ -6,7 +6,7 @@
  * `docs/import-export.md`; bump `EXPORT_VERSION` for any change an older
  * importer would misread, and teach the importer the old shape before doing so.
  *
- * ## Why this file imports nothing
+ * ## Why this file imports (almost) nothing
  *
  * The scripts are plain Node, and Node runs TypeScript only by stripping its
  * types — it does no extension guessing, so the extensionless relative imports
@@ -23,6 +23,10 @@
  * day someone adds another one. An export is a file people email to each
  * other; it should contain content, not ways in.
  */
+
+// The one import: the features' manifests, which are static data and import
+// nothing at runtime themselves, so plain Node still loads this file.
+import features from '../features.manifest.ts'
 
 /** Identifies the document, so an importer can refuse something else. */
 export const EXPORT_FORMAT = 'basicben-export'
@@ -74,7 +78,10 @@ export const EXPORT_TABLES: TableSpec[] = [
   { name: 'menus' },
   { name: 'menu_items' },
   { name: 'redirects' },
-  { name: 'snippets' }
+  { name: 'snippets' },
+  // Each feature's own, from its manifest, after core's: a feature's rows may
+  // refer to core's, never the other way round.
+  ...features.flatMap((feature) => feature.exportTables ?? [])
 ]
 
 /**
@@ -90,16 +97,12 @@ export const NEVER_EXPORTED = [
   'rate_limits',
   // Who has a post open right now: meaningless anywhere else.
   'post_locks',
-  // Analytics' per-day salts and visitor hashes exist to be forgotten within
-  // a day (docs/analytics.md); copying them into a file would defeat that.
-  // The daily counts are not secret, but they are not content either, and
-  // the importer has no natural key for them — they stay with the database.
-  'analytics_salts',
-  'analytics_seen',
   // When background jobs last ran here. True of this database only.
   'ops_heartbeats',
   '_migrations',
-  'sqlite_sequence'
+  'sqlite_sequence',
+  // Each feature's own, from its manifest.
+  ...features.flatMap((feature) => feature.neverExported ?? [])
 ]
 
 /**

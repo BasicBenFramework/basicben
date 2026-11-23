@@ -240,6 +240,9 @@ printf '\nAPP_URL=http://localhost:%s\n' "$PORT" >> .env
 printf 'WEBHOOK_SECRET=%s\nWEBHOOK_ALLOW_PRIVATE=true\n' \
   "$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))")" >> .env
 
+# The cron routes are disabled without a secret; the tick is checked below.
+printf 'CRON_SECRET=%s\n' "$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))")" >> .env
+
 # --- Database ----------------------------------------------------------------
 #
 # SQLite unless told otherwise. Point SMOKE_DATABASE_URL at a Postgres database
@@ -1105,10 +1108,19 @@ curl -s -X PUT "http://localhost:$PORT/api/settings" \
 
 # --- Phase 3: ops — analytics ingest and site health --------------------------
 
+# Analytics is a feature (src/features/analytics); a bare core has no route.
+HAS_ANALYTICS=""
+[ -d src/features/analytics ] && grep -q "features/analytics" src/features.ts && HAS_ANALYTICS=1
+
 code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$PORT/api/v1/analytics/hit" \
   -H 'Content-Type: text/plain' -H 'User-Agent: Mozilla/5.0 (smoke)' --data '{"path":"/blog/hello?utm=x"}')"
-[ "$code" = "204" ] || fail "analytics hit returned $code, expected 204"
-pass "an analytics hit is accepted"
+if [ -n "$HAS_ANALYTICS" ]; then
+  [ "$code" = "204" ] || fail "analytics hit returned $code, expected 204"
+  pass "an analytics hit is accepted"
+else
+  [ "$code" != "204" ] || fail "the analytics route answers with the feature removed"
+  pass "with analytics removed, its route is gone ($code)"
+fi
 
 code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/api/admin/health")"
 [ "$code" = "401" ] || fail "health returned $code without a session, expected 401"
@@ -1123,12 +1135,32 @@ case "$HEALTH" in
 esac
 pass "site health needs a session and does not leak secrets"
 
-STATS="$(curl -s "http://localhost:$PORT/api/admin/analytics?days=7" -H "Authorization: Bearer $OWNER_TOKEN")"
-case "$STATS" in
-  *'/blog/hello'*) pass "the hit shows up in analytics, query string stripped" ;;
-  *) echo "$STATS"; fail "the analytics report does not show the hit" ;;
-esac
+if [ -n "$HAS_ANALYTICS" ]; then
+  STATS="$(curl -s "http://localhost:$PORT/api/admin/analytics?days=7" -H "Authorization: Bearer $OWNER_TOKEN")"
+  case "$STATS" in
+    *'/blog/hello'*) pass "the hit shows up in analytics, query string stripped" ;;
+    *) echo "$STATS"; fail "the analytics report does not show the hit" ;;
+  esac
+fi
 
+# --- Phase 4a: the cron tick --------------------------------------------------
+
+CRON_SECRET_VALUE="$(grep '^CRON_SECRET=' .env | tail -1 | cut -d= -f2-)"
+code="$(status /api/cron/tick)"
+[ "$code" = "404" ] || fail "the tick answered $code without the secret, expected 404"
+TICK="$(curl -s "http://localhost:$PORT/api/cron/tick" -H "Authorization: Bearer $CRON_SECRET_VALUE")"
+case "$TICK" in
+  *'"ran"'*'"failed":{}'*) ;;
+  *) echo "$TICK"; fail "the tick did not report what it ran" ;;
+esac
+# The legacy maintenance route is now the same tick; neither may report a
+# failed task.
+SWEEP="$(curl -s "http://localhost:$PORT/api/cron/maintenance" -H "Authorization: Bearer $CRON_SECRET_VALUE")"
+case "$SWEEP" in
+  *'"failed":{}'*) ;;
+  *) echo "$SWEEP"; fail "a cron task failed" ;;
+esac
+pass "the cron tick needs CRON_SECRET and runs its tasks"
 
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"

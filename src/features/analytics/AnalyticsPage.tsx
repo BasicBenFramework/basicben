@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '@basicbenframework/core/client'
 import { can } from '@basicbenframework/core/auth/permissions'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import { useT, currentLocale, slots } from '../../i18n'
+import { api } from '../../helpers/api'
+import AdminLayout from '../../client/layouts/AdminLayout'
+import { useT, currentLocale, slots } from '../../client/i18n'
 
 interface Day {
   day: string
@@ -34,7 +34,7 @@ const fmt = (n: number) => n.toLocaleString(currentLocale())
  * Page views and visitors, counted without cookies.
  *
  * What is behind these numbers is deliberately thin — daily counts per path
- * and per referring domain, nothing per person (docs/analytics.md) — so the
+ * and per referring domain, nothing per person (src/features/analytics/README.md) — so the
  * page shows exactly that and says what it cannot: visitors over a range are
  * a sum of daily visitors, because the hashes that would make them unique
  * across days are deleted every day.
@@ -175,7 +175,7 @@ export default function AdminAnalytics() {
             {t("No cookies, no stored IP addresses or user agents. A visitor is a hash of their address, browser and a random salt that changes every UTC day and is then deleted, so nobody — including you — can tell who visited, or link one day's visitors to the next. Browsers sending Do Not Track or Global Privacy Control are not counted at all, and neither are known bots.")}
           </p>
           <p className="an-muted">
-            {slots(t('Your front end reports page views with a short snippet: {endpoint}. See {doc}.'), { endpoint: <code>{'POST /api/v1/analytics/hit'}</code>, doc: <code>{'docs/analytics.md'}</code> })}
+            {slots(t('Your front end reports page views with a short snippet: {endpoint}. See {doc}.'), { endpoint: <code>{'POST /api/v1/analytics/hit'}</code>, doc: <code>{'src/features/analytics/README.md'}</code> })}
           </p>
         </div>
 

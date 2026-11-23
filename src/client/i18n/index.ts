@@ -42,6 +42,9 @@ const OVERRIDE_KEY = 'basicben.admin_locale'
 // Vite turns this into one lazily loaded chunk per locale.
 const loaders = import.meta.glob<{ default: Dictionary }>('./locales/*/index.ts')
 
+// Features' dictionaries (src/client/host), per locale, merged over core's.
+const featureLoaders: Record<string, Array<() => Promise<{ default: Dictionary }>>> = {}
+
 let locale = 'en'
 let dictionary: Dictionary = {}
 let version = 0
@@ -81,7 +84,11 @@ export async function setLocale(requested: string | null | undefined): Promise<v
     const load = loaders[`./locales/${next}/index.ts`]
     if (!load) return
     try {
-      dictionary = (await load()).default
+      const core = await load()
+      // Read after the await: features register while core's chunk loads, and
+      // one registered by then must not be missed.
+      const extra = await Promise.all((featureLoaders[next] ?? []).map((loader) => loader()))
+      dictionary = Object.assign({}, core.default, ...extra.map((module) => module.default))
     } catch {
       // A chunk that fails to load leaves the admin in English, not blank.
       return
@@ -91,6 +98,25 @@ export async function setLocale(requested: string | null | undefined): Promise<v
   locale = next
   if (typeof document !== 'undefined') document.documentElement.lang = next
   notify()
+}
+
+/**
+ * A feature's translations. If the admin is already showing that language,
+ * they are loaded and applied now, so registration order does not matter.
+ */
+export function addDictionaries(map: Record<string, () => Promise<{ default: Dictionary }>>): void {
+  for (const [code, loader] of Object.entries(map)) {
+    featureLoaders[code] = [...(featureLoaders[code] ?? []), loader]
+
+    if (code === locale) {
+      loader()
+        .then((module) => {
+          dictionary = { ...dictionary, ...module.default }
+          notify()
+        })
+        .catch(() => {})
+    }
+  }
 }
 
 /** Remember (or with null, forget) this browser's choice, and apply it. */
