@@ -12,6 +12,7 @@
  * that a second instance cannot see, is not a lockout.
  */
 
+import { createHash } from 'node:crypto'
 import { rateLimit, createLimiter, clientAddress, DatabaseStore } from '@basicbenframework/core/rate-limit'
 import { getDb } from '@basicbenframework/core/db'
 import type { Request } from '../types'
@@ -283,4 +284,44 @@ export const tokenWriteLimiter = createLimiter({
   window: '1m',
   blockFor: '1m',
   store
+})
+
+/**
+ * Page-view hits from anyone (`POST /api/v1/analytics/hit`).
+ *
+ * The analytics promise is that no address is stored, and the limiter's own
+ * table would otherwise be the exception: its key is normally the address in
+ * the clear. So this one keys on a hash of it, with APP_KEY mixed in so the
+ * key cannot be reversed by hashing every IPv4 address. The row still lives
+ * only as long as the limiter's window, like every other.
+ *
+ * Generous — a reader opening tabs, or an office behind one NAT, is a lot of
+ * page views a minute — because its job is bounding garbage, not policing
+ * readers.
+ */
+export const analyticsHitLimit = rateLimit({
+  limit: 120,
+  window: '1m',
+  blockFor: '5m',
+  store,
+  key: (req: Request) => {
+    const ip = clientIp(req)
+    if (!ip) return null
+    const hashed = createHash('sha256').update(`${process.env.APP_KEY ?? ''}\0analytics\0${ip}`).digest('hex').slice(0, 32)
+    return `analytics:${hashed}`
+  },
+  message: 'Too many requests.'
+})
+
+/**
+ * Site health actions that touch the outside world: the storage probe and
+ * the test email. Admin-only already; this keeps a stuck button or a stolen
+ * session from turning either into a loop. Keyed on the account.
+ */
+export const healthActionLimit = rateLimit({
+  limit: 10,
+  window: '15m',
+  store,
+  key: (req: Request) => `health:${req.userId ?? ''}`,
+  message: 'Too many checks. Please try again in a few minutes.'
 })

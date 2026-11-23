@@ -90,6 +90,14 @@ export const NEVER_EXPORTED = [
   'rate_limits',
   // Who has a post open right now: meaningless anywhere else.
   'post_locks',
+  // Analytics' per-day salts and visitor hashes exist to be forgotten within
+  // a day (docs/analytics.md); copying them into a file would defeat that.
+  // The daily counts are not secret, but they are not content either, and
+  // the importer has no natural key for them — they stay with the database.
+  'analytics_salts',
+  'analytics_seen',
+  // When background jobs last ran here. True of this database only.
+  'ops_heartbeats',
   '_migrations',
   'sqlite_sequence'
 ]
