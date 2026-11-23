@@ -1,4 +1,7 @@
 import { PublicApiController } from '../../controllers/PublicApiController'
+import { SettingsController } from '../../controllers/SettingsController'
+import { NavigationController } from '../../controllers/NavigationController'
+import { RedirectController } from '../../controllers/RedirectController'
 import { requireScope } from '../../middleware/api-auth'
 import { SCOPES } from '@basicbenframework/core/auth/api-tokens'
 import { cacheable } from '../../middleware/cache'
@@ -36,4 +39,12 @@ export default (router: Router) => {
   router.get('/api/v1/tags', publicApiLimit, content, cacheable, PublicApiController.tags)
 
   router.get('/api/v1/media/:id', publicApiLimit, media, cacheable, PublicApiController.media)
+
+  // Site identity, menus and redirects: what a headless front end needs to
+  // render its chrome and answer old URLs. Same credential rule as content.
+  // (Not on PublicApiController, so the generated reference — which documents
+  // PublicContent shapes only — is unaffected until it learns these shapes.)
+  router.get('/api/v1/site', publicApiLimit, content, cacheable, SettingsController.publicSite)
+  router.get('/api/v1/navigation', publicApiLimit, content, cacheable, NavigationController.publicIndex)
+  router.get('/api/v1/redirects', publicApiLimit, content, cacheable, RedirectController.publicIndex)
 }
