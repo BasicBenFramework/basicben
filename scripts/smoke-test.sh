@@ -235,6 +235,11 @@ pass "built client and server"
 # than a request to whatever happens to be on port 3000.
 printf '\nAPP_URL=http://localhost:%s\n' "$PORT" >> .env
 
+# Webhooks are signed with their own secret and, in production, refused on
+# private addresses. The receiver below is on loopback, so it is opted in.
+printf 'WEBHOOK_SECRET=%s\nWEBHOOK_ALLOW_PRIVATE=true\n' \
+  "$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))")" >> .env
+
 # --- Database ----------------------------------------------------------------
 #
 # SQLite unless told otherwise. Point SMOKE_DATABASE_URL at a Postgres database
@@ -600,11 +605,30 @@ esac
 # A fresh account is used because the checks above deliberately lock accounts
 # out, and a throttled login here would look like a Markdown failure.
 
+# New accounts are unverified subscribers, and neither may write posts. So the
+# address is verified with the link it was sent, and the owner promotes it to
+# author, as on a real install. Both before signing in, because a role change
+# ends the account's sessions.
+
 MD_EMAIL="author-$$@example.com"
 
-curl -s -X POST "http://localhost:$PORT/api/auth/register" \
+MD_JSON="$(register Author "$MD_EMAIL")"
+MD_USER_ID="$(printf '%s' "$MD_JSON" | sed -n 's/.*"user":{"id":\([0-9]*\).*/\1/p')"
+[ -n "$MD_USER_ID" ] || { echo "$MD_JSON"; fail "could not register an author"; }
+
+sleep 1
+MD_VERIFY_URL="$(grep -oE 'https?://[^ ]*/verify/[A-Za-z0-9_-]+' "$WORK_DIR/server.log" | tail -1)"
+[ -n "$MD_VERIFY_URL" ] && [ "$MD_VERIFY_URL" != "$VERIFY_URL" ] || fail "the author was sent no verification link"
+curl -s -o /dev/null "http://localhost:$PORT/api/auth/verify/${MD_VERIFY_URL##*/}"
+
+PROMOTED="$(curl -s -X PUT "http://localhost:$PORT/api/users/$MD_USER_ID" \
   -H 'Content-Type: application/json' \
-  -d "{\"name\":\"Author\",\"email\":\"$MD_EMAIL\",\"password\":\"password123\"}" > /dev/null
+  -H "Authorization: Bearer $OWNER_TOKEN" \
+  -d '{"role":"author"}')"
+case "$PROMOTED" in
+  *'"role":"author"'*) ;;
+  *) echo "$PROMOTED"; fail "the owner could not make the account an author" ;;
+esac
 
 MD_TOKEN="$(curl -s -X POST "http://localhost:$PORT/api/auth/login" \
   -H 'Content-Type: application/json' \
@@ -862,6 +886,7 @@ createServer((req, res) => {
     appendFileSync(process.argv[2], JSON.stringify({
       event: req.headers['x-basicben-event'],
       signature: req.headers['x-basicben-signature'],
+      timestamp: req.headers['x-basicben-timestamp'],
       body
     }) + '\n')
     res.statusCode = 200
@@ -892,16 +917,17 @@ kill "$RECEIVER_PID" 2>/dev/null || true
 [ -s "$WEBHOOK_LOG" ] || { echo "$WH_POST"; fail "creating a post delivered no webhook"; }
 pass "a content change delivers a webhook"
 
-# The signature has to cover the exact bytes sent, or a receiver cannot verify
-# it. Recomputing with the app's own APP_KEY is the only way to know.
-APP_KEY_VALUE="$(grep '^APP_KEY=' .env | cut -d= -f2-)"
+# The signature has to cover the timestamp and the exact bytes sent, or a
+# receiver cannot verify it. Recomputing with the app's WEBHOOK_SECRET is the
+# only way to know.
+WEBHOOK_SECRET_VALUE="$(grep '^WEBHOOK_SECRET=' .env | tail -1 | cut -d= -f2-)"
 
-VERIFIED="$(APP_KEY_VALUE="$APP_KEY_VALUE" WEBHOOK_LOG="$WEBHOOK_LOG" node -e '
+VERIFIED="$(WEBHOOK_SECRET_VALUE="$WEBHOOK_SECRET_VALUE" WEBHOOK_LOG="$WEBHOOK_LOG" node -e '
   const { readFileSync } = require("node:fs")
   const { createHmac } = require("node:crypto")
   const line = readFileSync(process.env.WEBHOOK_LOG, "utf-8").trim().split("\n")[0]
-  const { event, signature, body } = JSON.parse(line)
-  const expected = "sha256=" + createHmac("sha256", process.env.APP_KEY_VALUE).update(body).digest("hex")
+  const { event, signature, timestamp, body } = JSON.parse(line)
+  const expected = "sha256=" + createHmac("sha256", process.env.WEBHOOK_SECRET_VALUE).update(`${timestamp}.${body}`).digest("hex")
   const payload = JSON.parse(body)
   process.stdout.write([
     signature === expected ? "signed" : "BAD-SIGNATURE",

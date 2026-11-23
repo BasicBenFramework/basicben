@@ -94,8 +94,10 @@ for (const [event, kind] of CONTENT_EVENTS) {
         secret,
         // Production refuses loopback and private addresses, so a webhook
         // URL cannot be pointed at the metadata service or an internal host.
-        // A local receiver during development is the normal case.
-        allowPrivate: process.env.NODE_ENV !== 'production'
+        // A local receiver during development is the normal case, and
+        // WEBHOOK_ALLOW_PRIVATE opts a production install in when its receiver
+        // really is on the private network (a build service beside it).
+        allowPrivate: process.env.NODE_ENV !== 'production' || process.env.WEBHOOK_ALLOW_PRIVATE === 'true'
       })
     },
     { name: `webhook:${event}` }
