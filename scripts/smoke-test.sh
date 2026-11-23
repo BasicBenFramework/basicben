@@ -1035,6 +1035,33 @@ curl -s -X PUT "http://localhost:$PORT/api/settings" \
   -d '{"settings":{"webhook_urls":""}}' -o /dev/null
 
 
+# --- Phase 3: ops — analytics ingest and site health --------------------------
+
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$PORT/api/v1/analytics/hit" \
+  -H 'Content-Type: text/plain' -H 'User-Agent: Mozilla/5.0 (smoke)' --data '{"path":"/blog/hello?utm=x"}')"
+[ "$code" = "204" ] || fail "analytics hit returned $code, expected 204"
+pass "an analytics hit is accepted"
+
+code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/api/admin/health")"
+[ "$code" = "401" ] || fail "health returned $code without a session, expected 401"
+HEALTH="$(curl -s "http://localhost:$PORT/api/admin/health" -H "Authorization: Bearer $OWNER_TOKEN")"
+case "$HEALTH" in
+  *'"checks"'*) ;;
+  *) echo "$HEALTH"; fail "the health report has no checks" ;;
+esac
+APP_KEY_VALUE="$(grep '^APP_KEY=' .env | cut -d= -f2-)"
+case "$HEALTH" in
+  *"$APP_KEY_VALUE"*) fail "the health report leaks APP_KEY" ;;
+esac
+pass "site health needs a session and does not leak secrets"
+
+STATS="$(curl -s "http://localhost:$PORT/api/admin/analytics?days=7" -H "Authorization: Bearer $OWNER_TOKEN")"
+case "$STATS" in
+  *'/blog/hello'*) pass "the hit shows up in analytics, query string stripped" ;;
+  *) echo "$STATS"; fail "the analytics report does not show the hit" ;;
+esac
+
+
 echo ""
 echo -e "${GREEN}Smoke test passed${NC}"
 echo ""

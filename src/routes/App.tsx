@@ -54,6 +54,8 @@ import AdminNavigation from '../client/pages/admin/Navigation'
 import AdminRedirects from '../client/pages/admin/Redirects'
 import AdminSnippets from '../client/pages/admin/Snippets'
 import AdminTools from '../client/pages/admin/Tools'
+import AdminHealth from '../client/pages/admin/Health'
+import AdminAnalytics from '../client/pages/admin/Analytics'
 
 // Admin layout wrapper (no default layout)
 const NoLayout = ({ children }: { children: React.ReactNode }) => <>{children}</>
@@ -152,6 +154,8 @@ export default createClientApp({
     '/admin/redirects': { component: AdminRedirects, layout: NoLayout, auth: true },
     '/admin/snippets': { component: AdminSnippets, layout: NoLayout, auth: true },
     '/admin/tools': { component: AdminTools, layout: NoLayout, auth: true },
+    '/admin/analytics': { component: AdminAnalytics, layout: NoLayout, auth: true },
+    '/admin/health': { component: AdminHealth, layout: NoLayout, auth: true },
     '/admin/users': { component: AdminUsers, layout: NoLayout, auth: true },
   }
 })
