@@ -8,6 +8,7 @@ import { PostRevision } from '../models/PostRevision'
 import { seoFields } from '../helpers/seo-fields'
 import { LISTING_FILTERS, type ListingFilter } from '../models/Post'
 import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/visibility'
+import { redirectIfSlugChanged } from '../helpers/redirects'
 
 /**
  * Hooks fire from here so an app can take part in the content lifecycle.
@@ -169,6 +170,9 @@ export const PostController = {
     await PostRevision.snapshot(post, changes, req.userId ?? null)
 
     const updated = await Post.update(parseInt(req.params.id), changes)
+
+    // A published post whose slug changed keeps its old URL working (a 301).
+    await redirectIfSlugChanged('post', post, updated)
 
     // A real save supersedes whatever was autosaved while typing it.
     await PostRevision.clearAutosave(post.id, req.userId!)

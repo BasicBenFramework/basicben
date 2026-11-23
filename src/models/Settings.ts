@@ -1,5 +1,31 @@
 import { getDb } from '@basicbenframework/core/db'
+import { absoluteUrl } from '@basicbenframework/core/storage'
 import type { Settings as SettingsType } from '../types'
+import { SITE_DEFAULTS } from '../helpers/site-settings.ts'
+import { siteUrl } from '../helpers/site.ts'
+
+/** What `/api/v1/site` reports. See `siteInfo()`. */
+export interface PublicSiteInfo {
+  name: string
+  description: string
+  /** The public site's origin, from SITE_URL (or APP_URL). Read-only: configuration, not a setting. */
+  url: string
+  /** Absolute URL of the logo, or null. */
+  logo_url: string | null
+  /** Absolute URL of the favicon / app icon, or null. */
+  icon_url: string | null
+  /** Image to use for social cards when a post or page has none of its own. */
+  default_social_image_url: string | null
+  /** IANA time zone the site's dates should be shown in. */
+  timezone: string
+  /** BCP 47 language tag, for `<html lang>` and date formatting. */
+  locale: string
+  /**
+   * Admin-authored HTML for the front end to insert verbatim. Not sanitised —
+   * see `SETTINGS` in helpers/site-settings.ts for why that is safe.
+   */
+  code_injection: { head: string; foot: string }
+}
 
 export const Settings = {
   async all(): Promise<SettingsType[]> {
@@ -32,6 +58,9 @@ export const Settings = {
     }
   },
 
+  // The group is rewritten on conflict too. Keys saved through the old
+  // free-form update all landed in 'general'; saving them again files them
+  // where their definition in helpers/site-settings.ts says they belong.
   async set(key: string, value: string | number | boolean | object, groupName = 'general'): Promise<void> {
     const db = await getDb()
     const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value)
@@ -40,8 +69,8 @@ export const Settings = {
     await db.run(`
       INSERT INTO settings (key, value, group_name, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = ?
-    `, [key, stringValue, groupName, now, now, stringValue, now])
+      ON CONFLICT(key) DO UPDATE SET value = ?, group_name = ?, updated_at = ?
+    `, [key, stringValue, groupName, now, now, stringValue, groupName, now])
   },
 
   async setMany(settings: Record<string, string | number | boolean | object>, groupName = 'general'): Promise<void> {
@@ -106,6 +135,44 @@ export const Settings = {
   async getModerateComments(): Promise<boolean> {
     const value = await this.get('moderate_comments')
     return value !== 'false' // Default to true
+  },
+
+  /**
+   * The site's identity, for a headless front end to render its chrome from.
+   *
+   * One query rather than a `get()` per key: this sits behind a public,
+   * cacheable route that every page build of a front end may hit.
+   *
+   * Image settings may be stored as app-relative paths (`/uploads/logo.png`,
+   * what local storage hands out); they are made absolute against APP_URL
+   * here, because a front end on another host has nothing to resolve them
+   * against — the same reason media URLs are absolute in the content API.
+   */
+  async siteInfo(): Promise<PublicSiteInfo> {
+    const db = await getDb()
+    const rows = (await db.all(
+      `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['site_name', 'site_description', 'site_logo', 'site_icon', 'default_social_image',
+        'timezone', 'locale', 'code_injection_head', 'code_injection_foot']
+    )) as Array<{ key: string; value: string | null }>
+
+    const value = (key: string) => rows.find(row => row.key === key)?.value || ''
+    const image = (key: string) => (value(key) ? absoluteUrl(value(key)) : null)
+
+    return {
+      name: value('site_name') || 'My BasicBen Blog',
+      description: value('site_description'),
+      url: siteUrl(),
+      logo_url: image('site_logo'),
+      icon_url: image('site_icon'),
+      default_social_image_url: image('default_social_image'),
+      timezone: value('timezone') || SITE_DEFAULTS.timezone,
+      locale: value('locale') || SITE_DEFAULTS.locale,
+      code_injection: {
+        head: value('code_injection_head'),
+        foot: value('code_injection_foot')
+      }
+    }
   },
 
 }
