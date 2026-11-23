@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react'
 import { MediaItem, isImage, mediaUrl, useMediaLibrary } from '../../hooks/useMediaLibrary'
 import MediaGrid from './MediaGrid'
+import { useT } from '../../i18n'
 
 /**
  * Choose a file, or upload one, without leaving the editor.
@@ -16,6 +17,7 @@ interface MediaPickerProps {
 }
 
 export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
+  const { t } = useT()
   const library = useMediaLibrary()
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -31,7 +33,7 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Media library"
+      aria-label={t('Media library')}
       onClick={onClose}
       style={{
         position: 'fixed',
@@ -75,13 +77,13 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
             borderBottom: '1px solid var(--border)'
           }}
         >
-          <strong style={{ marginRight: 'auto' }}>Media library</strong>
+          <strong style={{ marginRight: 'auto' }}>{t('Media library')}</strong>
 
           <input
             type="search"
             value={library.search}
             onChange={event => library.setSearch(event.target.value)}
-            placeholder="Search files"
+            placeholder={t('Search files')}
             className="admin-input"
             style={{ maxWidth: '200px' }}
           />
@@ -92,11 +94,11 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
             className="admin-input"
             style={{ maxWidth: '140px' }}
           >
-            <option value="">All types</option>
-            <option value="image">Images</option>
-            <option value="video">Video</option>
-            <option value="audio">Audio</option>
-            <option value="other">Documents</option>
+            <option value="">{t('All types')}</option>
+            <option value="image">{t('Images')}</option>
+            <option value="video">{t('Video')}</option>
+            <option value="audio">{t('Audio')}</option>
+            <option value="other">{t('Documents')}</option>
           </select>
 
           <input
@@ -111,10 +113,10 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
             }}
           />
           <button className="admin-btn admin-btn-primary" onClick={() => fileInput.current?.click()}>
-            Upload
+            {t('Upload')}
           </button>
           <button className="admin-btn admin-btn-secondary" onClick={onClose}>
-            Close
+            {t('Close')}
           </button>
         </div>
 
@@ -127,7 +129,7 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
                   <span style={{ color: 'var(--danger)' }}>{upload.error}</span>
                 ) : (
                   <span style={{ color: 'var(--fg-muted)' }}>
-                    {upload.percent === null ? 'starting…' : `${upload.percent}%`}
+                    {upload.percent === null ? t('starting…') : `${upload.percent}%`}
                   </span>
                 )}
               </div>
@@ -137,7 +139,7 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
 
         <div style={{ overflowY: 'auto', padding: '1rem' }}>
           {library.loading ? (
-            <p style={{ color: 'var(--fg-muted)', textAlign: 'center' }}>Loading…</p>
+            <p style={{ color: 'var(--fg-muted)', textAlign: 'center' }}>{t('Loading…')}</p>
           ) : (
             <MediaGrid
               items={library.items}
@@ -148,8 +150,8 @@ export default function MediaPicker({ onSelect, onClose }: MediaPickerProps) {
               loadingMore={library.loadingMore}
               emptyMessage={
                 library.search || library.type
-                  ? 'Nothing matches that.'
-                  : 'No media yet — upload or drop a file here.'
+                  ? t('Nothing matches that.')
+                  : t('No media yet — upload or drop a file here.')
               }
             />
           )}

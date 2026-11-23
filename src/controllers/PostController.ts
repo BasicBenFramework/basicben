@@ -11,6 +11,10 @@ import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/vis
 import { lockConflict } from './PostLockController'
 import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
 import { postPath } from '../helpers/content-paths'
+import { isPostVisibility, POST_VISIBILITIES, withholdBody } from '../helpers/gating'
+import { newsletterRefusal } from '../helpers/newsletter'
+import { memberFromRequest } from '../middleware/member-auth'
+import { typeAndFields, saveTerms, publicPathOf, editorExtras } from '../helpers/content-model'
 
 /**
  * Hooks fire from here so an app can take part in the content lifecycle.
@@ -38,13 +42,17 @@ export const PostController = {
       : 'all'
     const search = query.search?.trim().slice(0, 200) || undefined
     const userId = can(req.user, 'post.edit') ? undefined : req.userId
+    // One content type at a time, `post` unless asked: the Posts screen and
+    // every client written before content types existed see only posts.
+    // `?type=any` lists every type.
+    const type = query.type === 'any' ? undefined : (query.type?.trim() || 'post')
 
-    const { posts, total } = await Post.paginate({ perPage, offset, userId, filter, search })
+    const { posts, total } = await Post.paginate({ perPage, offset, userId, filter, search, type })
 
     // `posts` stays where it was so nothing reading this breaks; `meta` is
     // added alongside, in the same shape /api/v1 uses. `counts` sizes the
     // status tabs.
-    res.json({ posts, meta: meta(page, perPage, total), counts: await Post.counts(userId) })
+    res.json({ posts, meta: meta(page, perPage, total), counts: await Post.counts(userId, type) })
   },
 
   async show(req: Request, res: Response) {
@@ -62,7 +70,7 @@ export const PostController = {
     const autosave = await PostRevision.pendingAutosave(post.id, req.userId!, String(post.updated_at ?? post.created_at))
 
     res.json({
-      post: { ...post, category_ids: taxonomy.categories, tag_ids: taxonomy.tags },
+      post: { ...post, category_ids: taxonomy.categories, tag_ids: taxonomy.tags, ...(await editorExtras(post)) },
       autosave: autosave ?? null
     })
   },
@@ -79,6 +87,13 @@ export const PostController = {
 
     const fields = editableFields(req.body)
     if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
+
+    const newsletter = newsletterRefusal(req, fields.values, null)
+    if (newsletter) return res.json({ error: newsletter }, 403)
+    // Content type and custom fields; see helpers/content-model.ts.
+    const typed = await typeAndFields(req.body, null)
+    if ('errors' in typed) return res.json({ errors: typed.errors }, 422)
+    Object.assign(fields.values, typed.values)
 
     const publishing = resolvePublishing(req, null)
     if ('error' in publishing) return res.json({ error: publishing.error }, publishing.status)
@@ -109,13 +124,14 @@ export const PostController = {
 
     // A live post on a path an old redirect still claims would never be
     // reached; pages release their path the same way.
-    if (post?.published && post.slug) await releasePath(postPath(post.slug))
+    if (post?.published && post.slug) await releasePath(await publicPathOf(post))
 
     // Categories and tags were accepted by the editor and dropped here — the
     // request carried them, nothing read them, and the selection silently did
     // nothing. They are persisted separately from the post row because both
     // are many-to-many.
     await saveTaxonomy(post.id, req.body)
+    await saveTerms(post.id, req.body)
 
     await hooks.fire(HOOKS.POST_CREATED, { post, userId: req.userId })
 
@@ -157,6 +173,12 @@ export const PostController = {
     const fields = editableFields(req.body)
     if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
 
+    const newsletter = newsletterRefusal(req, fields.values, post)
+    if (newsletter) return res.json({ error: newsletter }, 403)
+    const typed = await typeAndFields(req.body, post)
+    if ('errors' in typed) return res.json({ errors: typed.errors }, 422)
+    Object.assign(fields.values, typed.values)
+
     // Absent means "leave it as it is". Coercing an absent key to 0 turned
     // every request that did not mention publishing into an unpublish.
     const publishing = resolvePublishing(req, post)
@@ -188,6 +210,7 @@ export const PostController = {
     await PostRevision.clearAutosave(post.id, req.userId!)
 
     await saveTaxonomy(parseInt(req.params.id), req.body)
+    await saveTerms(post.id, req.body, updated?.post_type !== post.post_type)
 
     await hooks.fire(HOOKS.POST_UPDATED, { post: updated, previous: post, userId: req.userId })
 
@@ -363,7 +386,10 @@ export const PostController = {
   },
 
   async feed(req: Request, res: Response) {
-    const posts = await Post.findPublished()
+    // The built-in blog's feed. Members-only bodies are withheld unless the
+    // request carries a member session — see helpers/gating.ts.
+    const member = Boolean(await memberFromRequest(req))
+    const posts = (await Post.findPublished()).map((post) => withholdBody(post as unknown as Record<string, unknown>, member))
     res.json({ posts })
   },
 
@@ -372,7 +398,7 @@ export const PostController = {
     if (!post) {
       return res.json({ error: 'Post not found' }, 404)
     }
-    res.json({ post })
+    res.json({ post: withholdBody(post as unknown as Record<string, unknown>, Boolean(await memberFromRequest(req))) })
   }
 }
 
@@ -439,6 +465,14 @@ function editableFields(body: unknown):
   const seo = seoFields(payload)
   if ('errors' in seo) Object.assign(errors, seo.errors)
   else Object.assign(fields, seo.values)
+
+  // Who may read the body, and the request to email it (permission for the
+  // latter is `newsletterRefusal`, which needs the request).
+  if ('visibility' in payload) {
+    if (isPostVisibility(payload.visibility)) fields.visibility = payload.visibility
+    else errors.visibility = [`Must be one of ${POST_VISIBILITIES.join(', ')}`]
+  }
+  if ('send_newsletter' in payload) fields.send_newsletter = payload.send_newsletter ? 1 : 0
 
   return Object.keys(errors).length ? { errors } : { values: fields }
 }

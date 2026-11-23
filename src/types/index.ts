@@ -85,6 +85,16 @@ export interface Post {
   twitter_image?: number | null
   canonical_url?: string | null
   noindex?: number | boolean
+  /** Who may read the body: `public`, `members`, or `paid` (enforced as members for now). */
+  visibility?: 'public' | 'members' | 'paid'
+  /** The author asked for this post to be emailed to members when it goes live. */
+  send_newsletter?: number | boolean
+  /** Content type key (migration 038). `post` for every post that predates types. */
+  post_type?: string
+  /** Custom field values: the stored JSON string on a row, an object once shaped for the editor. */
+  fields?: string | Record<string, unknown> | null
+  /** Custom taxonomy term ids, for the editor to preselect. */
+  term_ids?: number[]
   created_at: string
   updated_at: string
   author_name?: string
@@ -219,6 +229,12 @@ export interface Request {
    * a token has scopes but no role, so capability checks do not apply to it.
    */
   apiToken?: { id: number; name: string; scopes: string[] }
+  /**
+   * Set by the member middleware: the signed-in reader, or null when the
+   * request carried no valid member session. Never an admin principal —
+   * nothing that sets this touches `user` or `userId`.
+   */
+  member?: import('../models/Member').MemberRow | null
 }
 
 export interface Response {

@@ -41,6 +41,8 @@ import { Testing } from '../client/pages/Testing'
 // Admin pages
 import AdminDashboard from '../client/pages/admin/Dashboard'
 import AdminPosts from '../client/pages/admin/Posts'
+import AdminContentTypes from '../client/pages/admin/ContentTypes'
+import AdminTaxonomies from '../client/pages/admin/Taxonomies'
 import AdminPostEditor from '../client/pages/admin/PostEditor'
 import AdminPages from '../client/pages/admin/Pages'
 import AdminCategories from '../client/pages/admin/Categories'
@@ -49,11 +51,14 @@ import AdminComments from '../client/pages/admin/Comments'
 import AdminMedia from '../client/pages/admin/Media'
 import AdminTokens from '../client/pages/admin/Tokens'
 import AdminUsers from '../client/pages/admin/Users'
+import AdminMembers from '../client/pages/admin/Members'
 import AdminSettings from '../client/pages/admin/Settings'
 import AdminNavigation from '../client/pages/admin/Navigation'
 import AdminRedirects from '../client/pages/admin/Redirects'
 import AdminSnippets from '../client/pages/admin/Snippets'
 import AdminTools from '../client/pages/admin/Tools'
+import AdminHealth from '../client/pages/admin/Health'
+import AdminAnalytics from '../client/pages/admin/Analytics'
 
 // Admin layout wrapper (no default layout)
 const NoLayout = ({ children }: { children: React.ReactNode }) => <>{children}</>
@@ -137,6 +142,9 @@ export default createClientApp({
     // Admin routes (use their own layout)
     '/admin': { component: AdminDashboard, layout: NoLayout, auth: true },
     '/admin/posts': { component: AdminPosts, layout: NoLayout, auth: true },
+    '/admin/content/:type': { component: AdminPosts, layout: NoLayout, auth: true },
+    '/admin/content-types': { component: AdminContentTypes, layout: NoLayout, auth: true },
+    '/admin/taxonomies': { component: AdminTaxonomies, layout: NoLayout, auth: true },
     '/admin/posts/new': { component: AdminPostEditor, layout: NoLayout, auth: true },
     '/admin/posts/:id/edit': { component: AdminPostEditor, layout: NoLayout, auth: true },
     '/admin/pages': { component: AdminPages, layout: NoLayout, auth: true },
@@ -152,6 +160,9 @@ export default createClientApp({
     '/admin/redirects': { component: AdminRedirects, layout: NoLayout, auth: true },
     '/admin/snippets': { component: AdminSnippets, layout: NoLayout, auth: true },
     '/admin/tools': { component: AdminTools, layout: NoLayout, auth: true },
+    '/admin/analytics': { component: AdminAnalytics, layout: NoLayout, auth: true },
+    '/admin/health': { component: AdminHealth, layout: NoLayout, auth: true },
     '/admin/users': { component: AdminUsers, layout: NoLayout, auth: true },
+    '/admin/members': { component: AdminMembers, layout: NoLayout, auth: true },
   }
 })

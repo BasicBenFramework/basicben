@@ -5,13 +5,17 @@ import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
 import { excerpt, slugify } from '@basicbenframework/core/content'
 import FeaturedImageBox from '../../components/admin/FeaturedImageBox'
+import PostAccessBox, { type Visibility } from '../../components/admin/PostAccessBox'
 import TermPicker from '../../components/admin/TermPicker'
 import SnippetPicker from '../../components/admin/SnippetPicker'
 import { usePostLock } from '../../hooks/usePostLock'
+import { useContentTypes, typeFromQuery, navigateWithType } from '../../hooks/useContentTypes'
+import { CustomFieldsPanel, CustomTermsPanel } from '../../components/admin/ContentModelPanels'
 
 import type { AuthorProfile, Page, Post } from '../../../types'
 import { Link } from '../../components/Link'
 import { can } from '@basicbenframework/core/auth/permissions'
+import { useT, slots } from '../../i18n'
 
 type Status = 'draft' | 'pending' | 'published'
 
@@ -72,6 +76,11 @@ function summaryOf(content: string) {
 }
 
 /**
+ * A translated sentence with the `{name}` in it set in bold. The placeholder
+ * survives `t()` when no value is given for it, so the whole sentence is
+ * translated as one and the name is dropped in here.
+ */
+/**
  * The editor, for a post or for a page.
  *
  * `/admin/pages/new` has always opened this component, and this component has
@@ -86,10 +95,29 @@ export default function AdminPostEditor() {
   const params = useParams()
   const path = usePath()
   const { user } = useAuth()
+  const { t } = useT()
 
   const isPage = path.startsWith('/admin/pages')
   const resource = isPage ? 'pages' : 'posts'
-  const noun = isPage ? 'Page' : 'Post'
+
+  // Content types (Phase 3): a post may be a recipe, a product... The type
+  // comes from the saved post, or `?type=` for a new one; its `supports`
+  // decide which panels show, and its fields get a panel of their own.
+  const { types: contentTypes } = useContentTypes()
+  const [postType, setPostType] = useState(typeFromQuery() || 'post')
+  const [customFields, setCustomFields] = useState<Record<string, unknown>>({})
+  const [termIds, setTermIds] = useState<number[]>([])
+  const [termsReady, setTermsReady] = useState(false)
+  const contentType = contentTypes.find(type => type.key === postType)
+  // Until types load, everything shows: the editor as it was before types.
+  const supports = (panel: keyof NonNullable<typeof contentType>['supports']) => isPage || !contentType || contentType.supports[panel]
+
+  // What the thing being edited is called. A page and a post have sentences of
+  // their own, because a language with gender needs them; a custom type is
+  // named by its label. Until types load, a post is a post.
+  const customType = !isPage && contentType && contentType.key !== 'post' ? contentType.singular_label : null
+  const pick = (page: string, post: string, custom: string) => (isPage ? page : customType ? custom : post)
+  const typeVars = { type: customType ?? '' }
 
   const postId = params.id ? parseInt(params.id) : null
   const isEditing = !!postId
@@ -127,6 +155,9 @@ export default function AdminPostEditor() {
     twitter_description: '',
     canonical_url: '',
     noindex: false,
+    // Posts only: who may read the body, and the request to email it.
+    visibility: 'public' as Visibility,
+    send_newsletter: false,
     // The media id that gets saved, and the URL that gets shown. The server
     // resolves the second from the first, because only it knows where files
     // are served from.
@@ -251,12 +282,20 @@ export default function AdminPostEditor() {
             twitter_description: record.twitter_description || '',
             canonical_url: record.canonical_url || '',
             noindex: Boolean(Number(record.noindex ?? 0)),
+            visibility: (record.visibility as Visibility) || 'public',
+            send_newsletter: Boolean(Number(record.send_newsletter ?? 0)),
             featured_image: record.featured_image ?? null,
             featured_image_url: record.featured_image_url ?? null,
             user_id: record.user_id ?? ''
           }))
 
           if (record.author_name) setAuthorName(record.author_name)
+
+          if (!isPage) {
+            setPostType(record.post_type || 'post')
+            setCustomFields(record.fields && typeof record.fields === 'object' ? record.fields : {})
+            setTermIds(record.term_ids || [])
+          }
         }
       }
     } catch (error) {
@@ -315,12 +354,12 @@ export default function AdminPostEditor() {
 
   const restoreRevision = async (revision: Revision) => {
     if (!postId) return
-    if (!confirm(`Replace the current text with the version from ${new Date(revision.created_at).toLocaleString()}? The current text is kept as a revision.`)) return
+    if (!confirm(t('Replace the current text with the version from {date}? The current text is kept as a revision.', { date: new Date(revision.created_at).toLocaleString() }))) return
     try {
       await api.post(`/api/posts/${postId}/revisions/${revision.id}/restore`, {})
       await loadData()
     } catch (error: any) {
-      alert(error.message || 'Could not restore that revision')
+      alert(error.message || t('Could not restore that revision'))
     }
   }
 
@@ -339,24 +378,34 @@ export default function AdminPostEditor() {
 
       const finalStatus = submitStatus ?? status
 
+      // Posts only: a page has no visibility or newsletter to send.
+      const { visibility, send_newsletter, ...shared } = common
+
       // category_ids and tags are arrays the server syncs; a page has neither,
       // and no excerpt column to put an excerpt in. A page publishes with the
       // checkbox; a post with its status and an optional schedule.
       const payload = isPage
-        ? { ...common, published }
+        ? { ...shared, published }
         : {
-            ...common,
+            ...shared,
             status: finalStatus,
             // Sent only when there is one: blank means "now" for a post going
             // live, and "unchanged" for one already live.
             ...(publish_at ? { publish_at: fromLocalInput(publish_at) } : {}),
             excerpt,
+            visibility,
+            send_newsletter,
             category_ids,
             tags,
             // Only when the menu was shown and a choice was made. Sending it
             // otherwise would ask the server to reassign a post to its own
             // author, which it ignores, but there is no reason to ask.
-            ...(user_id === '' ? {} : { user_id })
+            ...(user_id === '' ? {} : { user_id }),
+            post_type: postType,
+            // Only for a type that has fields, and terms only once the
+            // pickers know the selection: an unloaded box is not "none".
+            ...(contentType?.supports.custom_fields && contentType.fields.length ? { fields: customFields } : {}),
+            ...(termsReady ? { term_ids: termIds } : {})
           }
 
       if (isEditing) {
@@ -366,12 +415,12 @@ export default function AdminPostEditor() {
       }
 
       dirty.current = false
-      navigate(`/admin/${resource}`)
+      navigateWithType(navigate, `/admin/${resource}`, isPage ? null : postType)
     } catch (error: any) {
       console.error(`Failed to save ${resource}:`, error)
       // Refused by the edit lock: refresh it so the banner shows who has it.
       if (/is editing this post/.test(error?.message ?? '')) void lock.retry()
-      alert(error.message || `Failed to save ${noun.toLowerCase()}`)
+      alert(error.message || pick(t('Failed to save page'), t('Failed to save post'), t('Failed to save {type}', typeVars)))
     } finally {
       setSaving(false)
     }
@@ -396,14 +445,18 @@ export default function AdminPostEditor() {
   const scheduledFor = formData.publish_at ? new Date(formData.publish_at) : null
   const isFuture = Boolean(scheduledFor && scheduledFor.getTime() > Date.now())
   const submitLabel = saving
-    ? 'Saving...'
+    ? t('Saving...')
     : isPage
-      ? (isEditing ? 'Update' : 'Create')
+      ? (isEditing ? t('Update') : t('Create'))
       : formData.status === 'published'
-        ? (isFuture ? 'Schedule' : (isEditing ? 'Update' : 'Publish'))
+        ? (isFuture ? t('Schedule') : (isEditing ? t('Update') : t('Publish')))
         : formData.status === 'pending'
-          ? 'Submit for review'
-          : 'Save draft'
+          ? t('Submit for review')
+          : t('Save draft')
+
+  const heading = isEditing
+    ? pick(t('Edit page'), t('Edit post'), t('Edit {type}', typeVars))
+    : pick(t('New page'), t('New post'), t('New {type}', typeVars))
 
   // Creating a term without leaving the editor. Going to /admin/categories to
   // add one and coming back meant losing an unsaved draft, which is a poor
@@ -431,7 +484,7 @@ export default function AdminPostEditor() {
       return Boolean(created)
     } catch (error) {
       console.error('Failed to create category:', error)
-      alert('Could not create that category. It may already exist.')
+      alert(t('Could not create that category. It may already exist.'))
       return false
     } finally {
       setCreating(null)
@@ -479,7 +532,7 @@ export default function AdminPostEditor() {
       return true
     } catch (error) {
       console.error('Failed to add tags:', error)
-      alert('Could not add those tags.')
+      alert(t('Could not add those tags.'))
       return false
     } finally {
       setCreating(null)
@@ -510,14 +563,14 @@ export default function AdminPostEditor() {
 
   if (loading) {
     return (
-      <AdminLayout title={`${isEditing ? 'Edit' : 'New'} ${noun}`}>
-        <div className="admin-loading">Loading...</div>
+      <AdminLayout title={heading}>
+        <div className="admin-loading">{t('Loading...')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title={`${isEditing ? 'Edit' : 'New'} ${noun}`}>
+    <AdminLayout title={heading}>
       <form onSubmit={handleSubmit}>
         {/* The edit lock. Shown above everything, because it decides whether
             anything below can be saved. */}
@@ -525,29 +578,29 @@ export default function AdminPostEditor() {
           <div className="admin-card" role="alert" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between', borderColor: 'var(--warning)', background: 'var(--tint-warning)' }}>
             <span>
               {lock.lostIt
-                ? <><strong>{lock.holder}</strong> has taken over editing this post. Your unsaved changes are still on screen, but cannot be saved unless you take it back.</>
-                : <><strong>{lock.holder}</strong> is editing this post. You can read it, but saving is paused so neither of you overwrites the other.</>}
+                ? slots(t('{name} has taken over editing this post. Your unsaved changes are still on screen, but cannot be saved unless you take it back.'), { name: <strong>{lock.holder}</strong> })
+                : slots(t('{name} is editing this post. You can read it, but saving is paused so neither of you overwrites the other.'), { name: <strong>{lock.holder}</strong> })}
             </span>
             <span style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" className="admin-btn admin-btn-primary" onClick={takeOver}>Take over</button>
-              <Link href="/admin/posts" className="admin-btn admin-btn-secondary">Back to posts</Link>
+              <button type="button" className="admin-btn admin-btn-primary" onClick={takeOver}>{t('Take over')}</button>
+              <Link href="/admin/posts" className="admin-btn admin-btn-secondary">{t('Back to posts')}</Link>
             </span>
           </div>
         )}
         {lock.status === 'free' && (
           <div className="admin-card" role="status" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>{lock.holder || 'The other editor'} has finished editing. Reload to see their changes and start editing.</span>
-            <button type="button" className="admin-btn admin-btn-primary" onClick={reloadAndEdit}>Reload and edit</button>
+            <span>{t('{name} has finished editing. Reload to see their changes and start editing.', { name: lock.holder || t('The other editor') })}</span>
+            <button type="button" className="admin-btn admin-btn-primary" onClick={reloadAndEdit}>{t('Reload and edit')}</button>
           </div>
         )}
         {autosave && (
           <div className="admin-card" role="status" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between' }}>
             <span>
-              There is an autosave of this post from {new Date(autosave.created_at).toLocaleString()} that is newer than the saved version.
+              {t('There is an autosave of this post from {date} that is newer than the saved version.', { date: new Date(autosave.created_at).toLocaleString() })}
             </span>
             <span style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" className="admin-btn admin-btn-primary" onClick={restoreAutosave}>Restore it</button>
-              <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setAutosave(null)}>Dismiss</button>
+              <button type="button" className="admin-btn admin-btn-primary" onClick={restoreAutosave}>{t('Restore it')}</button>
+              <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setAutosave(null)}>{t('Dismiss')}</button>
             </span>
           </div>
         )}
@@ -556,14 +609,14 @@ export default function AdminPostEditor() {
           <div>
             <div className="admin-card">
               <div className="admin-form-group">
-                <label className="admin-label">Title</label>
+                <label className="admin-label">{t('Title')}</label>
                 <input
                   type="text"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
                   className="admin-input"
-                  placeholder={`Enter ${noun.toLowerCase()} title`}
+                  placeholder={pick(t('Enter page title'), t('Enter post title'), t('Enter {type} title', { type: customType?.toLowerCase() ?? '' }))}
                   required
                 />
 
@@ -573,7 +626,7 @@ export default function AdminPostEditor() {
                     Leaving it blank keeps the placeholder — the slug the
                     server will derive. */}
                 <div className="admin-slug">
-                  <label htmlFor="slug">Slug</label>
+                  <label htmlFor="slug">{t('Slug')}</label>
                   <input
                     id="slug"
                     type="text"
@@ -581,23 +634,23 @@ export default function AdminPostEditor() {
                     value={formData.slug}
                     onChange={handleChange}
                     className="admin-slug-input"
-                    placeholder={slugify(formData.title) || `${noun.toLowerCase()}-url-slug`}
+                    placeholder={slugify(formData.title) || pick(t('page-url-slug'), t('post-url-slug'), t('{type}-url-slug', { type: slugify(customType ?? '') }))}
                   />
                   {/* Blank is a request for a fresh one, on an existing post
                       as much as a new one — so the note says the same thing in
                       both cases, because the server does the same thing. */}
-                  {!formData.slug.trim() && <span className="admin-slug-note">from the title</span>}
+                  {!formData.slug.trim() && <span className="admin-slug-note">{t('from the title')}</span>}
                 </div>
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label">Content</label>
+                <label className="admin-label">{t('Content')}</label>
                 <MarkdownEditor
                   name="content"
                   value={formData.content}
                   onChange={handleChange}
                   minHeight="400px"
-                  placeholder="Write your content here. Markdown is supported."
+                  placeholder={t('Write your content here. Markdown is supported.')}
                   required
                   readOnly={lockedOut}
                   tools={(insert, disabled) => <SnippetPicker onInsert={insert} disabled={disabled} />}
@@ -606,64 +659,76 @@ export default function AdminPostEditor() {
 
               {/* Pages have no excerpt column, so the field would have been a
                   box that quietly discarded whatever was typed into it. */}
-              {!isPage && (
+              {!isPage && supports('excerpt') && (
                 <div className="admin-form-group">
-                  <label className="admin-label">Excerpt</label>
+                  <label className="admin-label">{t('Excerpt')}</label>
                   <textarea
                     name="excerpt"
                     value={formData.excerpt}
                     onChange={handleChange}
                     className="admin-textarea"
                     style={{ minHeight: '100px' }}
-                    placeholder={summaryOf(formData.content) || 'Written for you from the content if you leave this blank'}
+                    placeholder={summaryOf(formData.content) || t('Written for you from the content if you leave this blank')}
                   />
                 </div>
               )}
             </div>
 
+            {!isPage && (
+              <CustomFieldsPanel
+                type={contentType}
+                values={customFields}
+                disabled={lockedOut}
+                onChange={values => {
+                  dirty.current = true
+                  setCustomFields(values)
+                }}
+              />
+            )}
+
             {/* SEO Settings */}
             <div className="admin-card">
-              <h3 className="admin-card-title">SEO Settings</h3>
+              <h3 className="admin-card-title">{t('SEO Settings')}</h3>
               <div className="admin-form-group">
-                <label className="admin-label">Meta Title</label>
+                <label className="admin-label">{t('Meta Title')}</label>
                 <input
                   type="text"
                   name="meta_title"
                   value={formData.meta_title}
                   onChange={handleChange}
                   className="admin-input"
-                  placeholder="SEO title"
+                  placeholder={t('SEO title')}
                 />
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label">Meta Description</label>
+                <label className="admin-label">{t('Meta Description')}</label>
                 <textarea
                   name="meta_description"
                   value={formData.meta_description}
                   onChange={handleChange}
                   className="admin-textarea"
                   style={{ minHeight: '80px' }}
-                  placeholder="SEO description"
+                  placeholder={t('SEO description')}
                 />
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label">Canonical URL</label>
+                <label className="admin-label">{t('Canonical URL')}</label>
                 <input
                   type="url"
                   name="canonical_url"
                   value={formData.canonical_url}
                   onChange={handleChange}
                   className="admin-input"
-                  placeholder="Only if this was first published somewhere else"
+                  placeholder={t('Only if this was first published somewhere else')}
                 />
               </div>
 
               <div className="admin-form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <input type="checkbox" name="noindex" checked={formData.noindex} onChange={handleChange} />
-                  Ask search engines not to index this {noun.toLowerCase()}
+                  {pick(t('Ask search engines not to index this page'), t('Ask search engines not to index this post'), t('Ask search engines not to index this {type}', { type: customType?.toLowerCase() ?? '' }))}
                 </label>
               </div>
             </div>
@@ -672,28 +737,28 @@ export default function AdminPostEditor() {
                 fields, then the title, excerpt and featured image — so most
                 posts never need these. */}
             <div className="admin-card">
-              <h3 className="admin-card-title">Social cards</h3>
+              <h3 className="admin-card-title">{t('Social cards')}</h3>
               <div className="admin-form-group">
-                <label className="admin-label">Open Graph title</label>
-                <input type="text" name="og_title" value={formData.og_title} onChange={handleChange} className="admin-input" placeholder={formData.meta_title || formData.title || 'Falls back to the SEO title'} />
+                <label className="admin-label">{t('Open Graph title')}</label>
+                <input type="text" name="og_title" value={formData.og_title} onChange={handleChange} className="admin-input" placeholder={formData.meta_title || formData.title || t('Falls back to the SEO title')} />
               </div>
               <div className="admin-form-group">
-                <label className="admin-label">Open Graph description</label>
-                <textarea name="og_description" value={formData.og_description} onChange={handleChange} className="admin-textarea" style={{ minHeight: '60px' }} placeholder={formData.meta_description || 'Falls back to the SEO description'} />
+                <label className="admin-label">{t('Open Graph description')}</label>
+                <textarea name="og_description" value={formData.og_description} onChange={handleChange} className="admin-textarea" style={{ minHeight: '60px' }} placeholder={formData.meta_description || t('Falls back to the SEO description')} />
               </div>
               <div className="admin-form-group">
-                <label className="admin-label">Twitter / X title</label>
-                <input type="text" name="twitter_title" value={formData.twitter_title} onChange={handleChange} className="admin-input" placeholder="Falls back to the Open Graph title" />
+                <label className="admin-label">{t('Twitter / X title')}</label>
+                <input type="text" name="twitter_title" value={formData.twitter_title} onChange={handleChange} className="admin-input" placeholder={t('Falls back to the Open Graph title')} />
               </div>
               <div className="admin-form-group">
-                <label className="admin-label">Twitter / X description</label>
-                <textarea name="twitter_description" value={formData.twitter_description} onChange={handleChange} className="admin-textarea" style={{ minHeight: '60px' }} placeholder="Falls back to the Open Graph description" />
+                <label className="admin-label">{t('Twitter / X description')}</label>
+                <textarea name="twitter_description" value={formData.twitter_description} onChange={handleChange} className="admin-textarea" style={{ minHeight: '60px' }} placeholder={t('Falls back to the Open Graph description')} />
               </div>
             </div>
 
             {!isPage && isEditing && revisions.length > 0 && (
               <div className="admin-card">
-                <h3 className="admin-card-title">Revisions</h3>
+                <h3 className="admin-card-title">{t('Revisions')}</h3>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.5rem' }}>
                   {revisions.slice(0, 20).map(revision => (
                     <li key={revision.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center' }}>
@@ -704,7 +769,7 @@ export default function AdminPostEditor() {
                         <small style={{ color: 'var(--fg-muted)' }}>{revision.title}</small>
                       </span>
                       <button type="button" className="admin-btn admin-btn-secondary" onClick={() => restoreRevision(revision)}>
-                        Restore
+                        {t('Restore')}
                       </button>
                     </li>
                   ))}
@@ -717,7 +782,7 @@ export default function AdminPostEditor() {
           <div>
             {/* Publish */}
             <div className="admin-card">
-              <h3 className="admin-card-title">Publish</h3>
+              <h3 className="admin-card-title">{t('Publish')}</h3>
               {isPage ? (
                 <div className="admin-form-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -727,28 +792,28 @@ export default function AdminPostEditor() {
                       checked={formData.published}
                       onChange={handleChange}
                     />
-                    Published
+                    {t('Published')}
                   </label>
                 </div>
               ) : (
                 <>
                   <div className="admin-form-group">
-                    <label className="admin-label" htmlFor="status">Status</label>
+                    <label className="admin-label" htmlFor="status">{t('Status')}</label>
                     {/* A contributor can ask for review but not publish; the
                         option is shown disabled so the route to going live is
                         visible rather than missing. */}
                     <select id="status" name="status" value={formData.status} onChange={handleChange} className="admin-input">
-                      <option value="draft">Draft</option>
-                      <option value="pending">Pending review</option>
+                      <option value="draft">{t('Draft')}</option>
+                      <option value="pending">{t('Pending review')}</option>
                       <option value="published" disabled={!mayPublish && formData.status !== 'published'}>
-                        Published{mayPublish ? '' : ' (an editor publishes)'}
+                        {mayPublish ? t('Published') : t('Published (an editor publishes)')}
                       </option>
                     </select>
                   </div>
 
                   {formData.status === 'published' && (
                     <div className="admin-form-group">
-                      <label className="admin-label" htmlFor="publish_at">Publish on</label>
+                      <label className="admin-label" htmlFor="publish_at">{t('Publish on')}</label>
                       <input
                         id="publish_at"
                         type="datetime-local"
@@ -759,17 +824,17 @@ export default function AdminPostEditor() {
                       />
                       <small style={{ color: 'var(--fg-muted)' }}>
                         {isFuture
-                          ? `Scheduled — goes live ${scheduledFor!.toLocaleString()}.`
+                          ? t('Scheduled — goes live {date}.', { date: scheduledFor!.toLocaleString() })
                           : formData.publish_at
-                            ? 'Already live.'
-                            : 'Blank publishes now. A future date schedules it.'}
+                            ? t('Already live.')
+                            : t('Blank publishes now. A future date schedules it.')}
                       </small>
                     </div>
                   )}
 
                   {lastAutosaved && (
                     <p style={{ color: 'var(--fg-muted)', fontSize: '0.8rem' }}>
-                      Autosaved {new Date(lastAutosaved).toLocaleTimeString()}
+                      {t('Autosaved {time}', { time: new Date(lastAutosaved).toLocaleTimeString() })}
                     </p>
                   )}
                 </>
@@ -780,21 +845,34 @@ export default function AdminPostEditor() {
                   type="submit"
                   className="admin-btn admin-btn-primary"
                   disabled={saving || lockedOut}
-                  title={lockedOut ? 'Someone else is editing this post' : undefined}
+                  title={lockedOut ? t('Someone else is editing this post') : undefined}
                   style={{ flex: 1 }}
                 >
                   {submitLabel}
                 </button>
                 <Link href={`/admin/${resource}`} className="admin-btn admin-btn-secondary">
-                  Cancel
+                  {t('Cancel')}
                 </Link>
               </div>
             </div>
 
+            {!isPage && (
+              <PostAccessBox
+                postId={postId}
+                visibility={formData.visibility}
+                sendNewsletter={formData.send_newsletter}
+                disabled={lockedOut}
+                onChange={changes => {
+                  dirty.current = true
+                  setFormData(prev => ({ ...prev, ...changes }))
+                }}
+              />
+            )}
+
             {/* Both posts and pages carry one now. A page could only ever get a
                 hero image by writing the Markdown for it into the body, which
                 puts it in the content rather than beside it. */}
-            <FeaturedImageBox
+            {supports('featured_image') && <FeaturedImageBox
               value={formData.featured_image}
               url={formData.featured_image_url}
               onChange={image => {
@@ -805,7 +883,7 @@ export default function AdminPostEditor() {
                   featured_image_url: image?.url ?? null
                 }))
               }}
-            />
+            />}
 
             {/* Who the post is filed under. Always shown, because "who wrote
                 this" is part of what you are editing — but a menu only when
@@ -815,7 +893,7 @@ export default function AdminPostEditor() {
                 than a control. */}
             {!isPage && (
               <div className="admin-card">
-                <h3 className="admin-card-title">Author</h3>
+                <h3 className="admin-card-title">{t('Author')}</h3>
 
                 {authors.length > 1 ? (
                   <select
@@ -824,7 +902,7 @@ export default function AdminPostEditor() {
                     onChange={handleChange}
                     className="admin-input"
                   >
-                    <option value="">{isEditing ? 'Unchanged' : 'Me'}</option>
+                    <option value="">{isEditing ? t('Unchanged') : t('Me')}</option>
                     {authors.map(author => (
                       <option key={author.id} value={author.id}>
                         {author.name}
@@ -836,7 +914,7 @@ export default function AdminPostEditor() {
                     {currentAuthor?.avatar_url && (
                       <img src={currentAuthor.avatar_url} alt="" className="admin-author-avatar" />
                     )}
-                    <span>{authorName || 'Unknown'}</span>
+                    <span>{authorName || t('Unknown')}</span>
                   </div>
                 )}
               </div>
@@ -853,30 +931,40 @@ export default function AdminPostEditor() {
                 neither of them usable on a site with four hundred tags. */}
             {!isPage && (
               <>
-                <TermPicker
-                  title="Categories"
-                  noun="category"
+                {supports('categories') && <TermPicker
+                  title={t('Categories')}
+                  noun={t('category')}
                   terms={categories}
                   selected={formData.category_ids}
                   onToggle={handleCategoryToggle}
                   onAdd={createCategory}
                   busy={creating !== null}
-                  emptyText="No categories yet."
-                />
+                  emptyText={t('No categories yet.')}
+                />}
 
                 {/* A comma commits, because a run of tags is conventionally
                     typed as one — and `addTags` splits it, reusing the ones
                     that already exist rather than making near-duplicates. */}
-                <TermPicker
-                  title="Tags"
-                  noun="tag"
+                {supports('tags') && <TermPicker
+                  title={t('Tags')}
+                  noun={t('tag')}
                   terms={allTags}
                   selected={formData.tags}
                   onToggle={handleTagToggle}
                   onAdd={addTags}
                   busy={creating !== null}
-                  emptyText="No tags yet."
+                  emptyText={t('No tags yet.')}
                   commitOnComma
+                />}
+
+                <CustomTermsPanel
+                  typeKey={postType}
+                  selected={termIds}
+                  onChange={ids => {
+                    dirty.current = true
+                    setTermIds(ids)
+                  }}
+                  onReady={setTermsReady}
                 />
               </>
             )}

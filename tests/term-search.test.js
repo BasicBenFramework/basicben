@@ -92,10 +92,10 @@ describe('both taxonomies use it', () => {
     assert.match(picker, /commitOnComma && e\.key === ','/)
     assert.match(picker, /commitOnComma = false/)
 
-    const tags = editor.slice(editor.indexOf('title="Tags"'))
+    const tags = editor.slice(editor.indexOf("title={t('Tags')}"))
     const categories = editor.slice(
-      editor.indexOf('title="Categories"'),
-      editor.indexOf('title="Tags"')
+      editor.indexOf("title={t('Categories')}"),
+      editor.indexOf("title={t('Tags')}")
     )
 
     assert.match(tags.slice(0, tags.indexOf('/>')), /commitOnComma/)

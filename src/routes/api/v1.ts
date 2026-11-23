@@ -2,11 +2,14 @@ import { PublicApiController } from '../../controllers/PublicApiController'
 import { SettingsController } from '../../controllers/SettingsController'
 import { NavigationController } from '../../controllers/NavigationController'
 import { RedirectController } from '../../controllers/RedirectController'
+import { ContentTypeController } from '../../controllers/ContentTypeController'
+import { TaxonomyController } from '../../controllers/TaxonomyController'
 import { requireScope } from '../../middleware/api-auth'
 import { SCOPES } from '@basicbenframework/core/auth/api-tokens'
 import { cacheable } from '../../middleware/cache'
 import { publicApiLimit } from '../../middleware/rate-limits'
 import { publishDueOpportunistically } from '../../helpers/publish-due'
+import { optionalMember } from '../../middleware/member-auth'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -25,8 +28,13 @@ export default (router: Router) => {
 
   // Post reads also announce any scheduled post whose time has come, at most
   // once a minute — see helpers/publish-due.ts.
-  router.get('/api/v1/posts', publicApiLimit, content, publishDueOpportunistically, cacheable, PublicApiController.posts)
-  router.get('/api/v1/posts/:slug', publicApiLimit, content, publishDueOpportunistically, cacheable, PublicApiController.post)
+  //
+  // `optionalMember` reads a member session from `X-Member-Token`, which
+  // unlocks the body of members-only posts. It is separate from the
+  // `content:read` credential in `Authorization`, and `cacheable` marks any
+  // response to a request carrying it private.
+  router.get('/api/v1/posts', publicApiLimit, content, publishDueOpportunistically, optionalMember, cacheable, PublicApiController.posts)
+  router.get('/api/v1/posts/:slug', publicApiLimit, content, publishDueOpportunistically, optionalMember, cacheable, PublicApiController.post)
 
   router.get('/api/v1/pages', publicApiLimit, content, cacheable, PublicApiController.pages)
   router.get('/api/v1/pages/:slug', publicApiLimit, content, cacheable, PublicApiController.page)
@@ -47,4 +55,12 @@ export default (router: Router) => {
   router.get('/api/v1/site', publicApiLimit, content, cacheable, SettingsController.publicSite)
   router.get('/api/v1/navigation', publicApiLimit, content, cacheable, NavigationController.publicIndex)
   router.get('/api/v1/redirects', publicApiLimit, content, cacheable, RedirectController.publicIndex)
+
+  // The content model: which public content types exist (with their custom
+  // field schemas and route bases), and the custom taxonomies beside the
+  // built-in categories and tags. `?type=` and `?tax=` on /api/v1/posts read
+  // these. Not on PublicApiController for the same reason as the site routes.
+  router.get('/api/v1/types', publicApiLimit, content, cacheable, ContentTypeController.publicIndex)
+  router.get('/api/v1/taxonomies', publicApiLimit, content, cacheable, TaxonomyController.publicIndex)
+  router.get('/api/v1/taxonomies/:key/terms', publicApiLimit, content, cacheable, TaxonomyController.publicTerms)
 }

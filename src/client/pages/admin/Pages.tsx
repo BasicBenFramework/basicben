@@ -3,6 +3,7 @@ import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import { Link } from '../../components/Link'
 import { Pagination, type PageMeta } from '../../components/admin/Pagination'
+import { useT } from '../../i18n'
 
 interface Page {
   id: number
@@ -14,6 +15,7 @@ interface Page {
 }
 
 export default function AdminPages() {
+  const { t } = useT()
   const [pages, setPages] = useState<Page[]>([])
   const [meta, setMeta] = useState<PageMeta | null>(null)
   const [page, setPage] = useState(1)
@@ -38,7 +40,7 @@ export default function AdminPages() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this page?')) return
+    if (!confirm(t('Are you sure you want to delete this page?'))) return
 
     try {
       await api.delete(`/api/pages/${id}`)
@@ -51,41 +53,41 @@ export default function AdminPages() {
       if (emptied) setPage(page - 1)
       else loadPages(page)
     } catch (error) {
-      alert('Failed to delete page')
+      alert(t('Failed to delete page'))
     }
   }
 
   if (loading) {
     return (
-      <AdminLayout title="Pages">
-        <div className="admin-loading">Loading...</div>
+      <AdminLayout title={t('Pages')}>
+        <div className="admin-loading">{t('Loading...')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title="Pages">
+    <AdminLayout title={t('Pages')}>
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">All Pages</h2>
+          <h2 className="admin-card-title">{t('All Pages')}</h2>
           <Link href="/admin/pages/new" className="admin-btn admin-btn-primary">
-            + New Page
+            {t('+ New Page')}
           </Link>
         </div>
 
         {pages.length === 0 ? (
           <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>
-            No pages yet. Create your first page!
+            {t('No pages yet. Create your first page!')}
           </p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Title</th>
-                <th>Slug</th>
-                <th>Template</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>{t('Title')}</th>
+                <th>{t('Slug')}</th>
+                <th>{t('Template')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -100,19 +102,19 @@ export default function AdminPages() {
                   <td>{page.template}</td>
                   <td>
                     <span className={`admin-badge ${page.published ? 'admin-badge-success' : 'admin-badge-warning'}`}>
-                      {page.published ? 'Published' : 'Draft'}
+                      {page.published ? t('Published') : t('Draft')}
                     </span>
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <Link href={`/admin/pages/${page.id}/edit`} className="admin-btn admin-btn-secondary">
-                        Edit
+                        {t('Edit')}
                       </Link>
                       <button
                         onClick={() => handleDelete(page.id)}
                         className="admin-btn admin-btn-danger"
                       >
-                        Delete
+                        {t('Delete')}
                       </button>
                     </div>
                   </td>
@@ -122,7 +124,7 @@ export default function AdminPages() {
           </table>
         )}
 
-        {meta && <Pagination meta={meta} onChange={setPage} noun="pages" />}
+        {meta && <Pagination meta={meta} onChange={setPage} noun={t('pages')} />}
       </div>
     </AdminLayout>
   )

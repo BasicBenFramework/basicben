@@ -45,3 +45,6 @@ plans/
 my-test-app/
 .playwright-mcp/
 
+
+# Backups (npm run backup) hold personal data
+backups/

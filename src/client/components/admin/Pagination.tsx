@@ -1,3 +1,5 @@
+import { useT } from '../../i18n'
+
 export interface PageMeta {
   page: number
   per_page: number
@@ -8,7 +10,10 @@ export interface PageMeta {
 interface PaginationProps {
   meta: PageMeta
   onChange: (page: number) => void
-  /** What is being counted, for the summary line. */
+  /**
+   * What is being counted, for the summary line. The listings pass the English
+   * plural ("posts"), which is translated here; anything else is shown as given.
+   */
   noun?: string
 }
 
@@ -23,7 +28,18 @@ interface PaginationProps {
  * Renders nothing at a single page. A pager that shows "1 of 1" is furniture.
  */
 export function Pagination({ meta, onChange, noun = 'items' }: PaginationProps) {
+  const { t } = useT()
   if (meta.total_pages <= 1) return null
+
+  const nouns: Record<string, string> = {
+    items: t('items'),
+    posts: t('posts'),
+    pages: t('pages'),
+    comments: t('comments'),
+    members: t('members'),
+    users: t('users'),
+    redirects: t('redirects')
+  }
 
   const first = (meta.page - 1) * meta.per_page + 1
   const last = Math.min(meta.page * meta.per_page, meta.total)
@@ -31,7 +47,7 @@ export function Pagination({ meta, onChange, noun = 'items' }: PaginationProps) 
   return (
     <div className="admin-pagination">
       <p className="admin-pagination-summary">
-        {first}–{last} of {meta.total} {noun}
+        {t('{first}–{last} of {total} {noun}', { first, last, total: meta.total, noun: nouns[noun] ?? noun })}
       </p>
 
       <div className="admin-pagination-controls">
@@ -41,11 +57,11 @@ export function Pagination({ meta, onChange, noun = 'items' }: PaginationProps) 
           onClick={() => onChange(meta.page - 1)}
           disabled={meta.page <= 1}
         >
-          Previous
+          {t('Previous')}
         </button>
 
         <span className="admin-pagination-position">
-          Page {meta.page} of {meta.total_pages}
+          {t('Page {page} of {pages}', { page: meta.page, pages: meta.total_pages })}
         </span>
 
         <button
@@ -54,7 +70,7 @@ export function Pagination({ meta, onChange, noun = 'items' }: PaginationProps) 
           onClick={() => onChange(meta.page + 1)}
           disabled={meta.page >= meta.total_pages}
         >
-          Next
+          {t('Next')}
         </button>
       </div>
     </div>

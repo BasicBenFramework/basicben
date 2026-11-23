@@ -152,7 +152,7 @@ describe('the interfaces that show it', () => {
     // control that cannot be operated.
     const editor = read('src/client/pages/admin/PostEditor.tsx')
 
-    assert.match(editor, /\{!isPage && \(\s*\n\s*<div className="admin-card">\s*\n\s*<h3 className="admin-card-title">Author/)
+    assert.match(editor, /\{!isPage && \(\s*\n\s*<div className="admin-card">\s*\n\s*<h3 className="admin-card-title">\{t\('Author'\)\}/)
     assert.match(editor, /authors\.length > 1 \? \(/)
     assert.match(editor, /api\.get<\{ authors: AuthorProfile\[\] \}>\('\/api\/authors'\)/)
   })

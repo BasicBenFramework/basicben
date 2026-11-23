@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { MediaItem, isImage, mediaUrl } from '../../hooks/useMediaLibrary'
+import { useT } from '../../i18n'
 
 /**
  * A scrollable grid of media that fetches the next page as it nears the bottom.
@@ -31,8 +32,9 @@ export default function MediaGrid({
   loadingMore,
   view = 'grid',
   renderBadge,
-  emptyMessage = 'No media files yet. Upload some!'
+  emptyMessage
 }: MediaGridProps) {
+  const { t } = useT()
   const sentinel = useRef<HTMLDivElement>(null)
 
   // A sentinel below the last row rather than a scroll listener: the observer
@@ -55,7 +57,7 @@ export default function MediaGrid({
 
   if (items.length === 0) {
     return (
-      <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>{emptyMessage}</p>
+      <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>{emptyMessage ?? t('No media files yet. Upload some!')}</p>
     )
   }
 
@@ -153,7 +155,7 @@ export default function MediaGrid({
       <div ref={sentinel} style={{ height: '1px' }} />
 
       {loadingMore && (
-        <p style={{ textAlign: 'center', color: 'var(--fg-muted)', padding: '1rem' }}>Loading more…</p>
+        <p style={{ textAlign: 'center', color: 'var(--fg-muted)', padding: '1rem' }}>{t('Loading more…')}</p>
       )}
     </>
   )

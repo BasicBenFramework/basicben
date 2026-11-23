@@ -1,0 +1,23 @@
+<!-- Inline styles only: mail clients discard <style> blocks and stylesheets. -->
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #111;">
+  <h1 style="font-size: 20px; margin: 0 0 16px;">{{heading}}</h1>
+
+  <p style="margin: 0 0 24px; line-height: 1.5;">{{intro}}</p>
+
+  <p style="margin: 0 0 24px;">
+    <a href="{{url}}"
+       style="display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 6px;">
+      {{action}}
+    </a>
+  </p>
+
+  <p style="margin: 0 0 8px; font-size: 13px; color: #666; line-height: 1.5;">
+    Or paste this into your browser:<br>
+    <span style="word-break: break-all;">{{url}}</span>
+  </p>
+
+  <p style="margin: 16px 0 0; font-size: 13px; color: #666; line-height: 1.5;">
+    The link works once and expires in {{minutes}} minutes. If you did not ask
+    for it, ignore this email — nothing happens unless the link is used.
+  </p>
+</div>

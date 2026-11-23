@@ -19,6 +19,7 @@ import { Post } from '../models/Post'
 import { Page } from '../models/Page'
 import { Comment } from '../models/Comment'
 import { Media } from '../models/Media'
+import { Settings } from '../models/Settings'
 import type { Request, Response } from '../types'
 
 /**
@@ -39,17 +40,22 @@ const DEFAULT_MENU = [
   { path: '/admin/pages', label: 'Pages', icon: '📄', section: 'Content' },
   { path: '/admin/categories', label: 'Categories', icon: '📁', section: 'Content' },
   { path: '/admin/tags', label: 'Tags', icon: '🏷️', section: 'Content' },
+  { path: '/admin/taxonomies', label: 'Taxonomies', icon: '🗃️', section: 'Content', capability: 'settings.manage' },
   { path: '/admin/comments', label: 'Comments', icon: '💬', section: 'Content' },
   { path: '/admin/media', label: 'Media', icon: '🖼️', section: 'Content' },
   { path: '/admin/snippets', label: 'Snippets', icon: '🧩', section: 'Content', capability: 'post.publish' },
   { path: '/admin/tokens', label: 'API tokens', icon: '🔑', section: 'Site' },
   { path: '/admin/settings', label: 'Settings', icon: '⚙️', section: 'Site' },
+  { path: '/admin/content-types', label: 'Content types', icon: '🗂️', section: 'Site', capability: 'settings.manage' },
   { path: '/admin/navigation', label: 'Navigation', icon: '🧭', section: 'Site', capability: 'settings.manage' },
   { path: '/admin/redirects', label: 'Redirects', icon: '↪️', section: 'Site', capability: 'settings.manage' },
   // Gated: only someone who can manage accounts is shown the way to them. The
   // routes behind it refuse everyone else regardless — this is presentation.
   { path: '/admin/users', label: 'Users', icon: '👥', section: 'Site', capability: 'user.manage' },
+  { path: '/admin/members', label: 'Members', icon: '✉️', section: 'Site', capability: 'user.manage' },
+  { path: '/admin/analytics', label: 'Analytics', icon: '📈', section: 'Site', capability: 'post.edit' },
   { path: '/admin/tools', label: 'Tools', icon: '🧰', section: 'Site', capability: 'user.manage' },
+  { path: '/admin/health', label: 'Site health', icon: '🩺', section: 'Site', capability: 'user.manage' },
   // Where an author edits their own byline. It lives outside /admin because it
   // is the one screen every account has, admin area or not — but the people
   // writing posts are in here, so the way to it has to be too.
@@ -88,6 +94,9 @@ export const AdminController = {
     const menu = Array.isArray(items) ? items : DEFAULT_MENU
 
     res.json({
+      // The admin's default language; see src/client/i18n. Here rather than
+      // a request of its own because every admin screen already makes this one.
+      locale: (await Settings.get('admin_locale')) || null,
       menu: menu.filter(
         (item: MenuItem) =>
           item && typeof item.path === 'string' && typeof item.label === 'string' &&

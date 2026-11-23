@@ -3,6 +3,7 @@ import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import type { Post, Page } from '../../../types'
 import { Link } from '../../components/Link'
+import { useT } from '../../i18n'
 
 /**
  * A count the signed-in account is allowed to see, or `null` because it is not.
@@ -33,6 +34,7 @@ const settle = <T,>(request: Promise<T>): Promise<T | null> =>
   request.catch(() => null)
 
 export default function AdminDashboard() {
+  const { t, locale } = useT()
   const [stats, setStats] = useState<Stats | null>(null)
   const [recentPosts, setRecentPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,22 +80,22 @@ export default function AdminDashboard() {
    * is a number the dashboard has no way to know.
    */
   const cards = [
-    { label: 'Posts', value: stats?.posts },
-    { label: 'Pages', value: stats?.pages },
-    { label: 'Pending Comments', value: stats?.pendingComments },
-    { label: 'Media Files', value: stats?.media }
+    { label: t('Posts'), value: stats?.posts },
+    { label: t('Pages'), value: stats?.pages },
+    { label: t('Pending Comments'), value: stats?.pendingComments },
+    { label: t('Media Files'), value: stats?.media }
   ].filter((card): card is { label: string; value: number } => typeof card.value === 'number')
 
   if (loading) {
     return (
-      <AdminLayout title="Dashboard">
-        <div className="admin-loading">Loading...</div>
+      <AdminLayout title={t('Dashboard')}>
+        <div className="admin-loading">{t('Loading...')}</div>
       </AdminLayout>
     )
   }
 
   return (
-    <AdminLayout title="Dashboard">
+    <AdminLayout title={t('Dashboard')}>
       {/* Stats Grid. The column count follows the number of cards, so the two
           an author can see are not two cards and two empty quarters. */}
       {cards.length > 0 && (
@@ -110,22 +112,22 @@ export default function AdminDashboard() {
       {/* Recent Posts */}
       <div className="admin-card">
         <div className="admin-card-header">
-          <h2 className="admin-card-title">Recent Posts</h2>
+          <h2 className="admin-card-title">{t('Recent Posts')}</h2>
           <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
-            New Post
+            {t('New Post')}
           </Link>
         </div>
 
         {recentPosts.length === 0 ? (
-          <p style={{ color: 'var(--fg-muted)' }}>No posts yet. Create your first post!</p>
+          <p style={{ color: 'var(--fg-muted)' }}>{t('No posts yet. Create your first post!')}</p>
         ) : (
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Actions</th>
+                <th>{t('Title')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Date')}</th>
+                <th>{t('Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -134,13 +136,13 @@ export default function AdminDashboard() {
                   <td>{post.title}</td>
                   <td>
                     <span className={`admin-badge ${post.published ? 'admin-badge-success' : 'admin-badge-warning'}`}>
-                      {post.published ? 'Published' : 'Draft'}
+                      {post.published ? t('Published') : t('Draft')}
                     </span>
                   </td>
-                  <td>{new Date(post.created_at).toLocaleDateString()}</td>
+                  <td>{new Date(post.created_at).toLocaleDateString(locale)}</td>
                   <td>
                     <Link href={`/admin/posts/${post.id}/edit`} className="admin-btn admin-btn-secondary">
-                      Edit
+                      {t('Edit')}
                     </Link>
                   </td>
                 </tr>
@@ -153,37 +155,37 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <div className="admin-grid admin-grid-3">
         <div className="admin-card">
-          <h3 className="admin-card-title">Content</h3>
+          <h3 className="admin-card-title">{t('Content')}</h3>
           <div className="admin-stack">
             <Link href="/admin/posts/new" className="admin-btn admin-btn-secondary">
-              New Post
+              {t('New Post')}
             </Link>
             <Link href="/admin/pages/new" className="admin-btn admin-btn-secondary">
-              New Page
+              {t('New Page')}
             </Link>
             <Link href="/admin/media" className="admin-btn admin-btn-secondary">
-              Upload Media
+              {t('Upload Media')}
             </Link>
           </div>
         </div>
 
         <div className="admin-card">
-          <h3 className="admin-card-title">Extend</h3>
+          <h3 className="admin-card-title">{t('Extend')}</h3>
           <div className="admin-stack">
             <Link href="/admin/settings" className="admin-btn admin-btn-secondary">
-              Settings
+              {t('Settings')}
             </Link>
           </div>
         </div>
 
         <div className="admin-card">
-          <h3 className="admin-card-title">Help</h3>
+          <h3 className="admin-card-title">{t('Help')}</h3>
           <div className="admin-stack">
             <Link href="https://basicben.com/docs" target="_blank" rel="noopener noreferrer" className="admin-btn admin-btn-secondary">
-              Documentation
+              {t('Documentation')}
             </Link>
             <Link href="/" className="admin-btn admin-btn-secondary">
-              View Site
+              {t('View Site')}
             </Link>
           </div>
         </div>

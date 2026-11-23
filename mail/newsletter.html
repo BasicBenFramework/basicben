@@ -1,0 +1,27 @@
+<!-- Inline styles only: mail clients discard <style> blocks and stylesheets.
+     contentHtml is triple-braced because it is markup: the post's sanitized
+     render, sanitized again and made absolute in helpers/newsletter.ts. -->
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111;">
+  <p style="margin: 0 0 8px; font-size: 13px; color: #666;">{{siteName}}</p>
+
+  <h1 style="font-size: 26px; line-height: 1.25; margin: 0 0 24px;">
+    <a href="{{postUrl}}" style="color: #111; text-decoration: none;">{{title}}</a>
+  </h1>
+
+  <div style="font-size: 16px; line-height: 1.6;">
+    {{{contentHtml}}}
+  </div>
+
+  <p style="margin: 32px 0 0;">
+    <a href="{{postUrl}}" style="color: #111;">Read it on the site</a>
+  </p>
+
+  <hr style="border: 0; border-top: 1px solid #ddd; margin: 32px 0 16px;">
+
+  <p style="margin: 0 0 8px; font-size: 13px; color: #666; line-height: 1.5; white-space: pre-wrap;">{{footer}}</p>
+
+  <p style="margin: 0; font-size: 13px; color: #666; line-height: 1.5;">
+    You are receiving this because you subscribed to {{siteName}}.
+    <a href="{{unsubscribeUrl}}" style="color: #666;">Unsubscribe</a> — no account needed.
+  </p>
+</div>

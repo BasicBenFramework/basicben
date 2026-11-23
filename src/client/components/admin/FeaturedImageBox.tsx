@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import MediaPicker from './MediaPicker'
 import { MediaItem, isImage, mediaUrl } from '../../hooks/useMediaLibrary'
+import { useT } from '../../i18n'
 
 /**
  * The featured image panel, for posts and for pages.
@@ -21,12 +22,13 @@ interface FeaturedImageBoxProps {
 }
 
 export default function FeaturedImageBox({ value, url, onChange }: FeaturedImageBoxProps) {
+  const { t } = useT()
   const [picking, setPicking] = useState(false)
 
   const choose = (item: MediaItem) => {
     // A PDF as a hero image is a broken <img>, not a design decision.
     if (!isImage(item.mime_type)) {
-      alert('A featured image has to be an image.')
+      alert(t('A featured image has to be an image.'))
       return
     }
 
@@ -36,7 +38,7 @@ export default function FeaturedImageBox({ value, url, onChange }: FeaturedImage
 
   return (
     <div className="admin-card">
-      <h3 className="admin-card-title">Featured image</h3>
+      <h3 className="admin-card-title">{t('Featured image')}</h3>
 
       {value && url ? (
         <div>
@@ -56,14 +58,14 @@ export default function FeaturedImageBox({ value, url, onChange }: FeaturedImage
               className="admin-btn admin-btn-secondary"
               onClick={() => setPicking(true)}
             >
-              Replace
+              {t('Replace')}
             </button>
             <button
               type="button"
               className="admin-btn admin-btn-danger"
               onClick={() => onChange(null)}
             >
-              Remove
+              {t('Remove')}
             </button>
           </div>
         </div>
@@ -73,7 +75,7 @@ export default function FeaturedImageBox({ value, url, onChange }: FeaturedImage
           className="admin-term-add"
           onClick={() => setPicking(true)}
         >
-          + Set featured image
+          {t('+ Set featured image')}
         </button>
       )}
 

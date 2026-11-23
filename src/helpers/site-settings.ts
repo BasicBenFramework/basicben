@@ -16,7 +16,7 @@
 
 import { isHttpUrl, isRelativePath, MAX_URL_LENGTH } from './content-paths.ts'
 
-export type SettingGroup = 'general' | 'reading' | 'discussion' | 'integrations' | 'identity' | 'locale' | 'code_injection'
+export type SettingGroup = 'general' | 'reading' | 'discussion' | 'integrations' | 'identity' | 'locale' | 'code_injection' | 'analytics' | 'members'
 
 /** A validator returns the value to store, or an error message. */
 type Check = (value: unknown) => { value: string } | { error: string }
@@ -53,6 +53,12 @@ const integer = (min: number, max: number): Check => (value) => {
   }
 
   return { value: String(n) }
+}
+
+/** One of a fixed list of values. Blank is allowed only if it is in the list. */
+const oneOf = (allowed: readonly string[]): Check => (value) => {
+  const str = value === null || value === undefined ? '' : String(value).trim()
+  return allowed.includes(str) ? { value: str } : { error: `Must be one of: ${allowed.map((v) => v || '(blank)').join(', ')}` }
 }
 
 /**
@@ -144,6 +150,38 @@ const locale: Check = (value) => {
   return canonical ? { value: canonical } : { error: 'Must be a BCP 47 language tag, such as en or en-GB' }
 }
 
+/** An email address, or blank. Shape only — it is a Reply-To, not a login. */
+const emailOrBlank: Check = (value) => {
+  if (value === null || value === undefined || value === '') return { value: '' }
+  if (typeof value !== 'string') return { error: 'Must be an email address' }
+
+  const email = value.trim()
+  if (email.length > 254 || !/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(email)) {
+    return { error: 'Must be an email address' }
+  }
+
+  return { value: email }
+}
+
+/** An absolute http(s) URL, or blank. */
+const httpUrlOrBlank: Check = (value) => {
+  if (value === null || value === undefined || value === '') return { value: '' }
+  if (typeof value !== 'string' || value.length > MAX_URL_LENGTH || !isHttpUrl(value.trim())) {
+    return { error: 'Must be an http(s) URL' }
+  }
+
+  return { value: value.trim() }
+}
+
+/**
+ * Who may become a member. See MemberController.
+ *
+ * - `open`: anyone may sign up with a magic link.
+ * - `invite`: only addresses an admin added or imported may sign in.
+ * - `closed`: no magic links at all. Existing sessions run until they end.
+ */
+export const MEMBER_SIGNUP_MODES = ['open', 'invite', 'closed'] as const
+
 /**
  * The known settings.
  *
@@ -160,6 +198,10 @@ export const SETTINGS: Record<string, SettingDefinition> = {
 
   posts_per_page: { group: 'reading', check: integer(1, 100) },
   robots_txt: { group: 'reading', check: text(10_000) },
+  // Whether this app renders the public site itself with the reference theme
+  // (`ssr`) or leaves it to the SPA / a headless front end (blank). The
+  // PUBLIC_THEME environment variable, when set, wins: `ssr` or `off`.
+  public_theme: { group: 'reading', check: oneOf(['', 'ssr']) },
 
   allow_comments: { group: 'discussion', check: flag },
   moderate_comments: { group: 'discussion', check: flag },
@@ -173,9 +215,34 @@ export const SETTINGS: Record<string, SettingDefinition> = {
 
   timezone: { group: 'locale', check: timeZone },
   locale: { group: 'locale', check: locale },
+  // The admin's language for everyone who has not picked one in Profile.
+  // Any tag is stored; the admin falls back to English when it has no
+  // dictionary for it (src/client/i18n).
+  admin_locale: { group: 'locale', check: locale },
 
   code_injection_head: { group: 'code_injection', check: text(100_000) },
-  code_injection_foot: { group: 'code_injection', check: text(100_000) }
+  code_injection_foot: { group: 'code_injection', check: text(100_000) },
+
+  // Cookieless page-view counting (docs/analytics.md). Unset means on: the
+  // ingest endpoint does nothing until a front end calls it anyway.
+  analytics_enabled: { group: 'analytics', check: flag },
+  // How long a visitor hash may live, in hours. Hashes are deleted when their
+  // UTC day ends regardless — the day's salt goes with it — so more than 24
+  // buys nothing; less trades accuracy (a reader returning later the same day
+  // counts again) for holding even pseudonymous data for a shorter time.
+  analytics_dedup_hours: { group: 'analytics', check: integer(1, 24) },
+  // Days of daily counts to keep. 0 keeps them indefinitely — they are counts,
+  // not personal data, so the default is to keep them.
+  analytics_retention_days: { group: 'analytics', check: integer(0, 3650) },
+
+  // Members and newsletters. The sign-in URL is the front-end page a magic
+  // link opens — a setting, not a request parameter, so a caller can never
+  // have a link (and the token in it) delivered to a page of their choosing.
+  members_signup: { group: 'members', check: oneOf(MEMBER_SIGNUP_MODES) },
+  members_signin_url: { group: 'members', check: httpUrlOrBlank },
+  newsletter_sender_name: { group: 'members', check: text(100) },
+  newsletter_reply_to: { group: 'members', check: emailOrBlank },
+  newsletter_footer: { group: 'members', check: text(2000) }
 }
 
 export function isKnownSetting(key: string): boolean {

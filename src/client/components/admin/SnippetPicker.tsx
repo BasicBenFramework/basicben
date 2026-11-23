@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../../../helpers/api'
+import { useT } from '../../i18n'
 
 export interface SnippetItem {
   id: number
@@ -28,6 +29,7 @@ interface SnippetPickerProps {
  * as an explanation rather than an empty list that looks broken.
  */
 export default function SnippetPicker({ onInsert, disabled }: SnippetPickerProps) {
+  const { t } = useT()
   const [open, setOpen] = useState(false)
   const [snippets, setSnippets] = useState<SnippetItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +39,7 @@ export default function SnippetPicker({ onInsert, disabled }: SnippetPickerProps
     if (!open || snippets) return
     api.get<{ snippets: SnippetItem[] }>('/api/snippets')
       .then(res => setSnippets(res?.snippets || []))
-      .catch((err: Error) => setError(err.message === 'Forbidden' ? 'Snippets are available to authors and editors.' : 'Could not load snippets.'))
+      .catch((err: Error) => setError(err.message === 'Forbidden' ? t('Snippets are available to authors and editors.') : t('Could not load snippets.')))
   }, [open, snippets])
 
   const needle = search.trim().toLowerCase()
@@ -52,8 +54,8 @@ export default function SnippetPicker({ onInsert, disabled }: SnippetPickerProps
     <>
       <button
         type="button"
-        title="Insert snippet"
-        aria-label="Insert snippet"
+        title={t('Insert snippet')}
+        aria-label={t('Insert snippet')}
         onClick={() => setOpen(true)}
         disabled={disabled}
         className="markdown-editor-mark"
@@ -65,7 +67,7 @@ export default function SnippetPicker({ onInsert, disabled }: SnippetPickerProps
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Insert snippet"
+          aria-label={t('Insert snippet')}
           onClick={() => setOpen(false)}
           onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}
           style={{
@@ -91,7 +93,7 @@ export default function SnippetPicker({ onInsert, disabled }: SnippetPickerProps
             }}
           >
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '1rem', borderBottom: '1px solid var(--border)' }}>
-              <strong style={{ marginRight: 'auto' }}>Insert snippet</strong>
+              <strong style={{ marginRight: 'auto' }}>{t('Insert snippet')}</strong>
               <input
                 type="search"
                 autoFocus
@@ -104,23 +106,23 @@ export default function SnippetPicker({ onInsert, disabled }: SnippetPickerProps
                   event.preventDefault()
                   if (shown[0]) choose(shown[0])
                 }}
-                placeholder="Search snippets"
+                placeholder={t('Search snippets')}
                 className="admin-input"
                 style={{ maxWidth: '200px' }}
               />
               <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setOpen(false)}>
-                Close
+                {t('Close')}
               </button>
             </div>
 
             <div style={{ overflowY: 'auto', padding: '0.5rem 1rem 1rem' }}>
               {error && <p style={{ color: 'var(--fg-muted)' }}>{error}</p>}
-              {!error && !snippets && <p style={{ color: 'var(--fg-muted)' }}>Loading…</p>}
+              {!error && !snippets && <p style={{ color: 'var(--fg-muted)' }}>{t('Loading…')}</p>}
               {!error && snippets && shown.length === 0 && (
                 <p style={{ color: 'var(--fg-muted)' }}>
                   {snippets.length === 0
-                    ? 'No snippets yet. Add them under Snippets in the admin menu.'
-                    : 'No snippet matches that search.'}
+                    ? t('No snippets yet. Add them under Snippets in the admin menu.')
+                    : t('No snippet matches that search.')}
                 </p>
               )}
               <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '0.5rem' }}>

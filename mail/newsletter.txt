@@ -1,0 +1,15 @@
+{{siteName}}
+
+{{title}}
+
+{{contentText}}
+
+Read it on the site:
+{{postUrl}}
+
+--
+{{footer}}
+
+You are receiving this because you subscribed to {{siteName}}.
+Unsubscribe, no account needed:
+{{unsubscribeUrl}}

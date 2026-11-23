@@ -2,6 +2,10 @@ import { getDb } from '@basicbenframework/core/db'
 import { Settings } from '../models/Settings'
 import { livePost } from '../models/visibility'
 import { siteUrl } from '../helpers/site'
+import { isGated, gatedFeedHtml, publicExcerpt } from '../helpers/gating'
+import { excerpt as plainText } from '@basicbenframework/core/content'
+import { ContentType } from '../models/ContentType'
+import { entryPath } from '../helpers/content-paths'
 import type { Request, Response } from '../types'
 
 interface FeedPost {
@@ -14,6 +18,7 @@ interface FeedPost {
   author_name: string
   published_at: string
   updated_at: string
+  visibility: string | null
 }
 
 /** What a feed has been narrowed to, if anything. */
@@ -73,10 +78,13 @@ async function scopeFrom(req: Request): Promise<FeedScope | null> {
 
 async function feedPosts(scope: FeedScope): Promise<FeedPost[]> {
   const db = await getDb()
-  const where = [livePost('p'), ...scope.where].join(' AND ')
+  // Blog posts only. A feed subscriber signed up for the blog; recipes or
+  // products arriving in their reader is the kind of surprise that ends in
+  // an unsubscribe. Custom types are in the sitemap and the content API.
+  const where = [livePost('p'), "p.post_type = 'post'", ...scope.where].join(' AND ')
 
-  return db.all(`
-    SELECT p.id, p.title, p.slug, p.content, p.content_html, p.excerpt, p.updated_at,
+  const rows: FeedPost[] = await db.all(`
+    SELECT p.id, p.title, p.slug, p.content, p.content_html, p.excerpt, p.updated_at, p.visibility,
            COALESCE(p.publish_at, p.created_at) AS published_at,
            u.name as author_name
     FROM posts p
@@ -85,6 +93,16 @@ async function feedPosts(scope: FeedScope): Promise<FeedPost[]> {
     ORDER BY COALESCE(p.publish_at, p.created_at) DESC
     LIMIT 20
   `, scope.params)
+
+  // A feed is public — readers and aggregators fetch it with no session — so
+  // a members-only post appears with its excerpt and a pointer, never its
+  // body. Done here, once, so neither format can forget. See helpers/gating.ts.
+  return rows.map(row => isGated(row.visibility)
+    ? (() => {
+        const excerpt = publicExcerpt(row.excerpt, plainText(row.content ?? '', Number.MAX_SAFE_INTEGER), row.visibility, false)
+        return { ...row, excerpt, content: '', content_html: gatedFeedHtml(excerpt) }
+      })()
+    : row)
 }
 
 export const FeedController = {
@@ -186,8 +204,20 @@ export const FeedController = {
     // page and then listing it for them is two contradictory instructions.
     const posts = await db.all(`
       SELECT p.id, p.slug, p.updated_at FROM posts p
-      WHERE ${livePost('p')} AND (p.noindex IS NULL OR p.noindex = 0)
+      WHERE ${livePost('p')} AND p.post_type = 'post' AND (p.noindex IS NULL OR p.noindex = 0)
     `)
+
+    // Every other public content type, at its own route base. A type that is
+    // not public has no pages to index, so it is left out with its entries.
+    const customTypes = (await ContentType.all({ publicOnly: true })).filter((type) => type.key !== 'post')
+    const entries = customTypes.length
+      ? await db.all(`
+          SELECT p.id, p.slug, p.updated_at, p.post_type FROM posts p
+          WHERE ${livePost('p')} AND p.post_type IN (${customTypes.map(() => '?').join(', ')})
+            AND (p.noindex IS NULL OR p.noindex = 0)
+        `, customTypes.map((type) => type.key))
+      : []
+    const baseOf = (key: string) => customTypes.find((type) => type.key === key)?.route_base ?? null
 
     const pages = await db.all(`
       SELECT id, slug, updated_at FROM pages
@@ -206,6 +236,8 @@ export const FeedController = {
       url(`${site}/`, '\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>'),
       ...posts.map((post: { id: number; slug: string; updated_at: string }) =>
         url(`${site}/blog/${post.slug || post.id}`, lastmod(post.updated_at))),
+      ...entries.map((entry: { id: number; slug: string; updated_at: string; post_type: string }) =>
+        url(`${site}${entryPath(baseOf(entry.post_type), entry.slug, entry.id)}`, lastmod(entry.updated_at))),
       ...pages.map((page: { id: number; slug: string; updated_at: string }) =>
         url(`${site}/${page.slug}`, lastmod(page.updated_at))),
       ...categories.map((cat: { id: number; slug: string }) =>

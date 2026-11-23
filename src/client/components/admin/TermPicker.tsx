@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { useT } from '../../i18n'
 
 export interface Term {
   id: number
@@ -62,6 +63,7 @@ export default function TermPicker({
   emptyText,
   commitOnComma = false
 }: TermPickerProps) {
+  const { t } = useT()
   const [query, setQuery] = useState('')
 
   const typed = query.trim()
@@ -108,7 +110,7 @@ export default function TermPicker({
                 {term?.name ?? `#${id}`}
                 <button
                   type="button"
-                  aria-label={`Remove ${term?.name ?? noun}`}
+                  aria-label={t('Remove {name}', { name: term?.name ?? noun })}
                   onClick={() => onToggle(id)}
                 >
                   ×
@@ -122,8 +124,8 @@ export default function TermPicker({
       <input
         type="search"
         className="admin-input admin-term-search"
-        placeholder={`Search or add a ${noun}`}
-        aria-label={`Search or add a ${noun}`}
+        placeholder={t('Search or add a {noun}', { noun })}
+        aria-label={t('Search or add a {noun}', { noun })}
         value={query}
         onChange={e => setQuery(e.target.value)}
         onKeyDown={e => {
@@ -140,7 +142,7 @@ export default function TermPicker({
       {terms.length === 0 ? (
         <p className="admin-term-empty">{emptyText}</p>
       ) : matches.length === 0 ? (
-        <p className="admin-term-empty">No matches for “{typed}”.</p>
+        <p className="admin-term-empty">{t('No matches for “{query}”.', { query: typed })}</p>
       ) : (
         <div className="admin-term-list">
           {matches.map(term => (
@@ -166,7 +168,7 @@ export default function TermPicker({
           onClick={commit}
           disabled={busy}
         >
-          + Add “{typed}”
+          {t('+ Add “{name}”', { name: typed })}
         </button>
       )}
     </div>

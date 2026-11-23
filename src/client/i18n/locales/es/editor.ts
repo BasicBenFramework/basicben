@@ -1,0 +1,188 @@
+import type { Dictionary } from '../../index.ts'
+
+/**
+ * The post and page editor and what it is built from: the Markdown editor,
+ * the media and snippet pickers, term pickers, access box, pagination, and the
+ * hooks behind them. Strings already in another group (e.g. 'Draft',
+ * 'Loading…') are not repeated here.
+ */
+const strings: Dictionary = {
+  // Headings and the main button
+  'Edit post': 'Editar entrada',
+  'Edit page': 'Editar página',
+  'Edit {type}': 'Editar {type}',
+  'New post': 'Nueva entrada',
+  'New page': 'Nueva página',
+  'New {type}': 'Añadir {type}',
+  'Create': 'Crear',
+  'Schedule': 'Programar',
+  'Submit for review': 'Enviar a revisión',
+  'Save draft': 'Guardar borrador',
+  'Failed to save post': 'No se pudo guardar la entrada',
+  'Failed to save page': 'No se pudo guardar la página',
+  'Failed to save {type}': 'No se pudo guardar: {type}',
+
+  // Edit lock and autosave
+  '{name} has taken over editing this post. Your unsaved changes are still on screen, but cannot be saved unless you take it back.':
+    '{name} ha tomado el control de esta entrada. Tus cambios sin guardar siguen en pantalla, pero no se podrán guardar a menos que recuperes el control.',
+  '{name} is editing this post. You can read it, but saving is paused so neither of you overwrites the other.':
+    '{name} está editando esta entrada. Puedes leerla, pero el guardado está en pausa para que ninguno sobrescriba los cambios del otro.',
+  '{name} has finished editing. Reload to see their changes and start editing.':
+    '{name} ha terminado de editar. Recarga para ver sus cambios y empezar a editar.',
+  'Take over': 'Tomar el control',
+  'Back to posts': 'Volver a las entradas',
+  'Reload and edit': 'Recargar y editar',
+  'The other editor': 'El otro editor',
+  'Someone else': 'Otra persona',
+  'Someone else is editing this post': 'Otra persona está editando esta entrada',
+  'There is an autosave of this post from {date} that is newer than the saved version.':
+    'Hay un guardado automático de esta entrada del {date} más reciente que la versión guardada.',
+  'Restore it': 'Restaurarlo',
+  'Autosaved {time}': 'Guardado automático a las {time}',
+
+  // Revisions
+  'Revisions': 'Revisiones',
+  'Replace the current text with the version from {date}? The current text is kept as a revision.':
+    '¿Reemplazar el texto actual por la versión del {date}? El texto actual se conserva como revisión.',
+  'Could not restore that revision': 'No se pudo restaurar esa revisión',
+
+  // Main fields
+  'Enter post title': 'Título de la entrada',
+  'Enter page title': 'Título de la página',
+  'Enter {type} title': 'Título de {type}',
+  'post-url-slug': 'slug-de-la-entrada',
+  'page-url-slug': 'slug-de-la-pagina',
+  '{type}-url-slug': 'slug-de-{type}',
+  'from the title': 'a partir del título',
+  'Write your content here. Markdown is supported.': 'Escribe aquí el contenido. Se admite Markdown.',
+  'Written for you from the content if you leave this blank': 'Si lo dejas en blanco, se genera a partir del contenido',
+
+  // SEO and social cards
+  'SEO Settings': 'Ajustes de SEO',
+  'Meta Title': 'Metatítulo',
+  'Meta Description': 'Metadescripción',
+  'SEO title': 'Título SEO',
+  'SEO description': 'Descripción SEO',
+  'Canonical URL': 'URL canónica',
+  'Only if this was first published somewhere else': 'Solo si se publicó primero en otro sitio',
+  'Ask search engines not to index this post': 'Pedir a los buscadores que no indexen esta entrada',
+  'Ask search engines not to index this page': 'Pedir a los buscadores que no indexen esta página',
+  'Ask search engines not to index this {type}': 'Pedir a los buscadores que no indexen este contenido ({type})',
+  'Social cards': 'Tarjetas para redes sociales',
+  'Open Graph title': 'Título de Open Graph',
+  'Open Graph description': 'Descripción de Open Graph',
+  'Twitter / X title': 'Título para Twitter / X',
+  'Twitter / X description': 'Descripción para Twitter / X',
+  'Falls back to the SEO title': 'Si se deja vacío, se usa el título SEO',
+  'Falls back to the SEO description': 'Si se deja vacío, se usa la descripción SEO',
+  'Falls back to the Open Graph title': 'Si se deja vacío, se usa el título de Open Graph',
+  'Falls back to the Open Graph description': 'Si se deja vacío, se usa la descripción de Open Graph',
+
+  // Publish box
+  'Published (an editor publishes)': 'Publicada (la publica un editor)',
+  'Publish on': 'Publicar el',
+  'Scheduled — goes live {date}.': 'Programada: se publica el {date}.',
+  'Already live.': 'Ya publicada.',
+  'Blank publishes now. A future date schedules it.': 'En blanco, se publica ahora. Con una fecha futura, se programa.',
+  'Unchanged': 'Sin cambios',
+  'Me': 'Yo',
+
+  // Categories and tags
+  'category': 'categoría',
+  'tag': 'etiqueta',
+  'Could not create that category. It may already exist.': 'No se pudo crear esa categoría. Puede que ya exista.',
+  'Could not add those tags.': 'No se pudieron añadir esas etiquetas.',
+  'Remove {name}': 'Quitar {name}',
+  'Search or add a {noun}': 'Buscar o añadir {noun}',
+  'No matches for “{query}”.': 'No hay coincidencias para “{query}”.',
+  '+ Add “{name}”': '+ Añadir “{name}”',
+
+  // Content model panels
+  '{type} details': 'Detalles ({type})',
+  'Could not add that {term}.': 'No se pudo añadir el término ({term}).',
+  'No {terms} yet.': 'Aún no hay {terms}.',
+
+  // Access and newsletter
+  'Access & newsletter': 'Acceso y boletín',
+  'Who can read it': 'Quién puede leerla',
+  'Everyone': 'Todos',
+  'Members only': 'Solo miembros',
+  'Paid members (treated as members for now)': 'Miembros de pago (por ahora, tratados como miembros)',
+  'The whole post is public.': 'Toda la entrada es pública.',
+  'Title, excerpt and image stay public; the body needs a member sign-in.':
+    'El título, el extracto y la imagen siguen siendo públicos; para leer el cuerpo hay que iniciar sesión como miembro.',
+  'Newsletter sent': 'Boletín enviado',
+  'Newsletter sending': 'Enviando boletín',
+  '{sent} of {total} delivered.': '{sent} de {total} entregados.',
+  '{sent} of {total} delivered, {failed} failed.': '{sent} de {total} entregados, {failed} con error.',
+  '{sent} of {total} delivered, {skipped} skipped.': '{sent} de {total} entregados, {skipped} omitidos.',
+  '{sent} of {total} delivered, {failed} failed, {skipped} skipped.': '{sent} de {total} entregados, {failed} con error, {skipped} omitidos.',
+  'A post is only ever sent once.': 'Una entrada solo se envía una vez.',
+  'Email to subscribed members when it goes live': 'Enviar por correo a los miembros suscritos cuando se publique',
+  'Sent once, when the post is published (or when its schedule arrives).':
+    'Se envía una sola vez, cuando se publica la entrada (o cuando llega su fecha programada).',
+  'An editor or admin can send a post as a newsletter.': 'Un editor o administrador puede enviar una entrada como boletín.',
+  'Sending…': 'Enviando…',
+  'Send a test to me': 'Enviarme una prueba',
+  'Uses the last saved version.': 'Usa la última versión guardada.',
+  'Sent.': 'Enviado.',
+  'Could not send the test.': 'No se pudo enviar la prueba.',
+
+  // Featured image and media
+  '+ Set featured image': '+ Establecer imagen destacada',
+  'A featured image has to be an image.': 'La imagen destacada tiene que ser una imagen.',
+  'Replace': 'Reemplazar',
+  'No media files yet. Upload some!': 'Aún no hay archivos multimedia. ¡Sube alguno!',
+  'Loading more…': 'Cargando más…',
+  'Media library': 'Biblioteca de medios',
+  'Close': 'Cerrar',
+  'No media yet — upload or drop a file here.': 'Aún no hay medios: sube o suelta un archivo aquí.',
+  'Could not start the upload.': 'No se pudo iniciar la subida.',
+  'Storage refused the upload ({status}).': 'El almacenamiento rechazó la subida ({status}).',
+  'The upload could not reach storage.': 'La subida no pudo llegar al almacenamiento.',
+  'The upload could not be confirmed.': 'No se pudo confirmar la subida.',
+  'The update returned no media.': 'La actualización no devolvió ningún medio.',
+
+  // Snippets
+  'Insert snippet': 'Insertar fragmento',
+  'Search snippets': 'Buscar fragmentos',
+  'No snippets yet. Add them under Snippets in the admin menu.': 'Aún no hay fragmentos. Añádelos en Fragmentos, en el menú de administración.',
+  'No snippet matches that search.': 'Ningún fragmento coincide con esa búsqueda.',
+
+  // Pagination
+  '{first}–{last} of {total} {noun}': '{first}–{last} de {total} {noun}',
+  'Page {page} of {pages}': 'Página {page} de {pages}',
+  'Previous': 'Anterior',
+  'Next': 'Siguiente',
+  'items': 'elementos',
+  'comments': 'comentarios',
+  'members': 'miembros',
+  'users': 'usuarios',
+  'redirects': 'redirecciones',
+
+  // Markdown editor
+  'Bold (⌘B)': 'Negrita (⌘B)',
+  'bold text': 'texto en negrita',
+  'Italic (⌘I)': 'Cursiva (⌘I)',
+  'italic text': 'texto en cursiva',
+  'Strikethrough': 'Tachado',
+  'struck out': 'tachado',
+  'Code': 'Código',
+  'code': 'código',
+  'Heading': 'Encabezado',
+  'Quote': 'Cita',
+  'Quoted': 'Texto citado',
+  'Bulleted list': 'Lista con viñetas',
+  'Numbered list': 'Lista numerada',
+  'Item': 'Elemento',
+  'Link (⌘K)': 'Enlace (⌘K)',
+  'link text': 'texto del enlace',
+  'Insert media': 'Insertar medio',
+  'Write': 'Escribir',
+  'Preview failed: {message}': 'Error en la vista previa: {message}',
+  'Nothing to preview yet.': 'Aún no hay nada que previsualizar.',
+  'Markdown supported — headings, lists, links, tables, and fenced code. HTML is shown as text rather than rendered.':
+    'Se admite Markdown: encabezados, listas, enlaces, tablas y bloques de código. El HTML se muestra como texto, no se interpreta.'
+}
+
+export default strings
