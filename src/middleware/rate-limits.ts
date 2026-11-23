@@ -213,3 +213,27 @@ export const invitationLimit = rateLimit({
   key: (req: Request) => `invite:${req.userId ?? ''}`,
   message: 'Too many invitations sent. Please try again later.'
 })
+
+/**
+ * Writes made with an API token.
+ *
+ * Unlike `publicApiLimit` this keys on the token, which is safe here because
+ * it runs *after* the token has been verified — `authOrToken` consumes from it
+ * only once the hash matched a live token whose owner's account is usable, so
+ * a fabricated token never reaches it and cannot mint itself a bucket. Per
+ * token rather than per address because a write credential is the thing worth
+ * containing: a leaked one, or a sync job stuck in a loop, should run out of
+ * budget on its own without starving the CI box next to it.
+ *
+ * Reads through the same middleware are not counted; `/api/v1` is the place
+ * for bulk reads, and it has its own limit.
+ *
+ * Sixty a minute is a bulk import of a few hundred posts in a handful of
+ * minutes — slow enough to notice a runaway, fast enough for a real migration.
+ */
+export const tokenWriteLimiter = createLimiter({
+  limit: 60,
+  window: '1m',
+  blockFor: '1m',
+  store
+})

@@ -32,6 +32,14 @@ interface MarkdownEditorProps {
   placeholder?: string
   minHeight?: string
   required?: boolean
+  /**
+   * Extra toolbar controls that drop text in at the caret — the post editor's
+   * snippet picker. Given the same insert the media button uses, so a caller
+   * adds a control without reaching into the textarea.
+   */
+  tools?: (insert: (text: string) => void, disabled: boolean) => React.ReactNode
+  /** Make the source read-only, e.g. while someone else holds the post's edit lock. */
+  readOnly?: boolean
 }
 
 type Mode = 'write' | 'preview'
@@ -65,7 +73,9 @@ export default function MarkdownEditor({
   onChange,
   placeholder,
   minHeight = '400px',
-  required
+  required,
+  tools,
+  readOnly = false
 }: MarkdownEditorProps) {
   const [mode, setMode] = useState<Mode>('write')
   const [picking, setPicking] = useState(false)
@@ -233,6 +243,8 @@ export default function MarkdownEditor({
           🖼
         </button>
 
+        {tools?.(insertAtCursor, mode === 'preview' || readOnly)}
+
         <div className="markdown-editor-tabs">
           {(['write', 'preview'] as Mode[]).map((tab) => (
             <button
@@ -258,6 +270,7 @@ export default function MarkdownEditor({
           style={{ minHeight }}
           placeholder={placeholder}
           required={required}
+          readOnly={readOnly}
         />
       ) : (
         <div

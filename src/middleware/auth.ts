@@ -12,9 +12,54 @@ interface AccountState {
   disabled_at: string | null
 }
 
-type Resolved =
-  | { ok: true; userId: number; user: { id: number; role: string; email_verified: boolean } }
+/** The request user, as every capability check reads it. */
+export interface CurrentUser {
+  id: number
+  role: string
+  email_verified: boolean
+}
+
+export type Resolved =
+  | { ok: true; userId: number; user: CurrentUser }
   | { ok: false; status: number; body: Record<string, unknown> }
+
+async function readAccount(userId: number): Promise<AccountState | undefined> {
+  const db = await getDb()
+  return (await db.get(
+    'SELECT role, email_verified, token_version, disabled_at FROM users WHERE id = ?',
+    [userId]
+  )) as AccountState | undefined
+}
+
+function currentUser(userId: number, account: AccountState): CurrentUser {
+  return {
+    id: userId,
+    role: account.role ?? DEFAULT_ROLE,
+    // Absent means verified: rows created before verification existed have
+    // no value, and treating that as unverified would lock everyone out.
+    email_verified: account.email_verified === null || account.email_verified === undefined
+      ? true
+      : Boolean(account.email_verified)
+  }
+}
+
+/**
+ * The account behind an API token, as it stands now.
+ *
+ * A token carries no role of its own — it acts as its owner — so the owner's
+ * row is read on every use for the same reason a session's is: a disabled
+ * account's tokens stop working on their next request, and a demoted owner's
+ * token is demoted with them. Token version is deliberately not compared:
+ * "sign out everywhere" ends sessions, and tokens are revoked on their own
+ * screen (or all at once when an admin disables the account).
+ *
+ * Null when there is no usable account behind it.
+ */
+export async function accountForToken(userId: number): Promise<CurrentUser | null> {
+  const account = await readAccount(userId)
+  if (!account || account.disabled_at) return null
+  return currentUser(userId, account)
+}
 
 /**
  * Turn a bearer token into the signed-in user, or say why not.
@@ -25,7 +70,7 @@ type Resolved =
  * rather than when its token happens to expire — and it means the role checked
  * is the role the account has now, not the one it had at sign-in.
  */
-async function resolve(token: string): Promise<Resolved> {
+export async function resolveSession(token: string): Promise<Resolved> {
   // An API token can never verify as a JWT, so this would refuse one anyway —
   // but "Invalid token" for a credential that is perfectly valid elsewhere
   // reads as a bug in the token rather than a rule about this route.
@@ -35,7 +80,7 @@ async function resolve(token: string): Promise<Resolved> {
       status: 403,
       body: {
         error: 'This endpoint requires a signed-in session, not an API token',
-        hint: 'API tokens work on /api/v1/*. Managing them requires logging in.'
+        hint: 'API tokens work on /api/v1/* and on the Admin API write routes (docs/admin-api.md). This one requires logging in.'
       }
     }
   }
@@ -45,11 +90,7 @@ async function resolve(token: string): Promise<Resolved> {
     return { ok: false, status: 401, body: { error: 'Invalid token' } }
   }
 
-  const db = await getDb()
-  const account = (await db.get(
-    'SELECT role, email_verified, token_version, disabled_at FROM users WHERE id = ?',
-    [payload.userId]
-  )) as AccountState | undefined
+  const account = await readAccount(payload.userId)
 
   // Tokens from before versioning carry no `tv`; they match version 0, which
   // every account starts at, so a deploy signs nobody out.
@@ -59,19 +100,7 @@ async function resolve(token: string): Promise<Resolved> {
     return { ok: false, status: 401, body: { error: 'Session expired. Please sign in again.' } }
   }
 
-  return {
-    ok: true,
-    userId: payload.userId,
-    user: {
-      id: payload.userId,
-      role: account.role ?? DEFAULT_ROLE,
-      // Absent means verified: rows created before verification existed have
-      // no value, and treating that as unverified would lock everyone out.
-      email_verified: account.email_verified === null || account.email_verified === undefined
-        ? true
-        : Boolean(account.email_verified)
-    }
-  }
+  return { ok: true, userId: payload.userId, user: currentUser(payload.userId, account) }
 }
 
 function bearer(req: Request): string | undefined {
@@ -88,7 +117,7 @@ export const auth = async (req: Request, res: Response, next: () => void) => {
     return res.json({ error: 'Unauthorized' }, 401)
   }
 
-  const result = await resolve(token)
+  const result = await resolveSession(token)
   if (!result.ok) {
     return res.json(result.body, result.status)
   }
@@ -109,7 +138,7 @@ export const auth = async (req: Request, res: Response, next: () => void) => {
 export const optionalAuth = async (req: Request, _res: Response, next: () => void) => {
   const token = bearer(req)
   if (token) {
-    const result = await resolve(token)
+    const result = await resolveSession(token)
     if (result.ok) {
       req.userId = result.userId
       req.user = result.user

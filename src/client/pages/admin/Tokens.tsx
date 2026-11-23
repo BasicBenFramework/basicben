@@ -12,11 +12,14 @@ interface Token {
 }
 
 const SCOPE_LABELS: Record<string, string> = {
-  'content:read': 'Read posts, pages, categories and tags',
-  'content:write': 'Create and edit content',
-  'media:read': 'Read media',
-  'media:write': 'Upload and delete media'
+  'content:read': 'Read published posts, pages, categories and tags (/api/v1)',
+  'content:write': 'Create, edit and trash posts; manage tags and categories — as you',
+  'media:read': 'Read media (/api/v1)',
+  'media:write': 'Upload and edit media — as you'
 }
+
+/** Scopes that let a program change the site rather than only read it. */
+const WRITE_SCOPES = ['content:write', 'media:write']
 
 /**
  * API tokens for programs: a static site build, a sync job, someone's app.
@@ -183,6 +186,21 @@ export default function AdminTokens() {
             <span className="token-hint">
               A write scope also grants the matching read.
             </span>
+
+            {/* Said before the token exists, not after: the moment to decide
+                whether a build server should be able to rewrite the blog is
+                while the box is still unticked. */}
+            {scopes.some(scope => WRITE_SCOPES.includes(scope)) && (
+              <div className="token-write-warning" role="alert">
+                <strong>This token can change your site.</strong> It acts as you, with your
+                role: anything you can create, edit, publish or trash, a program holding it
+                can too — including publishing posts if your role allows it. It cannot manage
+                users, settings or other tokens, cannot empty the trash, and is refused while
+                someone has a post open in the editor. Writes are rate limited per token and
+                logged with its id. Give it an expiry, keep it out of client-side code, and
+                revoke it the moment it might have leaked.
+              </div>
+            )}
           </fieldset>
 
           <label className="token-field">
@@ -217,7 +235,7 @@ export default function AdminTokens() {
 
         {tokens.length === 0 ? (
           <div className="token-empty">
-            <p>No tokens yet. Create one above to read this site's content from elsewhere.</p>
+            <p>No tokens yet. Create one above to read — or, with a write scope, change — this site's content from elsewhere.</p>
           </div>
         ) : (
           <table className="admin-table">
@@ -236,7 +254,13 @@ export default function AdminTokens() {
                   <td><strong>{token.name}</strong></td>
                   <td>
                     {token.scopes.map(scope => (
-                      <code key={scope} className="token-scope-chip">{scope}</code>
+                      <code
+                        key={scope}
+                        className={`token-scope-chip ${WRITE_SCOPES.includes(scope) ? 'token-scope-write' : ''}`}
+                        title={WRITE_SCOPES.includes(scope) ? 'Can change the site' : undefined}
+                      >
+                        {scope}
+                      </code>
                     ))}
                   </td>
                   <td className="token-muted">{formatDate(token.lastUsedAt) ?? 'Never'}</td>
@@ -377,6 +401,23 @@ const tokenStyles = `
   .token-scope-chip {
     margin-right: 4px;
     display: inline-block;
+  }
+
+  .token-scope-write {
+    background: var(--tint-warning);
+    color: var(--fg);
+    border: 1px solid var(--warning);
+  }
+
+  .token-write-warning {
+    margin-top: 8px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--warning);
+    background: var(--tint-warning);
+    color: var(--fg);
+    font-size: 13px;
+    line-height: 1.5;
   }
 
   .token-count {

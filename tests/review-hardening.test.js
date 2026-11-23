@@ -22,7 +22,7 @@ describe('publishing is a capability', () => {
   const controller = read('src/controllers/PostController.ts')
 
   test('creating a post needs post.create, not just a session', () => {
-    assert.match(routes, /router\.post\('\/api\/posts', auth, requireCapability\('post\.create'\)/)
+    assert.match(routes, /router\.post\('\/api\/posts', (auth|contentWrite), requireCapability\('post\.create'\)/)
   })
 
   test('going live needs post.publish, checked again after the filter', () => {
@@ -121,7 +121,7 @@ describe('feeds', () => {
 
 describe('media', () => {
   test('browsing the library needs media.upload', () => {
-    assert.match(read('src/routes/api/media.ts'), /router\.get\('\/api\/media', auth, requireCapability\('media\.upload'\)/)
+    assert.match(read('src/routes/api/media.ts'), /router\.get\('\/api\/media', (auth|mediaWrite), requireCapability\('media\.upload'\)/)
   })
 
   test('editing and deleting check ownership against the row', () => {

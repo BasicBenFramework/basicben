@@ -8,6 +8,7 @@ import { PostRevision } from '../models/PostRevision'
 import { seoFields } from '../helpers/seo-fields'
 import { LISTING_FILTERS, type ListingFilter } from '../models/Post'
 import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/visibility'
+import { lockConflict } from './PostLockController'
 
 /**
  * Hooks fire from here so an app can take part in the content lifecycle.
@@ -141,6 +142,10 @@ export const PostController = {
       return res.json({ error: 'Restore this post from the trash before editing it.' }, 409)
     }
 
+    // Someone else has it open in the editor; see PostLockController.
+    const locked = await lockConflict(req, post)
+    if (locked) return res.json(locked, 409)
+
     const reassigned = authorFor(req, post.user_id)
 
     const fields = editableFields(req.body)
@@ -189,6 +194,12 @@ export const PostController = {
     // Seeing a post is not the same as being allowed to remove it.
     if (!can(req.user, 'post.delete', post)) {
       return res.json({ error: 'You do not have permission to delete this post.' }, 403)
+    }
+
+    // A token may trash, which a person can undo; emptying the trash cannot be
+    // undone, so that stays with someone signed in.
+    if (req.apiToken && post.deleted_at) {
+      return res.json({ error: 'Deleting a post permanently requires a signed-in session.' }, 403)
     }
 
     const outcome = await removePost(req, post)
@@ -297,7 +308,10 @@ export const PostController = {
     const revision = await PostRevision.find(post.id, parseInt(req.params.revisionId))
     if (!revision) return res.json({ error: 'Revision not found' }, 404)
 
-    const changes = { title: revision.title, content: revision.content, excerpt: revision.excerpt ?? '' }
+    const locked = await lockConflict(req, post)
+    if (locked) return res.json(locked, 409)
+
+    const changes ={ title: revision.title, content: revision.content, excerpt: revision.excerpt ?? '' }
 
     await PostRevision.snapshot(post, changes, req.userId ?? null)
     const updated = await Post.update(post.id, changes)
@@ -324,6 +338,11 @@ export const PostController = {
     if (typeof title !== 'string' || typeof content !== 'string') {
       return res.json({ error: 'title and content are required' }, 422)
     }
+
+    // An autosave is harmless to the post, but one from a tab that lost the
+    // lock is typing that will be offered back over the new holder's work.
+    const locked = await lockConflict(req, post)
+    if (locked) return res.json(locked, 409)
 
     const saved = await PostRevision.autosave(post.id, req.userId!, {
       title: title.slice(0, 200),
