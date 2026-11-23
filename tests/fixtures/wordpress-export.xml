@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- A trimmed WordPress export: the elements the importer reads, nothing more. -->
+<rss version="2.0"
+  xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+  <title>Fixture &amp; Friends</title>
+  <link>https://old.example.com</link>
+  <wp:wxr_version>1.2</wp:wxr_version>
+  <wp:base_site_url>https://old.example.com</wp:base_site_url>
+  <wp:base_blog_url>https://old.example.com</wp:base_blog_url>
+
+  <wp:author>
+    <wp:author_id>1</wp:author_id>
+    <wp:author_login><![CDATA[jane]]></wp:author_login>
+    <wp:author_email><![CDATA[jane@example.com]]></wp:author_email>
+    <wp:author_display_name><![CDATA[Jane Doe]]></wp:author_display_name>
+    <wp:author_first_name><![CDATA[Jane]]></wp:author_first_name>
+    <wp:author_last_name><![CDATA[Doe]]></wp:author_last_name>
+  </wp:author>
+
+  <wp:category>
+    <wp:term_id>3</wp:term_id>
+    <wp:category_nicename><![CDATA[recipes]]></wp:category_nicename>
+    <wp:category_parent><![CDATA[food]]></wp:category_parent>
+    <wp:cat_name><![CDATA[Recipes]]></wp:cat_name>
+  </wp:category>
+  <wp:category>
+    <wp:term_id>2</wp:term_id>
+    <wp:category_nicename><![CDATA[food]]></wp:category_nicename>
+    <wp:category_parent><![CDATA[]]></wp:category_parent>
+    <wp:cat_name><![CDATA[Food &amp; Drink]]></wp:cat_name>
+    <wp:category_description><![CDATA[Things to eat]]></wp:category_description>
+  </wp:category>
+  <wp:tag>
+    <wp:term_id>5</wp:term_id>
+    <wp:tag_slug><![CDATA[quick]]></wp:tag_slug>
+    <wp:tag_name><![CDATA[Quick]]></wp:tag_name>
+  </wp:tag>
+
+  <item>
+    <title>header.jpg</title>
+    <wp:post_id>10</wp:post_id>
+    <wp:post_date_gmt><![CDATA[2024-01-01 09:00:00]]></wp:post_date_gmt>
+    <wp:post_type><![CDATA[attachment]]></wp:post_type>
+    <wp:status><![CDATA[inherit]]></wp:status>
+    <wp:attachment_url><![CDATA[https://cdn.example.com/2024/01/header.jpg]]></wp:attachment_url>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[_wp_attachment_metadata]]></wp:meta_key>
+      <wp:meta_value><![CDATA[a:5:{s:5:"width";i:1600;s:6:"height";i:900;s:4:"file";s:18:"2024/01/header.jpg";s:8:"filesize";i:123456;s:5:"sizes";a:1:{s:9:"thumbnail";a:3:{s:4:"file";s:18:"header-150x150.jpg";s:5:"width";i:150;s:6:"height";i:150;}}}]]></wp:meta_value>
+    </wp:postmeta>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[_wp_attachment_image_alt]]></wp:meta_key>
+      <wp:meta_value><![CDATA[A bowl of soup]]></wp:meta_value>
+    </wp:postmeta>
+  </item>
+
+  <item>
+    <title>Soup &amp; Bread</title>
+    <link>https://old.example.com/soup-and-bread/</link>
+    <dc:creator><![CDATA[jane]]></dc:creator>
+    <content:encoded><![CDATA[First paragraph with <strong>bold</strong>.
+Second line of it.
+
+[caption id="attachment_10" align="alignnone" width="300"]<img src="https://cdn.example.com/2024/01/header.jpg" alt="" /> Steaming[/caption]
+
+<ul>
+<li>Leeks</li>
+<li>Potatoes</li>
+</ul>]]></content:encoded>
+    <excerpt:encoded><![CDATA[A warm <em>soup</em>.]]></excerpt:encoded>
+    <wp:post_id>20</wp:post_id>
+    <wp:post_date><![CDATA[2024-02-01 10:00:00]]></wp:post_date>
+    <wp:post_date_gmt><![CDATA[2024-02-01 09:00:00]]></wp:post_date_gmt>
+    <wp:post_modified_gmt><![CDATA[2024-02-02 09:00:00]]></wp:post_modified_gmt>
+    <wp:post_name><![CDATA[soup-and-bread]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_parent>0</wp:post_parent>
+    <wp:menu_order>0</wp:menu_order>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <category domain="category" nicename="recipes"><![CDATA[Recipes]]></category>
+    <category domain="category" nicename="food"><![CDATA[Food &amp; Drink]]></category>
+    <category domain="post_tag" nicename="quick"><![CDATA[Quick]]></category>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key>
+      <wp:meta_value><![CDATA[10]]></wp:meta_value>
+    </wp:postmeta>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[_yoast_wpseo_metadesc]]></wp:meta_key>
+      <wp:meta_value><![CDATA[The best soup.]]></wp:meta_value>
+    </wp:postmeta>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[_yoast_wpseo_title]]></wp:meta_key>
+      <wp:meta_value><![CDATA[%%title%% %%sep%% %%sitename%%]]></wp:meta_value>
+    </wp:postmeta>
+    <wp:comment>
+      <wp:comment_id>100</wp:comment_id>
+      <wp:comment_author><![CDATA[Reader]]></wp:comment_author>
+      <wp:comment_author_email><![CDATA[reader@example.com]]></wp:comment_author_email>
+      <wp:comment_date_gmt><![CDATA[2024-02-03 12:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[Lovely *soup* & bread!]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[1]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[comment]]></wp:comment_type>
+      <wp:comment_parent>0</wp:comment_parent>
+      <wp:comment_user_id>0</wp:comment_user_id>
+    </wp:comment>
+    <wp:comment>
+      <wp:comment_id>101</wp:comment_id>
+      <wp:comment_author><![CDATA[Jane Doe]]></wp:comment_author>
+      <wp:comment_author_email><![CDATA[jane@example.com]]></wp:comment_author_email>
+      <wp:comment_date_gmt><![CDATA[2024-02-03 13:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[Thank you!]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[1]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[comment]]></wp:comment_type>
+      <wp:comment_parent>100</wp:comment_parent>
+      <wp:comment_user_id>1</wp:comment_user_id>
+    </wp:comment>
+    <wp:comment>
+      <wp:comment_id>102</wp:comment_id>
+      <wp:comment_author><![CDATA[Spammer]]></wp:comment_author>
+      <wp:comment_date_gmt><![CDATA[2024-02-03 14:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[Buy things]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[spam]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[comment]]></wp:comment_type>
+      <wp:comment_parent>0</wp:comment_parent>
+    </wp:comment>
+    <wp:comment>
+      <wp:comment_id>103</wp:comment_id>
+      <wp:comment_author><![CDATA[Other blog]]></wp:comment_author>
+      <wp:comment_date_gmt><![CDATA[2024-02-04 14:00:00]]></wp:comment_date_gmt>
+      <wp:comment_content><![CDATA[Linked here]]></wp:comment_content>
+      <wp:comment_approved><![CDATA[1]]></wp:comment_approved>
+      <wp:comment_type><![CDATA[pingback]]></wp:comment_type>
+      <wp:comment_parent>0</wp:comment_parent>
+    </wp:comment>
+  </item>
+
+  <item>
+    <title>Coming soon</title>
+    <dc:creator><![CDATA[jane]]></dc:creator>
+    <content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Scheduled.</p>
+<!-- /wp:paragraph -->]]></content:encoded>
+    <excerpt:encoded><![CDATA[]]></excerpt:encoded>
+    <wp:post_id>21</wp:post_id>
+    <wp:post_date_gmt><![CDATA[2099-01-01 00:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[coming-soon]]></wp:post_name>
+    <wp:status><![CDATA[future]]></wp:status>
+    <wp:post_parent>0</wp:post_parent>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+  </item>
+
+  <item>
+    <title>Secret diary</title>
+    <dc:creator><![CDATA[jane]]></dc:creator>
+    <content:encoded><![CDATA[Private thoughts.]]></content:encoded>
+    <wp:post_id>22</wp:post_id>
+    <wp:post_date_gmt><![CDATA[0000-00-00 00:00:00]]></wp:post_date_gmt>
+    <wp:post_date><![CDATA[2024-03-01 08:00:00]]></wp:post_date>
+    <wp:post_name><![CDATA[secret-diary]]></wp:post_name>
+    <wp:status><![CDATA[private]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+  </item>
+
+  <item>
+    <title>Old revision</title>
+    <wp:post_id>23</wp:post_id>
+    <wp:post_name><![CDATA[soup-revision]]></wp:post_name>
+    <wp:status><![CDATA[trash]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+  </item>
+
+  <item>
+    <title>Team</title>
+    <dc:creator><![CDATA[jane]]></dc:creator>
+    <content:encoded><![CDATA[<p>Our people.</p>]]></content:encoded>
+    <wp:post_id>31</wp:post_id>
+    <wp:post_date_gmt><![CDATA[2024-01-05 00:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[team]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_parent>30</wp:post_parent>
+    <wp:menu_order>2</wp:menu_order>
+    <wp:post_type><![CDATA[page]]></wp:post_type>
+    <wp:postmeta>
+      <wp:meta_key><![CDATA[_wp_page_template]]></wp:meta_key>
+      <wp:meta_value><![CDATA[page-templates/full-width.php]]></wp:meta_value>
+    </wp:postmeta>
+  </item>
+
+  <item>
+    <title>About</title>
+    <dc:creator><![CDATA[jane]]></dc:creator>
+    <content:encoded><![CDATA[About us.]]></content:encoded>
+    <wp:post_id>30</wp:post_id>
+    <wp:post_date_gmt><![CDATA[2024-01-04 00:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[about]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_parent>0</wp:post_parent>
+    <wp:menu_order>1</wp:menu_order>
+    <wp:post_type><![CDATA[page]]></wp:post_type>
+  </item>
+
+  <item>
+    <title>Menu link</title>
+    <wp:post_id>40</wp:post_id>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[nav_menu_item]]></wp:post_type>
+  </item>
+</channel>
+</rss>

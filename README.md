@@ -117,7 +117,20 @@ node --env-file=.env scripts/import-wordpress.mjs
 ```
 
 Posts are matched on slug, so it is safe to run repeatedly — import now, keep
-publishing on WordPress, re-run immediately before cutting over.
+publishing on WordPress, re-run with `--update` immediately before cutting
+over (without it, posts that already exist are left alone).
+
+It brings across posts, pages, comments and authors. Authors become accounts
+with the Author role and no password; they sign in with "forgot password"
+(`--no-authors` attributes everything to the first admin instead). For an offline WordPress export file, a Ghost export, or moving
+this CMS between databases, see [docs/import-export.md](docs/import-export.md):
+
+```bash
+npm run import:wxr -- wordpress.xml --dry-run
+npm run import:ghost -- ghost.json --url https://old.example.com --dry-run
+npm run export -- --out site.json        # or Admin → Tools → Export
+npm run import:json -- site.json --dry-run
+```
 
 It does not re-upload media. A featured image is recorded as the object key it
 already has and served through `publicUrl`, so images resolve when storage
@@ -127,10 +140,6 @@ WordPress host rather than object storage, move the files first.
 Categories are many-to-many here, so a post keeps every one it had; the first
 is recorded as its primary category, which is what a breadcrumb or a canonical
 URL names.
-
-Every post is attributed to the first admin account. WordPress authors are not
-imported as separate users — if the site has several, create the accounts and
-reassign the posts from the editor's Author menu.
 
 ## Deploying
 
