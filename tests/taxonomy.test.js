@@ -117,19 +117,24 @@ describe('the editor selection reaches the database', () => {
   })
 })
 
+// The WordPress importer now maps its responses in scripts/lib/wordpress-rest.mjs
+// and writes through the writer every importer shares, so that is where these
+// rules live. tests/phase2-import-export.test.js checks them against a database.
 describe('the importer keeps the whole taxonomy', () => {
-  const importer = read('scripts/import-wordpress.mjs')
+  const mapping = read('scripts/lib/wordpress-rest.mjs')
+  const writer = read('scripts/lib/site-import.mjs')
 
   test('every category is linked, not just the first', () => {
-    assert.match(importer, /for \(const term of wpCategories\)/)
-    assert.match(importer, /INSERT INTO post_categories/)
+    assert.match(mapping, /categoryKeys\.push\(term\.slug\)/)
+    assert.match(writer, /for \(const categoryId of categoryIds\)/)
+    assert.match(writer, /INSERT INTO post_categories/)
   })
 
   test('categories are no longer demoted to tags', () => {
-    assert.doesNotMatch(importer, /wpCategories\.slice\(1\)/)
+    assert.doesNotMatch(mapping, /slice\(1\)/)
   })
 
   test('links are rebuilt on re-run rather than accumulating', () => {
-    assert.match(importer, /DELETE FROM post_categories WHERE post_id = \?/)
+    assert.match(writer, /DELETE FROM post_categories WHERE post_id = \?/)
   })
 })
