@@ -19,6 +19,7 @@ import { Post } from '../models/Post'
 import { Page } from '../models/Page'
 import { Comment } from '../models/Comment'
 import { Media } from '../models/Media'
+import { Settings } from '../models/Settings'
 import type { Request, Response } from '../types'
 
 /**
@@ -93,6 +94,9 @@ export const AdminController = {
     const menu = Array.isArray(items) ? items : DEFAULT_MENU
 
     res.json({
+      // The admin's default language; see src/client/i18n. Here rather than
+      // a request of its own because every admin screen already makes this one.
+      locale: (await Settings.get('admin_locale')) || null,
       menu: menu.filter(
         (item: MenuItem) =>
           item && typeof item.path === 'string' && typeof item.label === 'string' &&

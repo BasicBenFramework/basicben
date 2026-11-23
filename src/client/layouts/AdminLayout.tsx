@@ -4,6 +4,7 @@ import { useAuth, useNavigate, usePath } from '@basicbenframework/core/client'
 import AdminIcon from '../components/admin/AdminIcons'
 import { Link } from '../components/Link'
 import { can } from '@basicbenframework/core/auth/permissions'
+import { applySiteLocale, useT } from '../i18n'
 
 interface MenuItem {
   path: string
@@ -106,6 +107,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   const currentPath = usePath()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [appearance, setAppearance] = useState<Appearance>(storedAppearance)
+  const { t } = useT()
 
   useEffect(() => {
     if (appearance === 'system') localStorage.removeItem(THEME_KEY)
@@ -128,8 +130,9 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   useEffect(() => {
     let cancelled = false
 
-    api.get<{ menu: MenuItem[] }>('/api/admin/menu')
+    api.get<{ menu: MenuItem[]; locale?: string | null }>('/api/admin/menu')
       .then((data) => {
+        void applySiteLocale(data?.locale)
         if (Array.isArray(data?.menu) && data.menu.length > 0) {
           // Remembered across mounts, not merely across renders: see lastMenu.
           lastMenu = data.menu
@@ -172,7 +175,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
                   breakpoint collapses the rail without touching this state. */}
               {group.title && (
                 <div className="admin-nav-section">
-                  <span className="admin-nav-section-label">{group.title}</span>
+                  <span className="admin-nav-section-label">{t(group.title)}</span>
                 </div>
               )}
 
@@ -181,10 +184,10 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
                   key={item.path}
                   href={item.path}
                   className={`admin-nav-item ${currentPath === item.path ? 'active' : ''}`}
-                  title={sidebarOpen ? undefined : item.label}
+                  title={sidebarOpen ? undefined : t(item.label)}
                 >
                   <AdminIcon path={item.path} fallback={item.icon} />
-                  {sidebarOpen && <span className="admin-nav-label">{item.label}</span>}
+                  {sidebarOpen && <span className="admin-nav-label">{t(item.label)}</span>}
                 </Link>
               ))}
             </div>
@@ -195,16 +198,16 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
           {/* There is no site to view without a public one, and `/` is the
               dashboard you are already looking at. */}
           {!__DISABLE_PUBLIC_SITE__ && (
-            <Link href="/" className="admin-nav-item" title={sidebarOpen ? undefined : 'View site'}>
+            <Link href="/" className="admin-nav-item" title={sidebarOpen ? undefined : t('View site')}>
               <AdminIcon name="site" />
-              {sidebarOpen && <span className="admin-nav-label">View site</span>}
+              {sidebarOpen && <span className="admin-nav-label">{t('View site')}</span>}
             </Link>
           )}
           <button
             className="admin-nav-item admin-collapse"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            title={sidebarOpen ? t('Collapse sidebar') : t('Expand sidebar')}
+            aria-label={sidebarOpen ? t('Collapse sidebar') : t('Expand sidebar')}
           >
             <svg
               className="admin-nav-icon"
@@ -219,7 +222,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
             >
               <path d="M15 6l-6 6 6 6" />
             </svg>
-            {sidebarOpen && <span className="admin-nav-label">Collapse</span>}
+            {sidebarOpen && <span className="admin-nav-label">{t('Collapse')}</span>}
           </button>
         </div>
       </aside>
@@ -229,14 +232,14 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
           {title && <h1 className="admin-page-title">{title}</h1>}
 
           <div className="admin-header-right">
-            <div className="admin-appearance" role="group" aria-label="Appearance">
+            <div className="admin-appearance" role="group" aria-label={t('Appearance')}>
               {(['system', 'light', 'dark'] as Appearance[]).map(option => (
                 <button
                   key={option}
                   type="button"
                   className={`admin-appearance-option ${appearance === option ? 'active' : ''}`}
                   onClick={() => setAppearance(option)}
-                  title={`${option[0].toUpperCase()}${option.slice(1)} theme`}
+                  title={option === 'system' ? t('System theme') : option === 'light' ? t('Light theme') : t('Dark theme')}
                   aria-pressed={appearance === option}
                 >
                   {option === 'system' ? '◐' : option === 'light' ? '☀' : '☾'}
@@ -244,9 +247,9 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
               ))}
             </div>
 
-            <span className="admin-user">{user?.name || 'Admin'}</span>
+            <span className="admin-user">{user?.name || t('Admin')}</span>
             <button className="admin-btn admin-btn-secondary" onClick={handleLogout}>
-              Log out
+              {t('Log out')}
             </button>
           </div>
         </header>

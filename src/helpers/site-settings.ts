@@ -215,6 +215,10 @@ export const SETTINGS: Record<string, SettingDefinition> = {
 
   timezone: { group: 'locale', check: timeZone },
   locale: { group: 'locale', check: locale },
+  // The admin's language for everyone who has not picked one in Profile.
+  // Any tag is stored; the admin falls back to English when it has no
+  // dictionary for it (src/client/i18n).
+  admin_locale: { group: 'locale', check: locale },
 
   code_injection_head: { group: 'code_injection', check: text(100_000) },
   code_injection_foot: { group: 'code_injection', check: text(100_000) },
