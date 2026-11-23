@@ -286,7 +286,10 @@ describe('importing into a database', () => {
     assert.strictEqual(report.get('posts', 'created'), 3)
     assert.strictEqual(report.get('pages', 'created'), 2)
     assert.strictEqual(report.get('comments', 'created'), 2)
-    assert.strictEqual(report.get('comments', 'spam skipped'), 1)
+    // The comments table has a status column (migration 030), so WordPress
+    // spam arrives marked as spam rather than being dropped.
+    assert.strictEqual(report.get('comments', 'created as spam'), 1)
+    assert.strictEqual((await db.get("SELECT COUNT(*) AS n FROM comments WHERE status = 'spam' AND approved = 0")).n, 1)
 
     const jane = await db.get("SELECT * FROM users WHERE email = 'jane@example.com'")
     assert.strictEqual(jane.role, 'author')
@@ -436,8 +439,9 @@ describe('export and JSON import', () => {
     const cats = await target.all('SELECT c.slug FROM post_categories pc JOIN categories c ON c.id = pc.category_id WHERE pc.post_id = ? ORDER BY c.slug', [soup.id])
     assert.deepStrictEqual(cats.map((c) => c.slug), ['food', 'recipes'])
 
-    const comments = await target.all('SELECT * FROM comments ORDER BY id')
+    const comments = await target.all("SELECT * FROM comments WHERE status <> 'spam' ORDER BY id")
     assert.strictEqual(comments.length, 2)
+    assert.strictEqual((await target.get("SELECT COUNT(*) AS n FROM comments WHERE status = 'spam'")).n, 1)
     assert.strictEqual(comments[1].parent_id, comments[0].id)
     assert.strictEqual(comments[0].post_id, soup.id)
 
@@ -455,9 +459,11 @@ describe('export and JSON import', () => {
   test('tables the target lacks are skipped with a note, not fatal', async () => {
     const { db: target, adminId } = await freshDb()
     const doc = readExport(exported)
-    doc.tables.redirects = [{ id: 1, from_path: '/old', to_path: '/new' }]
+    // Every phase 2 table exists at the current schema, so use one that
+    // never will: a newer CMS's table this database has not migrated to.
+    doc.tables.widgets = [{ id: 1, name: 'sidebar' }]
     const report = await importExport(target, doc, { defaultAuthorId: adminId })
-    assert.ok(report.notes.some((n) => /redirects/.test(n)))
+    assert.ok(report.notes.some((n) => /widgets/.test(n)))
   })
 })
 
@@ -473,5 +479,41 @@ describe('the admin export endpoint', () => {
     const controller = read('src/controllers/ExportController.ts')
     assert.match(controller, /exportChunks\(db/)
     assert.match(controller, /Cache-Control', 'no-store'/)
+  })
+})
+
+describe('phase 2 tables survive a move between databases', () => {
+  test('menu links follow their target, snippets keep their author, IPs stay home', async () => {
+    const { db: source, adminId } = await freshDb()
+    await source.run("INSERT INTO posts (user_id, title, slug, content, published, status) VALUES (?, 'A', 'a', 'x', 1, 'published'), (?, 'B', 'b', 'x', 1, 'published')", [adminId, adminId])
+    const b = await source.get("SELECT id FROM posts WHERE slug = 'b'")
+    const primary = await source.get("SELECT id FROM menus WHERE location = 'primary'")
+    await source.run("INSERT INTO menu_items (menu_id, label, target_type, target_id, sort_order) VALUES (?, 'B', 'post', ?, 0)", [primary.id, b.id])
+    await source.run("INSERT INTO redirects (from_path, to_path, status, source) VALUES ('/old', '/blog/b', 301, 'manual')")
+    await source.run("INSERT INTO snippets (name, content, created_by) VALUES ('Sig', 'bye', ?)", [adminId])
+    const a = await source.get("SELECT id FROM posts WHERE slug = 'a'")
+    await source.run("INSERT INTO comments (post_id, author_name, author_email, content, status, approved, author_ip) VALUES (?, 'G', 'g@example.com', 'hello there', 'approved', 1, '203.0.113.9')", [a.id])
+
+    const text = await exportToString(source, {})
+    assert.ok(!text.includes('203.0.113.9'), 'the export carries a commenter IP')
+    assert.ok(!JSON.parse(text).tables.post_locks, 'edit locks are per-database state')
+
+    // The target already has posts, so the ids cannot line up by accident.
+    const { db: target, adminId: targetAdmin } = await freshDb()
+    for (const slug of ['x1', 'x2', 'x3']) {
+      await target.run("INSERT INTO posts (user_id, title, slug, content, published, status) VALUES (?, ?, ?, 'x', 1, 'published')", [targetAdmin, slug, slug])
+    }
+    await importExport(target, readExport(JSON.parse(text)), { defaultAuthorId: targetAdmin })
+
+    const item = await target.get("SELECT target_type, target_id FROM menu_items WHERE label = 'B'")
+    const linked = await target.get('SELECT slug FROM posts WHERE id = ?', [item.target_id])
+    assert.strictEqual(linked.slug, 'b', 'the menu item points at a different post after import')
+    assert.ok(await target.get("SELECT 1 FROM redirects WHERE from_path = '/old' AND to_path = '/blog/b'"))
+    const snippet = await target.get("SELECT created_by FROM snippets WHERE name = 'Sig'")
+    assert.strictEqual(snippet.created_by, targetAdmin, 'snippet authorship was not remapped')
+
+    const again = await importExport(target, readExport(JSON.parse(text)), { defaultAuthorId: targetAdmin })
+    assert.strictEqual(again.get('menu_items', 'created') ?? 0, 0)
+    assert.strictEqual((await target.get('SELECT COUNT(*) AS n FROM snippets')).n, 1)
   })
 })

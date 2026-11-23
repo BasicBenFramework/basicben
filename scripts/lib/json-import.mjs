@@ -341,7 +341,10 @@ export async function importExport(db, doc, options) {
   return report
 }
 
-const NATURAL_KEYS = ['slug', 'key', 'from_path', 'source_path', 'source', 'from', 'path', 'location']
+const NATURAL_KEYS = ['slug', 'key', 'from_path', 'source_path', 'source', 'from', 'path', 'location', 'name']
+
+/** What a `target_type` value names. */
+const POLYMORPHIC_TABLES = { post: 'posts', page: 'pages', category: 'categories', tag: 'tags', media: 'media' }
 
 /** `post_id` → `posts`, `parent_id` → this table, and so on. */
 function referencedTable(column, table, map) {
@@ -383,7 +386,26 @@ async function importGeneric(db, table, list, { map, update, report, log }) {
     const { id: oldId, ...rest } = row
     const data = { ...rest }
 
+    // A polymorphic link (`target_type` + `target_id`, as menu items use)
+    // names its table in a sibling column, so the name of `target_id` says
+    // nothing. Left alone, the old id would point at whatever row has that
+    // id here — a menu linking to the wrong post.
+    const polymorphic = 'target_type' in data && 'target_id' in data
+    if (polymorphic && data.target_id !== null) {
+      const target = POLYMORPHIC_TABLES[data.target_type]
+      const mapped = target && map[target] ? map[target].get(data.target_id) : undefined
+      if (mapped === undefined) {
+        report.count(table, 'skipped (link target not imported)')
+        continue
+      }
+      data.target_id = mapped
+    }
+
+    // Authorship columns that do not end in `_id`.
+    if (data.created_by != null && map.users) data.created_by = map.users.get(data.created_by) ?? null
+
     for (const column of Object.keys(data)) {
+      if (polymorphic && column === 'target_id') continue
       if (!column.endsWith('_id') || data[column] === null) continue
       const target = referencedTable(column, table, map)
       if (!target) continue

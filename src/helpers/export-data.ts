@@ -50,7 +50,7 @@ interface TableSpec {
  * tables listed before it (or to its own table), so an importer reading
  * top to bottom can remap every id as it goes.
  *
- * `menus`, `menu_items` and `redirects` belong to features that may not be
+ * `menus`, `menu_items`, `redirects` and `snippets` belong to features that may not be
  * installed; a table that does not exist is simply absent from the output.
  */
 export const EXPORT_TABLES: TableSpec[] = [
@@ -67,11 +67,14 @@ export const EXPORT_TABLES: TableSpec[] = [
   // them, so they are opt-in.
   { name: 'post_revisions', optional: 'revisions' },
   { name: 'pages' },
-  { name: 'comments' },
+  // The commenter's address is a spam signal for this install, and personal
+  // data an export file has no business carrying around.
+  { name: 'comments', omit: ['author_ip'] },
   { name: 'settings' },
   { name: 'menus' },
   { name: 'menu_items' },
-  { name: 'redirects' }
+  { name: 'redirects' },
+  { name: 'snippets' }
 ]
 
 /**
@@ -85,6 +88,8 @@ export const NEVER_EXPORTED = [
   'user_credentials',
   'api_tokens',
   'rate_limits',
+  // Who has a post open right now: meaningless anywhere else.
+  'post_locks',
   '_migrations',
   'sqlite_sequence'
 ]

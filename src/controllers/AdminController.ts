@@ -49,6 +49,7 @@ const DEFAULT_MENU = [
   // Gated: only someone who can manage accounts is shown the way to them. The
   // routes behind it refuse everyone else regardless — this is presentation.
   { path: '/admin/users', label: 'Users', icon: '👥', section: 'Site', capability: 'user.manage' },
+  { path: '/admin/tools', label: 'Tools', icon: '🧰', section: 'Site', capability: 'user.manage' },
   // Where an author edits their own byline. It lives outside /admin because it
   // is the one screen every account has, admin area or not — but the people
   // writing posts are in here, so the way to it has to be too.

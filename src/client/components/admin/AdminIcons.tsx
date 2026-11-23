@@ -92,6 +92,12 @@ const paths: Record<string, React.ReactNode> = {
       <path d="M4 21h8" />
     </>
   ),
+  tools: (
+    <>
+      <path d="M12 3v12M7 10l5 5 5-5" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </>
+  ),
   site: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -118,7 +124,8 @@ const byPath: Record<string, string> = {
   // the emoji the server supplied, which is the look these icons replaced.
   '/profile': 'profile',
   '/admin/settings': 'settings',
-  '/admin/users': 'users'
+  '/admin/users': 'users',
+  '/admin/tools': 'tools'
 }
 
 interface AdminIconProps {
