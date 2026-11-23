@@ -1,0 +1,10 @@
+{{heading}}
+
+{{intro}}
+
+{{action}}:
+
+{{url}}
+
+The link works once and expires in {{minutes}} minutes. If you did not ask
+for it, ignore this email — nothing happens unless the link is used.

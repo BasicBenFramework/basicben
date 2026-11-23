@@ -49,6 +49,7 @@ const DEFAULT_MENU = [
   // Gated: only someone who can manage accounts is shown the way to them. The
   // routes behind it refuse everyone else regardless — this is presentation.
   { path: '/admin/users', label: 'Users', icon: '👥', section: 'Site', capability: 'user.manage' },
+  { path: '/admin/members', label: 'Members', icon: '✉️', section: 'Site', capability: 'user.manage' },
   { path: '/admin/analytics', label: 'Analytics', icon: '📈', section: 'Site', capability: 'post.edit' },
   { path: '/admin/tools', label: 'Tools', icon: '🧰', section: 'Site', capability: 'user.manage' },
   { path: '/admin/health', label: 'Site health', icon: '🩺', section: 'Site', capability: 'user.manage' },

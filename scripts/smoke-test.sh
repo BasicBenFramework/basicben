@@ -920,6 +920,47 @@ REVALIDATED="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/ap
 [ "$REVALIDATED" = "304" ] || fail "revalidating with the ETag got $REVALIDATED, expected 304"
 pass "the content API answers a conditional request with 304"
 
+# --- Phase 3: members and gated posts ----------------------------------------
+#
+# Also before the flood: the gated read goes through /api/v1.
+
+GATED_ID="$(owner_json -X POST "$H/api/posts" -d '{"title":"Members only","slug":"members-only","content":"The secret body of a gated post.","published":true,"visibility":"members"}' | json 'd=>d.post.id')"
+[ -n "$GATED_ID" ] || fail "could not create a members-only post"
+GATED="$(curl -s -D "$WORK_DIR/gated-headers" "$H/api/v1/posts/members-only" -H "Authorization: Bearer $API_TOKEN")"
+case "$GATED" in
+  *'secret body'*) echo "$GATED"; fail "a members-only post leaked its body to an anonymous reader" ;;
+  *'"gated":true'*) pass "a members-only post is listed without its body" ;;
+  *) echo "$GATED"; fail "the members-only post did not come back gated" ;;
+esac
+
+curl -s -o /dev/null -X POST "$H/api/v1/members/magic-link" -H 'Content-Type: application/json' -d '{"email":"reader@example.com"}'
+sleep 1
+MAGIC_TOKEN="$(grep -oE 'members/verify\?token=[A-Za-z0-9_%-]+' "$WORK_DIR/server.log" | tail -1 | sed 's/.*token=//')"
+[ -n "$MAGIC_TOKEN" ] || { tail -20 "$WORK_DIR/server.log"; fail "no member magic link was sent"; }
+MEMBER_TOKEN="$(curl -s -X POST "$H/api/v1/members/verify" -H 'Content-Type: application/json' -d "{\"token\":\"$MAGIC_TOKEN\"}" | json 'd=>d.token')"
+[ -n "$MEMBER_TOKEN" ] || fail "the magic link did not sign the member in"
+code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$H/api/v1/members/verify" -H 'Content-Type: application/json' -d "{\"token\":\"$MAGIC_TOKEN\"}")"
+[ "$code" = "400" ] || fail "a magic link worked twice ($code)"
+pass "a magic link signs a member in, once"
+
+MEMBER_READ="$(curl -s -D "$WORK_DIR/member-headers" "$H/api/v1/posts/members-only" -H "Authorization: Bearer $API_TOKEN" -H "X-Member-Token: $MEMBER_TOKEN")"
+case "$MEMBER_READ" in
+  *'secret body'*) ;;
+  *) echo "$MEMBER_READ"; fail "a signed-in member could not read the gated post" ;;
+esac
+grep -qi '^cache-control:.*private' "$WORK_DIR/member-headers" || fail "a member's read of a gated post is publicly cacheable"
+pass "a member reads the gated body, privately cached"
+
+code="$(curl -s -o /dev/null -w '%{http_code}' "$H/api/members" -H "Authorization: Bearer $MEMBER_TOKEN")"
+[ "$code" = "401" ] || fail "a member session reached the admin members API ($code)"
+code="$(curl -s -o /dev/null -w '%{http_code}' "$H/api/settings" -H "Authorization: Bearer $MEMBER_TOKEN")"
+[ "$code" = "401" ] || fail "a member session reached the admin settings API ($code)"
+MEMBERS="$(owner_json "$H/api/members")"
+case "$MEMBERS" in
+  *'reader@example.com'*) pass "a member session never passes admin auth; the admin sees the member" ;;
+  *) echo "$MEMBERS"; fail "the admin members list does not show the new member" ;;
+esac
+
 # What the docs promise is what the server sends.
 #
 # The reference is generated from the interfaces, so it cannot drift from the

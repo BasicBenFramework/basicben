@@ -1,0 +1,458 @@
+import React, { useState, useEffect, useRef } from 'react'
+import { api } from '../../../helpers/api'
+import AdminLayout from '../../layouts/AdminLayout'
+import { Pagination, type PageMeta } from '../../components/admin/Pagination'
+
+interface Member {
+  id: number
+  email: string
+  name: string | null
+  status: 'active' | 'unsubscribed'
+  newsletter: boolean
+  labels: string | null
+  note: string | null
+  source: 'signup' | 'admin' | 'import'
+  email_verified_at: string | null
+  last_seen_at: string | null
+  created_at: string
+}
+
+interface Counts {
+  total: number
+  active: number
+  unsubscribed: number
+}
+
+interface Send {
+  id: number
+  post_id: number
+  post_title: string | null
+  status: 'preparing' | 'sending' | 'sent'
+  total_count: number
+  sent_count: number
+  failed_count: number
+  skipped_count: number
+  created_at: string
+  completed_at: string | null
+}
+
+interface ImportResult {
+  imported: number
+  existing: number
+  invalid: number
+  errors: Array<{ row: number; error: string }>
+}
+
+const EMPTY = { email: '', name: '', labels: '', newsletter: true }
+
+/** The settings this page owns. All live in the `members` group of the allowlist. */
+const SETTING_KEYS = ['members_signup', 'members_signin_url', 'newsletter_sender_name', 'newsletter_reply_to', 'newsletter_footer'] as const
+type SettingKey = (typeof SETTING_KEYS)[number]
+
+const date = (value: string | null) => {
+  if (!value) return '—'
+  const parsed = new Date(/Z|[+-]\d\d:?\d\d$/.test(value) ? value : value.replace(' ', 'T') + 'Z')
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString()
+}
+
+/**
+ * Members: the readers who signed up with a magic link, were added here, or
+ * were imported — and the newsletter they receive.
+ *
+ * Members are not users. They have no password and no admin access; the
+ * routes behind this page are admin-only (`user.manage`) because the list is
+ * other people's email addresses.
+ */
+export default function AdminMembers() {
+  const [members, setMembers] = useState<Member[]>([])
+  const [counts, setCounts] = useState<Counts>({ total: 0, active: 0, unsubscribed: 0 })
+  const [meta, setMeta] = useState<PageMeta | null>(null)
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState(EMPTY)
+  const [error, setError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [settings, setSettings] = useState<Record<SettingKey, string>>({
+    members_signup: 'open', members_signin_url: '', newsletter_sender_name: '', newsletter_reply_to: '', newsletter_footer: ''
+  })
+  const [settingsMessage, setSettingsMessage] = useState('')
+  const [sends, setSends] = useState<Send[]>([])
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    load(page, search, status)
+  }, [page, status])
+
+  useEffect(() => {
+    loadSettings()
+    loadSends()
+  }, [])
+
+  const load = async (which: number, term: string, filter: string) => {
+    try {
+      const params = new URLSearchParams({ page: String(which) })
+      if (term.trim()) params.set('search', term.trim())
+      if (filter) params.set('status', filter)
+
+      const res = await api.get<{ members: Member[]; meta: PageMeta; counts: Counts }>(`/api/members?${params}`)
+      setMembers(res?.members || [])
+      setMeta(res?.meta || null)
+      if (res?.counts) setCounts(res.counts)
+    } catch (err) {
+      console.error('Failed to load members:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadSettings = async () => {
+    try {
+      const res = await api.get<{ settings: Record<string, string> }>('/api/settings')
+      const stored = res?.settings || {}
+      setSettings(prev => {
+        const next = { ...prev }
+        for (const key of SETTING_KEYS) if (stored[key] !== undefined) next[key] = stored[key]
+        return next
+      })
+    } catch {
+      // Settings are admin-only too; nothing to show if they cannot be read.
+    }
+  }
+
+  const loadSends = async () => {
+    try {
+      const res = await api.get<{ sends: Send[] }>('/api/newsletters')
+      setSends(res?.sends || [])
+    } catch {
+      setSends([])
+    }
+  }
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    try {
+      await api.post('/api/members', form)
+      setForm(EMPTY)
+      load(page, search, status)
+    } catch (err: any) {
+      setError(err.message || 'Failed to add member')
+    }
+  }
+
+  const toggleNewsletter = async (member: Member) => {
+    try {
+      await api.put(`/api/members/${member.id}`, { newsletter: !member.newsletter })
+      load(page, search, status)
+    } catch (err: any) {
+      alert(err.message || 'Failed to update member')
+    }
+  }
+
+  const handleDelete = async (member: Member) => {
+    if (!confirm(`Delete ${member.email}? They are signed out and receive no further newsletters. This cannot be undone.`)) return
+    try {
+      await api.delete(`/api/members/${member.id}`)
+      load(page, search, status)
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete member')
+    }
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setPage(1)
+    load(1, search, status)
+  }
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImporting(true)
+    setImportResult(null)
+    try {
+      const csv = await file.text()
+      const res = await api.post<ImportResult>('/api/members/import', { csv })
+      setImportResult(res)
+      load(1, search, status)
+      setPage(1)
+    } catch (err: any) {
+      alert(err.message || 'Import failed')
+    } finally {
+      setImporting(false)
+      if (fileInput.current) fileInput.current.value = ''
+    }
+  }
+
+  /**
+   * The export is CSV, not JSON, so it cannot go through `api` — fetched with
+   * the session header and handed to the browser as a file.
+   */
+  const handleExport = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/members/export', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!res.ok) throw new Error(`Export failed (${res.status})`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `members-${new Date().toISOString().slice(0, 10)}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      alert(err.message || 'Export failed')
+    }
+  }
+
+  const saveSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSettingsMessage('')
+    try {
+      await api.put('/api/settings', { settings })
+      setSettingsMessage('Saved.')
+    } catch (err: any) {
+      setSettingsMessage(err.message || 'Failed to save settings')
+    }
+  }
+
+  const setSetting = (key: SettingKey) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setSettings(prev => ({ ...prev, [key]: e.target.value }))
+
+  if (loading) {
+    return (
+      <AdminLayout title="Members">
+        <div className="admin-loading">Loading...</div>
+      </AdminLayout>
+    )
+  }
+
+  return (
+    <AdminLayout title="Members">
+      <div className="admin-grid admin-grid-3">
+        <div className="admin-card">
+          <h3 className="admin-card-title">Members</h3>
+          <p style={{ fontSize: '1.75rem', margin: 0 }}>{counts.total}</p>
+        </div>
+        <div className="admin-card">
+          <h3 className="admin-card-title">Subscribed</h3>
+          <p style={{ fontSize: '1.75rem', margin: 0 }}>{counts.active}</p>
+        </div>
+        <div className="admin-card">
+          <h3 className="admin-card-title">Unsubscribed</h3>
+          <p style={{ fontSize: '1.75rem', margin: 0 }}>{counts.unsubscribed}</p>
+        </div>
+      </div>
+
+      <div className="admin-card">
+        <h3 className="admin-card-title">Add a member</h3>
+        <form onSubmit={handleAdd}>
+          <div className="admin-grid admin-grid-3">
+            <div className="admin-form-group">
+              <label className="admin-label">Email</label>
+              <input type="email" required className="admin-input" value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Name</label>
+              <input type="text" className="admin-input" value={form.name}
+                onChange={e => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label">Labels</label>
+              <input type="text" className="admin-input" placeholder="comma, separated" value={form.labels}
+                onChange={e => setForm({ ...form, labels: e.target.value })} />
+            </div>
+          </div>
+          <div className="admin-form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input type="checkbox" checked={form.newsletter} onChange={e => setForm({ ...form, newsletter: e.target.checked })} />
+              Subscribed to the newsletter
+            </label>
+          </div>
+          {error && <p style={{ color: 'var(--danger)', marginBottom: '0.75rem' }}>{error}</p>}
+          <button type="submit" className="admin-btn admin-btn-primary">Add member</button>
+        </form>
+        <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.75rem' }}>
+          No email is sent. They sign in with a magic link whenever they choose, from your front end.
+        </p>
+      </div>
+
+      <div className="admin-card">
+        <div className="admin-card-header">
+          <h3 className="admin-card-title">All members</h3>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="search" value={search} onChange={e => setSearch(e.target.value)}
+                className="admin-input" placeholder="Search email, name, labels" />
+              <button type="submit" className="admin-btn admin-btn-secondary">Search</button>
+            </form>
+            <select className="admin-select" value={status} onChange={e => { setStatus(e.target.value); setPage(1) }}>
+              <option value="">Everyone</option>
+              <option value="active">Subscribed</option>
+              <option value="unsubscribed">Unsubscribed</option>
+            </select>
+            <button type="button" className="admin-btn admin-btn-secondary" onClick={() => fileInput.current?.click()} disabled={importing}>
+              {importing ? 'Importing…' : 'Import CSV'}
+            </button>
+            <input ref={fileInput} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleImport} />
+            <button type="button" className="admin-btn admin-btn-secondary" onClick={handleExport}>Export CSV</button>
+          </div>
+        </div>
+
+        {importResult && (
+          <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem' }}>
+            Imported {importResult.imported}; {importResult.existing} already members (left unchanged);
+            {' '}{importResult.invalid} invalid
+            {importResult.errors.length > 0 && ` — first problem on row ${importResult.errors[0].row}: ${importResult.errors[0].error}`}.
+          </p>
+        )}
+
+        {members.length === 0 ? (
+          <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>No members.</p>
+        ) : (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Newsletter</th>
+                <th>Labels</th>
+                <th>Source</th>
+                <th>Joined</th>
+                <th>Last seen</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map(member => (
+                <tr key={member.id}>
+                  <td>
+                    {member.email}
+                    {!member.email_verified_at && (
+                      <span className="admin-badge admin-badge-warning" style={{ marginLeft: '0.5rem' }} title="Has never followed a sign-in link">
+                        unverified
+                      </span>
+                    )}
+                  </td>
+                  <td>{member.name || '—'}</td>
+                  <td>
+                    <span className={`admin-badge ${member.newsletter ? 'admin-badge-success' : 'admin-badge-warning'}`}>
+                      {member.newsletter ? 'Subscribed' : 'Unsubscribed'}
+                    </span>
+                  </td>
+                  <td>{member.labels || '—'}</td>
+                  <td>{member.source}</td>
+                  <td>{date(member.created_at)}</td>
+                  <td>{date(member.last_seen_at)}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button onClick={() => toggleNewsletter(member)} className="admin-btn admin-btn-secondary">
+                        {member.newsletter ? 'Unsubscribe' : 'Subscribe'}
+                      </button>
+                      <button onClick={() => handleDelete(member)} className="admin-btn admin-btn-danger">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {meta && <Pagination meta={meta} onChange={setPage} noun="members" />}
+
+        <p style={{ color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.75rem' }}>
+          CSV import reads a header row with <code>email</code> and optionally <code>name</code>, <code>labels</code>,
+          {' '}<code>note</code> and <code>subscribed</code> (yes/no). Existing members are skipped, never overwritten.
+        </p>
+      </div>
+
+      <form onSubmit={saveSettings}>
+        <div className="admin-grid admin-grid-2">
+          <div className="admin-card">
+            <h3 className="admin-card-title">Membership</h3>
+            <div className="admin-form-group">
+              <label className="admin-label" htmlFor="members_signup">Who can sign up</label>
+              <select id="members_signup" className="admin-select" value={settings.members_signup || 'open'} onChange={setSetting('members_signup')}>
+                <option value="open">Anyone</option>
+                <option value="invite">Only members added or imported here</option>
+                <option value="closed">Nobody — sign-in links are not sent</option>
+              </select>
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label" htmlFor="members_signin_url">Sign-in page on your front end</label>
+              <input id="members_signin_url" type="url" className="admin-input" placeholder="https://example.com/members/verify"
+                value={settings.members_signin_url} onChange={setSetting('members_signin_url')} />
+              <small style={{ color: 'var(--fg-muted)' }}>
+                Magic links open this page with <code>?token=</code>; it POSTs the token to
+                {' '}<code>/api/v1/members/verify</code>. Blank uses SITE_URL + <code>/members/verify</code>.
+              </small>
+            </div>
+          </div>
+
+          <div className="admin-card">
+            <h3 className="admin-card-title">Newsletter</h3>
+            <div className="admin-form-group">
+              <label className="admin-label" htmlFor="newsletter_sender_name">Sender name</label>
+              <input id="newsletter_sender_name" type="text" className="admin-input" placeholder="Defaults to the site name"
+                value={settings.newsletter_sender_name} onChange={setSetting('newsletter_sender_name')} />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label" htmlFor="newsletter_reply_to">Reply-to address</label>
+              <input id="newsletter_reply_to" type="email" className="admin-input"
+                value={settings.newsletter_reply_to} onChange={setSetting('newsletter_reply_to')} />
+            </div>
+            <div className="admin-form-group">
+              <label className="admin-label" htmlFor="newsletter_footer">Footer text</label>
+              <textarea id="newsletter_footer" className="admin-input" rows={3}
+                value={settings.newsletter_footer} onChange={setSetting('newsletter_footer')} />
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <button type="submit" className="admin-btn admin-btn-primary">Save settings</button>
+          {settingsMessage && <span style={{ color: 'var(--fg-muted)' }}>{settingsMessage}</span>}
+        </div>
+      </form>
+
+      <div className="admin-card">
+        <h3 className="admin-card-title">Recent newsletters</h3>
+        {sends.length === 0 ? (
+          <p style={{ color: 'var(--fg-muted)' }}>
+            Nothing sent yet. Tick “Email to subscribed members” in a post’s editor; it is sent once, when the post goes live.
+          </p>
+        ) : (
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Post</th>
+                <th>Status</th>
+                <th>Delivered</th>
+                <th>Failed</th>
+                <th>Skipped</th>
+                <th>Started</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sends.map(send => (
+                <tr key={send.id}>
+                  <td>{send.post_title || `Post ${send.post_id}`}</td>
+                  <td>
+                    <span className={`admin-badge ${send.status === 'sent' ? 'admin-badge-success' : 'admin-badge-warning'}`}>{send.status}</span>
+                  </td>
+                  <td>{send.sent_count} / {send.total_count}</td>
+                  <td>{send.failed_count}</td>
+                  <td>{send.skipped_count}</td>
+                  <td>{date(send.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </AdminLayout>
+  )
+}

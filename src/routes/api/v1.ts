@@ -7,6 +7,7 @@ import { SCOPES } from '@basicbenframework/core/auth/api-tokens'
 import { cacheable } from '../../middleware/cache'
 import { publicApiLimit } from '../../middleware/rate-limits'
 import { publishDueOpportunistically } from '../../helpers/publish-due'
+import { optionalMember } from '../../middleware/member-auth'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void
@@ -25,8 +26,13 @@ export default (router: Router) => {
 
   // Post reads also announce any scheduled post whose time has come, at most
   // once a minute — see helpers/publish-due.ts.
-  router.get('/api/v1/posts', publicApiLimit, content, publishDueOpportunistically, cacheable, PublicApiController.posts)
-  router.get('/api/v1/posts/:slug', publicApiLimit, content, publishDueOpportunistically, cacheable, PublicApiController.post)
+  //
+  // `optionalMember` reads a member session from `X-Member-Token`, which
+  // unlocks the body of members-only posts. It is separate from the
+  // `content:read` credential in `Authorization`, and `cacheable` marks any
+  // response to a request carrying it private.
+  router.get('/api/v1/posts', publicApiLimit, content, publishDueOpportunistically, optionalMember, cacheable, PublicApiController.posts)
+  router.get('/api/v1/posts/:slug', publicApiLimit, content, publishDueOpportunistically, optionalMember, cacheable, PublicApiController.post)
 
   router.get('/api/v1/pages', publicApiLimit, content, cacheable, PublicApiController.pages)
   router.get('/api/v1/pages/:slug', publicApiLimit, content, cacheable, PublicApiController.page)

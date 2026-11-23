@@ -16,7 +16,7 @@
 
 import { isHttpUrl, isRelativePath, MAX_URL_LENGTH } from './content-paths.ts'
 
-export type SettingGroup = 'general' | 'reading' | 'discussion' | 'integrations' | 'identity' | 'locale' | 'code_injection' | 'analytics'
+export type SettingGroup = 'general' | 'reading' | 'discussion' | 'integrations' | 'identity' | 'locale' | 'code_injection' | 'analytics' | 'members'
 
 /** A validator returns the value to store, or an error message. */
 type Check = (value: unknown) => { value: string } | { error: string }
@@ -144,6 +144,44 @@ const locale: Check = (value) => {
   return canonical ? { value: canonical } : { error: 'Must be a BCP 47 language tag, such as en or en-GB' }
 }
 
+/** One of a fixed set of words. */
+const oneOf = (choices: readonly string[]): Check => (value) => {
+  if (typeof value === 'string' && choices.includes(value)) return { value }
+  return { error: `Must be one of ${choices.join(', ')}` }
+}
+
+/** An email address, or blank. Shape only — it is a Reply-To, not a login. */
+const emailOrBlank: Check = (value) => {
+  if (value === null || value === undefined || value === '') return { value: '' }
+  if (typeof value !== 'string') return { error: 'Must be an email address' }
+
+  const email = value.trim()
+  if (email.length > 254 || !/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(email)) {
+    return { error: 'Must be an email address' }
+  }
+
+  return { value: email }
+}
+
+/** An absolute http(s) URL, or blank. */
+const httpUrlOrBlank: Check = (value) => {
+  if (value === null || value === undefined || value === '') return { value: '' }
+  if (typeof value !== 'string' || value.length > MAX_URL_LENGTH || !isHttpUrl(value.trim())) {
+    return { error: 'Must be an http(s) URL' }
+  }
+
+  return { value: value.trim() }
+}
+
+/**
+ * Who may become a member. See MemberController.
+ *
+ * - `open`: anyone may sign up with a magic link.
+ * - `invite`: only addresses an admin added or imported may sign in.
+ * - `closed`: no magic links at all. Existing sessions run until they end.
+ */
+export const MEMBER_SIGNUP_MODES = ['open', 'invite', 'closed'] as const
+
 /**
  * The known settings.
  *
@@ -187,7 +225,16 @@ export const SETTINGS: Record<string, SettingDefinition> = {
   analytics_dedup_hours: { group: 'analytics', check: integer(1, 24) },
   // Days of daily counts to keep. 0 keeps them indefinitely — they are counts,
   // not personal data, so the default is to keep them.
-  analytics_retention_days: { group: 'analytics', check: integer(0, 3650) }
+  analytics_retention_days: { group: 'analytics', check: integer(0, 3650) },
+
+  // Members and newsletters. The sign-in URL is the front-end page a magic
+  // link opens — a setting, not a request parameter, so a caller can never
+  // have a link (and the token in it) delivered to a page of their choosing.
+  members_signup: { group: 'members', check: oneOf(MEMBER_SIGNUP_MODES) },
+  members_signin_url: { group: 'members', check: httpUrlOrBlank },
+  newsletter_sender_name: { group: 'members', check: text(100) },
+  newsletter_reply_to: { group: 'members', check: emailOrBlank },
+  newsletter_footer: { group: 'members', check: text(2000) }
 }
 
 export function isKnownSetting(key: string): boolean {

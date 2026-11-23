@@ -49,6 +49,7 @@ import AdminComments from '../client/pages/admin/Comments'
 import AdminMedia from '../client/pages/admin/Media'
 import AdminTokens from '../client/pages/admin/Tokens'
 import AdminUsers from '../client/pages/admin/Users'
+import AdminMembers from '../client/pages/admin/Members'
 import AdminSettings from '../client/pages/admin/Settings'
 import AdminNavigation from '../client/pages/admin/Navigation'
 import AdminRedirects from '../client/pages/admin/Redirects'
@@ -157,5 +158,6 @@ export default createClientApp({
     '/admin/analytics': { component: AdminAnalytics, layout: NoLayout, auth: true },
     '/admin/health': { component: AdminHealth, layout: NoLayout, auth: true },
     '/admin/users': { component: AdminUsers, layout: NoLayout, auth: true },
+    '/admin/members': { component: AdminMembers, layout: NoLayout, auth: true },
   }
 })

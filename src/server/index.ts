@@ -36,6 +36,7 @@ import redirectsRoutes from '../routes/api/redirects'
 import snippetsRoutes from '../routes/api/snippets'
 import exportRoutes from '../routes/api/export'
 import opsRoutes from '../routes/api/ops'
+import membersRoutes from '../routes/api/members'
 
 // Determine static directory based on environment
 // In production, static files are in dist/client (relative to app root/cwd)
@@ -75,6 +76,7 @@ navigationRoutes(router)
 redirectsRoutes(router)
 exportRoutes(router)
 opsRoutes(router)
+membersRoutes(router)
 // The public content API. Versioned because its consumers are outside this
 // repository, and read-only because the admin API already owns the writes.
 v1Routes(router)

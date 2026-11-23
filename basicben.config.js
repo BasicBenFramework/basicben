@@ -22,6 +22,11 @@ export default {
   cors: {
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    // The framework's defaults, plus the member session header a front end on
+    // another origin sends with content reads (src/helpers/member-auth.ts).
+    // Without it the browser's preflight fails and members-only posts can
+    // never be unlocked cross-origin.
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Member-Token'],
     credentials: false
   },
 

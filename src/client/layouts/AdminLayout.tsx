@@ -41,6 +41,7 @@ const DEFAULT_MENU: MenuItem[] = [
   { path: '/admin/navigation', label: 'Navigation', section: 'Site', capability: 'settings.manage' },
   { path: '/admin/redirects', label: 'Redirects', section: 'Site', capability: 'settings.manage' },
   { path: '/admin/users', label: 'Users', section: 'Site', capability: 'user.manage' },
+  { path: '/admin/members', label: 'Members', section: 'Site', capability: 'user.manage' },
   { path: '/admin/analytics', label: 'Analytics', section: 'Site', capability: 'post.edit' },
   { path: '/admin/tools', label: 'Tools', section: 'Site', capability: 'user.manage' },
   { path: '/admin/health', label: 'Site health', section: 'Site', capability: 'user.manage' },

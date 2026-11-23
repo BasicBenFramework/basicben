@@ -93,6 +93,7 @@ const paths: Record<string, React.ReactNode> = {
     </>
   ),
   analytics: (<><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>),
+  members: (<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></>),
   health: <path d="M3 12h4l2-5 4 10 2-5h6" />,
   tools: (
     <>
@@ -129,7 +130,8 @@ const byPath: Record<string, string> = {
   '/admin/users': 'users',
   '/admin/tools': 'tools',
   '/admin/analytics': 'analytics',
-  '/admin/health': 'health'
+  '/admin/health': 'health',
+  '/admin/members': 'members'
 }
 
 interface AdminIconProps {
