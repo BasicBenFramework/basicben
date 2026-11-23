@@ -50,6 +50,15 @@ unknown, expired or revoked token, or one whose owner is disabled, gets **401**.
 Bulk actions, revisions, restore-from-trash, autosave and the edit lock are
 admin-only and refuse tokens.
 
+### Pages (`content:write`)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST   | `/api/pages`     | Needs `page.create` (editor or admin). Body: `title`, `content`, optional `slug`, `parent_id`, `menu_order`, `template`, `published`, SEO fields |
+| PUT    | `/api/pages/:id` | Needs `page.edit`. Changing a published page's slug records a 301 from the old path |
+
+Page delete is permanent, so it needs a session.
+
 ### Tags and categories (`content:write`)
 
 | Method | Path                    | Notes |

@@ -41,8 +41,11 @@ const DEFAULT_MENU = [
   { path: '/admin/tags', label: 'Tags', icon: '🏷️', section: 'Content' },
   { path: '/admin/comments', label: 'Comments', icon: '💬', section: 'Content' },
   { path: '/admin/media', label: 'Media', icon: '🖼️', section: 'Content' },
+  { path: '/admin/snippets', label: 'Snippets', icon: '🧩', section: 'Content', capability: 'post.publish' },
   { path: '/admin/tokens', label: 'API tokens', icon: '🔑', section: 'Site' },
   { path: '/admin/settings', label: 'Settings', icon: '⚙️', section: 'Site' },
+  { path: '/admin/navigation', label: 'Navigation', icon: '🧭', section: 'Site', capability: 'settings.manage' },
+  { path: '/admin/redirects', label: 'Redirects', icon: '↪️', section: 'Site', capability: 'settings.manage' },
   // Gated: only someone who can manage accounts is shown the way to them. The
   // routes behind it refuse everyone else regardless — this is presentation.
   { path: '/admin/users', label: 'Users', icon: '👥', section: 'Site', capability: 'user.manage' },

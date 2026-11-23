@@ -35,68 +35,6 @@ const emailKey = (req: Request) => {
   return email ? `email:${String(email).toLowerCase()}` : null
 }
 
-/**
- * Password guessing from one address.
- *
- * Generous enough that someone mistyping their password a few times is
- * unaffected, and the counter is cleared on a successful sign-in.
- */
-export const loginByAddress = rateLimit({
-  limit: 10,
-  window: '15m',
-  blockFor: '15m',
-  store,
-  trustProxy,
-  message: 'Too many sign-in attempts. Please try again shortly.'
-})
-
-/** The same account targeted from anywhere. */
-export const loginByAccount = rateLimit({
-  limit: 5,
-  window: '15m',
-  blockFor: '15m',
-  store,
-  key: emailKey,
-  message: 'Too many sign-in attempts for this account. Please try again shortly.'
-})
-
-/** Account creation, which costs an email each time. */
-export const registerLimit = rateLimit({
-  limit: 5,
-  window: '1h',
-  store,
-  trustProxy,
-  message: 'Too many accounts created from here. Please try again later.'
-})
-
-/**
- * Second-factor codes.
- *
- * The per-user lockout in TwoFactorController is the primary control; this
- * catches an attacker cycling challenges from one address before that lockout
- * has anything to count.
- */
-export const twoFactorLimit = rateLimit({
-  limit: 20,
-  window: '15m',
-  blockFor: '15m',
-  store,
-  trustProxy,
-  message: 'Too many attempts. Please try again shortly.'
-})
-
-/**
- * Outbound email triggered by a caller.
- *
- * Used directly rather than as middleware, since the controller decides who the
- * subject is once it has resolved the user.
- */
-export const emailSendLimiter = createLimiter({
-  limit: 3,
-  window: '15m',
-  store
-})
-
 export { address }
 
 /**
@@ -122,6 +60,73 @@ const addressIn = (namespace: string) => (req: Request) => {
   const ip = clientIp(req)
   return ip ? `${namespace}:${ip}` : null
 }
+
+// Every limiter below shares one store, so each keys into a namespace of its
+// own. On the bare address they were one bucket: a visitor blocked for failed
+// sign-ins was blocked from the content API, registration and password reset
+// too, and traffic on one limiter spent the allowance of all the others.
+
+/**
+ * Password guessing from one address.
+ *
+ * Generous enough that someone mistyping their password a few times is
+ * unaffected, and the counter is cleared on a successful sign-in.
+ */
+export const loginByAddress = rateLimit({
+  limit: 10,
+  window: '15m',
+  blockFor: '15m',
+  store,
+  key: addressIn('login'),
+  message: 'Too many sign-in attempts. Please try again shortly.'
+})
+
+/** The same account targeted from anywhere. */
+export const loginByAccount = rateLimit({
+  limit: 5,
+  window: '15m',
+  blockFor: '15m',
+  store,
+  key: emailKey,
+  message: 'Too many sign-in attempts for this account. Please try again shortly.'
+})
+
+/** Account creation, which costs an email each time. */
+export const registerLimit = rateLimit({
+  limit: 5,
+  window: '1h',
+  store,
+  key: addressIn('register'),
+  message: 'Too many accounts created from here. Please try again later.'
+})
+
+/**
+ * Second-factor codes.
+ *
+ * The per-user lockout in TwoFactorController is the primary control; this
+ * catches an attacker cycling challenges from one address before that lockout
+ * has anything to count.
+ */
+export const twoFactorLimit = rateLimit({
+  limit: 20,
+  window: '15m',
+  blockFor: '15m',
+  store,
+  key: addressIn('two-factor'),
+  message: 'Too many attempts. Please try again shortly.'
+})
+
+/**
+ * Outbound email triggered by a caller.
+ *
+ * Used directly rather than as middleware, since the controller decides who the
+ * subject is once it has resolved the user.
+ */
+export const emailSendLimiter = createLimiter({
+  limit: 3,
+  window: '15m',
+  store
+})
 
 /**
  * The public content API.
@@ -153,7 +158,7 @@ export const publicApiLimit = rateLimit({
   window: '1m',
   blockFor: '1m',
   store,
-  trustProxy,
+  key: addressIn('public-api'),
   message: 'Too many requests. Please slow down.'
 })
 
@@ -221,7 +226,7 @@ export const passwordResetLimit = rateLimit({
   window: '15m',
   blockFor: '15m',
   store,
-  trustProxy,
+  key: addressIn('password-reset'),
   message: 'Too many reset requests. Please try again shortly.'
 })
 
@@ -237,7 +242,7 @@ export const tokenRedeemLimit = rateLimit({
   window: '15m',
   blockFor: '15m',
   store,
-  trustProxy,
+  key: addressIn('token-redeem'),
   message: 'Too many attempts. Please try again shortly.'
 })
 

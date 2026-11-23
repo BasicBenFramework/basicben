@@ -9,7 +9,8 @@ import { seoFields } from '../helpers/seo-fields'
 import { LISTING_FILTERS, type ListingFilter } from '../models/Post'
 import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/visibility'
 import { lockConflict } from './PostLockController'
-import { redirectIfSlugChanged } from '../helpers/redirects'
+import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
+import { postPath } from '../helpers/content-paths'
 
 /**
  * Hooks fire from here so an app can take part in the content lifecycle.
@@ -105,6 +106,10 @@ export const PostController = {
     }
 
     const post = await Post.create(draft)
+
+    // A live post on a path an old redirect still claims would never be
+    // reached; pages release their path the same way.
+    if (post?.published && post.slug) await releasePath(postPath(post.slug))
 
     // Categories and tags were accepted by the editor and dropped here — the
     // request carried them, nothing read them, and the selection silently did
