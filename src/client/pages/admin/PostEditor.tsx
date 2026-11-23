@@ -5,6 +5,7 @@ import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
 import { excerpt, slugify } from '@basicbenframework/core/content'
 import FeaturedImageBox from '../../components/admin/FeaturedImageBox'
+import PostAccessBox, { type Visibility } from '../../components/admin/PostAccessBox'
 import TermPicker from '../../components/admin/TermPicker'
 import SnippetPicker from '../../components/admin/SnippetPicker'
 import { usePostLock } from '../../hooks/usePostLock'
@@ -127,6 +128,9 @@ export default function AdminPostEditor() {
     twitter_description: '',
     canonical_url: '',
     noindex: false,
+    // Posts only: who may read the body, and the request to email it.
+    visibility: 'public' as Visibility,
+    send_newsletter: false,
     // The media id that gets saved, and the URL that gets shown. The server
     // resolves the second from the first, because only it knows where files
     // are served from.
@@ -251,6 +255,8 @@ export default function AdminPostEditor() {
             twitter_description: record.twitter_description || '',
             canonical_url: record.canonical_url || '',
             noindex: Boolean(Number(record.noindex ?? 0)),
+            visibility: (record.visibility as Visibility) || 'public',
+            send_newsletter: Boolean(Number(record.send_newsletter ?? 0)),
             featured_image: record.featured_image ?? null,
             featured_image_url: record.featured_image_url ?? null,
             user_id: record.user_id ?? ''
@@ -339,18 +345,23 @@ export default function AdminPostEditor() {
 
       const finalStatus = submitStatus ?? status
 
+      // Posts only: a page has no visibility or newsletter to send.
+      const { visibility, send_newsletter, ...shared } = common
+
       // category_ids and tags are arrays the server syncs; a page has neither,
       // and no excerpt column to put an excerpt in. A page publishes with the
       // checkbox; a post with its status and an optional schedule.
       const payload = isPage
-        ? { ...common, published }
+        ? { ...shared, published }
         : {
-            ...common,
+            ...shared,
             status: finalStatus,
             // Sent only when there is one: blank means "now" for a post going
             // live, and "unchanged" for one already live.
             ...(publish_at ? { publish_at: fromLocalInput(publish_at) } : {}),
             excerpt,
+            visibility,
+            send_newsletter,
             category_ids,
             tags,
             // Only when the menu was shown and a choice was made. Sending it
@@ -790,6 +801,19 @@ export default function AdminPostEditor() {
                 </Link>
               </div>
             </div>
+
+            {!isPage && (
+              <PostAccessBox
+                postId={postId}
+                visibility={formData.visibility}
+                sendNewsletter={formData.send_newsletter}
+                disabled={lockedOut}
+                onChange={changes => {
+                  dirty.current = true
+                  setFormData(prev => ({ ...prev, ...changes }))
+                }}
+              />
+            )}
 
             {/* Both posts and pages carry one now. A page could only ever get a
                 hero image by writing the Markdown for it into the body, which

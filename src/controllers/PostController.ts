@@ -11,6 +11,9 @@ import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/vis
 import { lockConflict } from './PostLockController'
 import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
 import { postPath } from '../helpers/content-paths'
+import { isPostVisibility, POST_VISIBILITIES, withholdBody } from '../helpers/gating'
+import { newsletterRefusal } from '../helpers/newsletter'
+import { memberFromRequest } from '../middleware/member-auth'
 
 /**
  * Hooks fire from here so an app can take part in the content lifecycle.
@@ -79,6 +82,9 @@ export const PostController = {
 
     const fields = editableFields(req.body)
     if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
+
+    const newsletter = newsletterRefusal(req, fields.values, null)
+    if (newsletter) return res.json({ error: newsletter }, 403)
 
     const publishing = resolvePublishing(req, null)
     if ('error' in publishing) return res.json({ error: publishing.error }, publishing.status)
@@ -156,6 +162,9 @@ export const PostController = {
 
     const fields = editableFields(req.body)
     if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
+
+    const newsletter = newsletterRefusal(req, fields.values, post)
+    if (newsletter) return res.json({ error: newsletter }, 403)
 
     // Absent means "leave it as it is". Coercing an absent key to 0 turned
     // every request that did not mention publishing into an unpublish.
@@ -363,7 +372,10 @@ export const PostController = {
   },
 
   async feed(req: Request, res: Response) {
-    const posts = await Post.findPublished()
+    // The built-in blog's feed. Members-only bodies are withheld unless the
+    // request carries a member session — see helpers/gating.ts.
+    const member = Boolean(await memberFromRequest(req))
+    const posts = (await Post.findPublished()).map((post) => withholdBody(post as unknown as Record<string, unknown>, member))
     res.json({ posts })
   },
 
@@ -372,7 +384,7 @@ export const PostController = {
     if (!post) {
       return res.json({ error: 'Post not found' }, 404)
     }
-    res.json({ post })
+    res.json({ post: withholdBody(post as unknown as Record<string, unknown>, Boolean(await memberFromRequest(req))) })
   }
 }
 
@@ -439,6 +451,14 @@ function editableFields(body: unknown):
   const seo = seoFields(payload)
   if ('errors' in seo) Object.assign(errors, seo.errors)
   else Object.assign(fields, seo.values)
+
+  // Who may read the body, and the request to email it (permission for the
+  // latter is `newsletterRefusal`, which needs the request).
+  if ('visibility' in payload) {
+    if (isPostVisibility(payload.visibility)) fields.visibility = payload.visibility
+    else errors.visibility = [`Must be one of ${POST_VISIBILITIES.join(', ')}`]
+  }
+  if ('send_newsletter' in payload) fields.send_newsletter = payload.send_newsletter ? 1 : 0
 
   return Object.keys(errors).length ? { errors } : { values: fields }
 }

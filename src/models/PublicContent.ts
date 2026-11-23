@@ -17,6 +17,7 @@ import { getStorage, absoluteUrl } from '@basicbenframework/core/storage'
 import { livePost, parseStoredTimestamp } from './visibility'
 import { responsiveImage, type ResponsiveImage } from '../helpers/images'
 import { siteUrl } from '../helpers/site'
+import { mayReadBody, visibilityOf } from '../helpers/gating'
 
 export type ContentFormat = 'html' | 'markdown'
 
@@ -38,10 +39,14 @@ export interface PublicPost {
   title: string
   /** Short summary, if the author wrote one. */
   excerpt: string | null
-  /** The body, in whichever `format` this item reports. */
-  content: string
+  /** The body, in whichever `format` this item reports. Null when `gated` — send a member session (`X-Member-Token`) to read it. */
+  content: string | null
   /** What `content` actually is — not what you asked for. See `?format=`. */
   format: ContentFormat
+  /** Who may read the body: `public`, `members`, or `paid` (enforced as `members` until paid tiers exist). */
+  visibility: 'public' | 'members' | 'paid'
+  /** True when this response withholds the body because the request carried no valid member session. */
+  gated: boolean
   /** Absolute URL of the featured image, or null. */
   featured_image_url: string | null
   /** The author's display name. Never their address. */
@@ -113,6 +118,7 @@ interface PostRow extends SeoRow {
   author_avatar_path: string | null
   meta_title: string | null
   meta_description: string | null
+  visibility: string | null
   created_at: string
   updated_at: string
 }
@@ -127,6 +133,7 @@ const POST_COLUMNS = `
   posts.content_html,
   posts.meta_title,
   posts.meta_description,
+  posts.visibility,
   posts.created_at,
   posts.updated_at,
   posts.publish_at,
@@ -226,10 +233,12 @@ export const PublicContent = {
       author?: string
       search?: string
       format?: ContentFormat
+      /** Whether the request carries a valid member session; unlocks gated bodies. */
+      member?: boolean
     } = {}
   ): Promise<{ posts: PublicPost[]; total: number }> {
     const db = await getDb()
-    const { perPage = 10, offset = 0, category, tag, author, search, format = 'html' } = options
+    const { perPage = 10, offset = 0, category, tag, author, search, format = 'html', member = false } = options
 
     const where: string[] = [livePost('posts')]
     const params: unknown[] = []
@@ -284,7 +293,7 @@ export const PublicContent = {
     )) as PostRow[]
 
     return {
-      posts: await shapePosts(rows, format),
+      posts: await shapePosts(rows, format, member),
       total: Number(counted?.total) || 0
     }
   },
@@ -295,7 +304,7 @@ export const PublicContent = {
    * Slugs are nullable on posts — the column was added after the table — so a
    * post that never got one is still reachable by id rather than invisible.
    */
-  async post(identifier: string, format: ContentFormat = 'html'): Promise<PublicPost | null> {
+  async post(identifier: string, format: ContentFormat = 'html', member = false): Promise<PublicPost | null> {
     const db = await getDb()
 
     const row = (await db.get(
@@ -306,7 +315,7 @@ export const PublicContent = {
 
     if (!row) return null
 
-    return (await shapePosts([row], format))[0]
+    return (await shapePosts([row], format, member))[0]
   },
 
   /** Published pages, newest first. */
@@ -624,7 +633,7 @@ function mediaUrl(storage: { publicUrl: (key: string) => string }, path: string)
  * Tags come back in one query for the whole page rather than one per post — the
  * N+1 here would be invisible on a seeded database and painful on a real one.
  */
-async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<PublicPost[]> {
+async function shapePosts(rows: PostRow[], format: ContentFormat, member = false): Promise<PublicPost[]> {
   if (rows.length === 0) return []
 
   const db = await getDb()
@@ -677,6 +686,11 @@ async function shapePosts(rows: PostRow[], format: ContentFormat): Promise<Publi
     title: row.title,
     excerpt: row.excerpt,
     ...contentFor(row.content, row.content_html, format),
+    // A gated post is still listed; only its body is withheld, after the
+    // format is decided so `format` still says what a member would get.
+    ...(mayReadBody(row.visibility, member) ? {} : { content: null }),
+    visibility: visibilityOf(row.visibility),
+    gated: !mayReadBody(row.visibility, member),
     featured_image_url:
       row.featured_image_path && storage ? mediaUrl(storage, row.featured_image_path) : null,
     author: row.author_name,

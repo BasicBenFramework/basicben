@@ -2,6 +2,7 @@ import { getDb } from '@basicbenframework/core/db'
 import { Settings } from '../models/Settings'
 import { livePost } from '../models/visibility'
 import { siteUrl } from '../helpers/site'
+import { isGated, gatedFeedHtml } from '../helpers/gating'
 import type { Request, Response } from '../types'
 
 interface FeedPost {
@@ -14,6 +15,7 @@ interface FeedPost {
   author_name: string
   published_at: string
   updated_at: string
+  visibility: string | null
 }
 
 /** What a feed has been narrowed to, if anything. */
@@ -75,8 +77,8 @@ async function feedPosts(scope: FeedScope): Promise<FeedPost[]> {
   const db = await getDb()
   const where = [livePost('p'), ...scope.where].join(' AND ')
 
-  return db.all(`
-    SELECT p.id, p.title, p.slug, p.content, p.content_html, p.excerpt, p.updated_at,
+  const rows: FeedPost[] = await db.all(`
+    SELECT p.id, p.title, p.slug, p.content, p.content_html, p.excerpt, p.updated_at, p.visibility,
            COALESCE(p.publish_at, p.created_at) AS published_at,
            u.name as author_name
     FROM posts p
@@ -85,6 +87,13 @@ async function feedPosts(scope: FeedScope): Promise<FeedPost[]> {
     ORDER BY COALESCE(p.publish_at, p.created_at) DESC
     LIMIT 20
   `, scope.params)
+
+  // A feed is public — readers and aggregators fetch it with no session — so
+  // a members-only post appears with its excerpt and a pointer, never its
+  // body. Done here, once, so neither format can forget. See helpers/gating.ts.
+  return rows.map(row => isGated(row.visibility)
+    ? { ...row, content: '', content_html: gatedFeedHtml(row.excerpt) }
+    : row)
 }
 
 export const FeedController = {

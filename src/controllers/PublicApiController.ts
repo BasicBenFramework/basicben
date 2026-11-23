@@ -27,7 +27,9 @@ export const PublicApiController = {
       tag: req.query.tag,
       author: req.query.author,
       search: req.query.search,
-      format: contentFormat(req.query)
+      format: contentFormat(req.query),
+      // Set by `optionalMember` in v1.ts. Gated bodies are withheld without it.
+      member: Boolean(req.member)
     })
 
     res.json({
@@ -45,7 +47,7 @@ export const PublicApiController = {
   },
 
   async post(req: Request, res: Response) {
-    const post = await PublicContent.post(req.params.slug, contentFormat(req.query))
+    const post = await PublicContent.post(req.params.slug, contentFormat(req.query), Boolean(req.member))
 
     if (!post) {
       return res.json({ error: 'Not found' }, 404)

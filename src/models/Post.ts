@@ -27,6 +27,8 @@ interface CreatePostData {
   twitter_image?: number | null
   canonical_url?: string | null
   noindex?: number
+  visibility?: 'public' | 'members' | 'paid'
+  send_newsletter?: number
 }
 
 interface UpdatePostData {
@@ -51,6 +53,8 @@ interface UpdatePostData {
   twitter_image?: number | null
   canonical_url?: string | null
   noindex?: number
+  visibility?: 'public' | 'members' | 'paid'
+  send_newsletter?: number
 }
 
 /**
@@ -67,7 +71,8 @@ const UPDATABLE = [
   'featured_image', 'meta_title', 'meta_description', 'publish_at',
   'status', 'deleted_at', 'live_notified',
   'og_title', 'og_description', 'og_image', 'twitter_title', 'twitter_description',
-  'twitter_image', 'canonical_url', 'noindex'
+  'twitter_image', 'canonical_url', 'noindex',
+  'visibility', 'send_newsletter'
 ]
 
 /** The social and indexing fields, written on create exactly as given. */
@@ -363,6 +368,8 @@ export const Post = {
       published: data.published ? 1 : 0,
       status: data.status ?? (data.published ? 'published' : 'draft'),
       live_notified: data.live_notified ?? 1,
+      visibility: data.visibility ?? 'public',
+      send_newsletter: data.send_newsletter ?? 0,
       ...Object.fromEntries(SEO_FIELDS.filter((key) => data[key] !== undefined).map((key) => [key, data[key]]))
     })
 

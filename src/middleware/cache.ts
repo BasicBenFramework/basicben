@@ -37,8 +37,14 @@ export const cacheable = (req: Request, res: Response, next: Next) => {
     // `public` let a shared cache or CDN hand it to the next caller with no
     // token at all; `private` keeps it in the requesting client's own cache.
     // Anonymous reads (public_api on) stay public and shareable.
-    const credentialed = Boolean(req.headers.authorization)
-    res.setHeader('Vary', 'Authorization')
+    //
+    // A member session counts as a credential too: with one, a members-only
+    // post's body is in the response, and a shared cache that stored it would
+    // hand it to the next anonymous reader. The header's mere presence is
+    // enough — valid or not — so the rule cannot depend on a lookup, and
+    // `Vary` names it so a cache keyed on headers never crosses the two.
+    const credentialed = Boolean(req.headers.authorization || req.headers['x-member-token'])
+    res.setHeader('Vary', 'Authorization, X-Member-Token')
 
     if (
       conditional(req, res, {
