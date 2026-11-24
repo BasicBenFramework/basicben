@@ -25,7 +25,13 @@
 
 // The one import: the features' manifests, which are static data and import
 // nothing at runtime themselves, so plain Node still loads this file.
-import features from '../features.manifest.ts'
+//
+// Every feature's, not only the enabled ones: every site runs every feature's
+// migrations, so the tables exist either way, and an export of a site that
+// turned a feature off still carries what the feature left behind.
+import manifests from '../features.manifest.ts'
+
+const features = Object.values(manifests)
 
 /** Identifies the document, so an importer can refuse something else. */
 export const EXPORT_FORMAT = 'basicben-export'

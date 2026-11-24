@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
+import site from './basicben.config.js'
+import { enabledFeatureNames } from './src/host/enabled.ts'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -19,7 +21,10 @@ export default defineConfig({
   // route.
   define: {
     __DISABLE_REGISTRATION__: JSON.stringify(process.env.DISABLE_REGISTRATION === 'true'),
-    __DISABLE_PUBLIC_SITE__: JSON.stringify(process.env.DISABLE_PUBLIC_SITE === 'true')
+    __DISABLE_PUBLIC_SITE__: JSON.stringify(process.env.DISABLE_PUBLIC_SITE === 'true'),
+    // The features the site enables, for the admin. The server reads the same
+    // list from the same file at boot.
+    __BASICBEN_FEATURES__: JSON.stringify(enabledFeatureNames(site.features))
   },
   server: {
     port: parseInt(process.env.VITE_PORT || '3000'),

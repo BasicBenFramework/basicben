@@ -5,6 +5,10 @@
  */
 
 export default {
+  // The CMS features this site runs, from src/features/. Order sets the order
+  // their routes mount in, and the theme comes last. [] is the bare core.
+  features: ['analytics', 'members', 'mysendbox', 'theme'],
+
   // Server options
   port: 3001,
 

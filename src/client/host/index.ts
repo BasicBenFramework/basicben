@@ -10,7 +10,7 @@
 
 import { createElement, Fragment, type ComponentType, type ReactNode } from 'react'
 import { addDictionaries, type Dictionary } from '../i18n/index.ts'
-import type { FeaturePage } from '../../host/manifest.ts'
+import type { FeatureManifest } from '../../host/manifest.ts'
 
 export interface AdminFeature {
   name: string
@@ -50,8 +50,15 @@ export interface AdminHost {
 
 const pages = new Map<string, ComponentType<any>>()
 const fills = new Map<SlotName, Array<ComponentType<any>>>()
+let enabled: FeatureManifest[] = []
 
-export function registerAdminFeatures(features: AdminFeature[], manifests: Array<{ name: string; pages?: FeaturePage[] }>): void {
+/**
+ * Register the site's enabled features: their admin halves, and the manifests
+ * of every enabled feature (one without an admin half still has menu facts).
+ * Called once by src/main.tsx, before the route table and the menu are built.
+ */
+export function registerAdminFeatures(features: AdminFeature[], manifests: FeatureManifest[]): void {
+  enabled = [...manifests]
   for (const feature of features) {
     const declared = new Set((manifests.find((m) => m.name === feature.name)?.pages ?? []).map((p) => p.path))
 
@@ -86,6 +93,11 @@ export interface SettingsSectionProps {
 /** Whether any feature fills a slot. */
 export function hasFills(name: SlotName): boolean {
   return (fills.get(name)?.length ?? 0) > 0
+}
+
+/** The manifests of the features this site enables, in list order. */
+export function enabledManifests(): FeatureManifest[] {
+  return enabled
 }
 
 export function featurePages(): Array<[string, ComponentType<any>]> {

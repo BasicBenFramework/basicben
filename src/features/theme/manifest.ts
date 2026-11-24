@@ -5,7 +5,9 @@
 import type { FeatureManifest } from '../../host/manifest.ts'
 
 const manifest: FeatureManifest = {
-  name: 'theme'
+  name: 'theme',
+  // /:slug and /:base/:slug would catch any route mounted after them.
+  mountLast: true
 }
 
 export default manifest

@@ -190,9 +190,9 @@ describe('wiring', () => {
     assert.doesNotMatch(read('src/helpers/site-settings.ts'), /public_theme:/)
   })
 
-  test('the theme is listed last, so its catch-all routes are mounted last', () => {
-    const list = read('src/features.ts')
-    const named = [...list.matchAll(/from '\.\/features\/([\w-]+)\//g)].map((m) => m[1])
-    assert.strictEqual(named.at(-1), 'theme')
+  test('the theme must be listed last, so its catch-all routes are mounted last', async () => {
+    const { enabledFeatureNames } = await import('../../host/enabled.ts')
+    assert.deepStrictEqual(enabledFeatureNames(['members', 'theme']), ['members', 'theme'])
+    assert.throws(() => enabledFeatureNames(['theme', 'members']), /"theme" must be listed after "members"/)
   })
 })

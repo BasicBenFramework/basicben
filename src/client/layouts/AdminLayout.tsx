@@ -6,7 +6,7 @@ import { Link } from '../components/Link.tsx'
 import { can } from '@basicbenframework/core/auth/permissions'
 import { applySiteLocale, useT } from '../i18n/index.ts'
 import { withFeaturePages } from '../../host/menu.ts'
-import featureManifests from '../../features.manifest.ts'
+import { enabledManifests } from '../host/index.ts'
 
 interface MenuItem {
   path: string
@@ -52,10 +52,12 @@ const CORE_MENU: MenuItem[] = [
 ]
 
 /** Core's menu with each enabled feature's pages placed in it, exactly as the server places them. */
-const DEFAULT_MENU: MenuItem[] = withFeaturePages(CORE_MENU, featureManifests)
+function defaultMenu(): MenuItem[] {
+  return withFeaturePages(CORE_MENU, enabledManifests())
+}
 
 /** Features' sidebar icons, from their manifests. */
-const featureIconPaths = new Map(featureManifests.flatMap((m) => (m.pages ?? []).filter((p) => p.iconPath).map((p) => [p.path, p.iconPath as string] as const)))
+const featureIconPaths = () => new Map(enabledManifests().flatMap((m) => (m.pages ?? []).filter((p) => p.iconPath).map((p) => [p.path, p.iconPath as string] as const)))
 
 /*
   The last menu the server gave us, kept for the life of the tab.
@@ -131,7 +133,8 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     logout()
   }
 
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(lastMenu ?? DEFAULT_MENU)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(() => lastMenu ?? defaultMenu())
+  const [iconPaths] = useState(featureIconPaths)
 
   useEffect(() => {
     let cancelled = false
@@ -192,7 +195,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
                   className={`admin-nav-item ${currentPath === item.path ? 'active' : ''}`}
                   title={sidebarOpen ? undefined : t(item.label)}
                 >
-                  <AdminIcon path={item.path} fallback={item.icon} iconPath={featureIconPaths.get(item.path)} />
+                  <AdminIcon path={item.path} fallback={item.icon} iconPath={iconPaths.get(item.path)} />
                   {sidebarOpen && <span className="admin-nav-label">{t(item.label)}</span>}
                 </Link>
               ))}

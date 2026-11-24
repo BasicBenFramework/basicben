@@ -25,4 +25,9 @@ export interface FeatureManifest {
   exportTables?: Array<{ name: string; omit?: string[] }>
   /** Tables listed in the export's report as deliberately left out. */
   neverExported?: string[]
+  /**
+   * Its routes catch what is mounted after them (the theme's /:slug), so it
+   * must be listed after every feature that is not mountLast too.
+   */
+  mountLast?: boolean
 }

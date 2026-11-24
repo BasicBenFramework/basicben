@@ -5,7 +5,7 @@
  * so Vite can bundle them during SSR build.
  */
 
-import { createServer, createRouter } from '@basicbenframework/core/server'
+import { createServer, createRouter, loadConfig } from '@basicbenframework/core/server'
 
 // Registers the application's hook listeners. Imported for its side effects —
 // the listeners have to be on the registry before the server starts.
@@ -14,6 +14,7 @@ import '../hooks.ts'
 import '../host/core-tasks.ts'
 import { registerFeatures, mountFeatureRoutes } from '../host/index.ts'
 import features from '../features.ts'
+import { enabledFeatureNames } from '../host/enabled.ts'
 
 // Import routes explicitly for Vite bundling
 import authRoutes from '../routes/api/auth.ts'
@@ -55,9 +56,12 @@ const app = await createServer({
   static: { dir: staticDir, spa: true }
 })
 
-// Features register their settings, tasks and routes before anything is
-// mounted, so a settings save or a health check sees all of them.
-await registerFeatures(features)
+// The features the site lists in basicben.config.js register their settings,
+// tasks and routes before anything is mounted, so a settings save or a health
+// check sees all of them. Features left off are imported but never registered,
+// and do nothing.
+const config = await loadConfig()
+await registerFeatures(enabledFeatureNames(config.features).map((name) => features[name]))
 
 // Register routes
 const router = createRouter()
@@ -88,8 +92,8 @@ opsRoutes(router)
 // repository, and read-only because the admin API already owns the writes.
 v1Routes(router)
 contentModelRoutes(router)
-// Features, after core and in the order src/features.ts lists them. The theme
-// is listed last: its /:slug and /:base/:slug would catch anything after it.
+// Features, after core and in the order the site lists them. The theme must
+// be last (enabledFeatureNames checks): its /:slug would catch anything after.
 mountFeatureRoutes(router)
 router.applyTo(app)
 

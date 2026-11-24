@@ -1,8 +1,8 @@
 /**
  * Phase 4a: features as folders behind the host.
  *
- * The promise is that a feature can be deleted — its folder and its line in
- * each of the three lists — and the core still builds and runs. That holds
+ * The promise is that a feature can be left off — or deleted, its folder and
+ * its key in each of the three maps — and the core still builds and runs. That holds
  * only while core never reaches into a feature and features never reach into
  * each other, so both are checked here on every import in src/.
  */
@@ -50,7 +50,7 @@ const featureOf = (path) => {
 const rel = (path) => relative(ROOT, path)
 
 describe('the feature boundary', () => {
-  test('core imports a feature only through the three lists', () => {
+  test('core imports a feature only through the three maps', () => {
     const offenders = []
     for (const file of walk(SRC).filter((f) => !featureOf(f))) {
       if (LISTS.includes(rel(file))) continue
@@ -61,7 +61,7 @@ describe('the feature boundary', () => {
     assert.deepStrictEqual(offenders, [], 'core would break when this feature is removed')
   })
 
-  test('the lists import only a feature\'s entry points', () => {
+  test('the maps import only a feature\'s entry points', () => {
     const allowed = { 'src/features.ts': /^index(\.ts)?$/, 'src/client/features.ts': /^admin(\.tsx?)?$/, 'src/features.manifest.ts': /^manifest(\.ts)?$/ }
     for (const list of LISTS) {
       for (const target of importsOf(join(ROOT, list))) {
@@ -94,13 +94,27 @@ describe('the feature boundary', () => {
     }
   })
 
-  test('the three lists name the same features, in the same order', () => {
+  test('the three maps name the same features, each under its own folder', () => {
     const named = LISTS.map((list) => {
       const source = readFileSync(join(ROOT, list), 'utf-8')
-      return [...source.matchAll(/from ['"]\.{1,2}\/(?:\.\.\/)?features\/([\w-]+)\//g)].map((m) => m[1])
+      return [...source.matchAll(/['"]\.{1,2}\/(?:\.\.\/)?features\/([\w-]+)\//g)].map((m) => m[1]).sort()
     })
+    const folders = readdirSync(FEATURES).filter((e) => statSync(join(FEATURES, e)).isDirectory()).sort()
+    assert.deepStrictEqual(named[0], folders, 'src/features.ts does not import every feature folder')
     assert.deepStrictEqual(named[1], named[0], 'src/client/features.ts differs from src/features.ts')
     assert.deepStrictEqual(named[2], named[0], 'src/features.manifest.ts differs from src/features.ts')
+  })
+
+  test('each map keys a feature by its own name', async () => {
+    const maps = [
+      (await import('../src/features.ts')).default,
+      (await import('../src/features.manifest.ts')).default
+    ]
+    for (const map of maps) {
+      for (const [key, value] of Object.entries(map)) assert.strictEqual(value.name, key)
+    }
+    const admin = (await import('../src/client/features.ts')).default
+    assert.deepStrictEqual(Object.keys(admin).sort(), Object.keys(maps[0]).sort())
   })
 
   test('every feature folder has a server entry and a manifest', () => {
@@ -108,6 +122,45 @@ describe('the feature boundary', () => {
       assert.ok(existsSync(join(FEATURES, feature, 'index.ts')), `${feature}/index.ts`)
       assert.ok(existsSync(join(FEATURES, feature, 'manifest.ts')), `${feature}/manifest.ts`)
     }
+  })
+})
+
+describe('a site\'s features list', () => {
+  test('importing every feature does nothing until one is registered', async () => {
+    // The server imports the whole map and registers only what the site lists,
+    // so a feature's module must not act on import: no listeners, no settings,
+    // no tasks, no routes.
+    const { hooks } = await import('@basicbenframework/core/hooks')
+    const before = { hooks: JSON.stringify(hooks.list().map((h) => [h, hooks.count(h)])), tasks: cronTaskList().length }
+    await import('../src/features.ts')
+    assert.strictEqual(JSON.stringify(hooks.list().map((h) => [h, hooks.count(h)])), before.hooks)
+    assert.strictEqual(cronTaskList().length, before.tasks)
+    for (const key of ['analytics_enabled', 'members_signup', 'mysendbox_audience_id', 'public_theme']) {
+      assert.strictEqual(isKnownSetting(key), false, `${key} is defined without its feature registered`)
+    }
+  })
+
+  test('names are checked against the features the CMS has', async () => {
+    const { enabledFeatureNames } = await import('../src/host/enabled.ts')
+    assert.deepStrictEqual(enabledFeatureNames([]), [])
+    assert.deepStrictEqual(enabledFeatureNames(['analytics', 'theme']), ['analytics', 'theme'])
+    assert.throws(() => enabledFeatureNames(['analytcs']), /Unknown feature "analytcs".*analytics, members, mysendbox, theme/)
+    assert.throws(() => enabledFeatureNames(['members', 'members']), /listed twice/)
+    assert.throws(() => enabledFeatureNames('members'), /must be a list/)
+    assert.throws(() => enabledFeatureNames(['toString']), /Unknown feature/)
+  })
+
+  test('no list means the bare core, with a warning', async () => {
+    const { enabledFeatureNames } = await import('../src/host/enabled.ts')
+    const warn = console.warn
+    const said = []
+    console.warn = (message) => said.push(message)
+    try {
+      assert.deepStrictEqual(enabledFeatureNames(undefined), [])
+    } finally {
+      console.warn = warn
+    }
+    assert.match(said.join(''), /No `features`/)
   })
 })
 

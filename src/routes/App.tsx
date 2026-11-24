@@ -57,15 +57,13 @@ import AdminRedirects from '../client/pages/admin/Redirects.tsx'
 import AdminSnippets from '../client/pages/admin/Snippets.tsx'
 import AdminTools from '../client/pages/admin/Tools.tsx'
 import AdminHealth from '../client/pages/admin/Health.tsx'
-import { registerAdminFeatures, featurePages } from '../client/host/index.ts'
-import adminFeatures from '../client/features.ts'
-import featureManifests from '../features.manifest.ts'
+import { featurePages } from '../client/host/index.ts'
 
 // Admin layout wrapper (no default layout)
 const NoLayout = ({ children }: { children: React.ReactNode }) => <>{children}</>
 
-// Features' admin screens. Registered once, at load, before the route table is built.
-registerAdminFeatures(adminFeatures, featureManifests)
+// Features' admin screens were registered by src/main.tsx before it imported
+// this module, so featurePages() below already lists them.
 
 /**
  * The public site: the marketing page, the built-in blog, and the framework

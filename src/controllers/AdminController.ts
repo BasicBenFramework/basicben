@@ -21,7 +21,7 @@ import { Comment } from '../models/Comment.ts'
 import { Media } from '../models/Media.ts'
 import { Settings } from '../models/Settings.ts'
 import { withFeaturePages } from '../host/menu.ts'
-import featureManifests from '../features.manifest.ts'
+import { enabledManifests } from '../host/index.ts'
 import type { Request, Response } from '../types/index.ts'
 
 /**
@@ -62,8 +62,13 @@ const CORE_MENU = [
   { path: '/profile', label: 'Profile', icon: '👤', section: 'Account' }
 ]
 
-/** Core's menu with each enabled feature's pages placed in it. */
-const DEFAULT_MENU = withFeaturePages(CORE_MENU, featureManifests)
+/**
+ * Core's menu with each enabled feature's pages placed in it. A function, as
+ * this module loads before the server registers the site's features.
+ */
+function defaultMenu() {
+  return withFeaturePages(CORE_MENU, enabledManifests())
+}
 
 interface MenuItem {
   path: string
@@ -90,11 +95,12 @@ export const AdminController = {
    * the top beside the dashboard.
    */
   async menu(req: Request, res: Response) {
-    const items = await hooks.filter(HOOKS.ADMIN_MENU, [...DEFAULT_MENU], { req })
+    const fallback = defaultMenu()
+    const items = await hooks.filter(HOOKS.ADMIN_MENU, [...fallback], { req })
 
     // A listener that returns something that is not a list should not blank the
     // navigation — it should be ignored.
-    const menu = Array.isArray(items) ? items : DEFAULT_MENU
+    const menu = Array.isArray(items) ? items : fallback
 
     res.json({
       // The admin's default language; see src/client/i18n. Here rather than

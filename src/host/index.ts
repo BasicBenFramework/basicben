@@ -1,7 +1,8 @@
 /**
  * The feature host: how a feature in `src/features/` plugs into the core.
  *
- * A feature is a folder and one line in `src/features.ts`. It imports core
+ * A feature is a folder, a key in `src/features.ts`, and its name in a site's
+ * `features` list. It imports core
  * modules directly; this file only offers the registries a feature cannot do
  * without — the places it would otherwise have had to edit a core file. Each
  * one exists because a feature needed it, and nothing is added on speculation.
@@ -14,6 +15,8 @@ import { hooks } from '@basicbenframework/core/hooks'
 import { defineSettings, type SettingDefinition } from '../helpers/site-settings.ts'
 import type { HealthCheck } from '../helpers/health.ts'
 import { setAccessPolicy, type AccessPolicy, type Viewer } from '../helpers/access.ts'
+import { manifestsFor } from './enabled.ts'
+import type { FeatureManifest } from './manifest.ts'
 
 /** The router as route files see it. */
 export interface Router {
@@ -136,4 +139,9 @@ export function mountFeatureRoutes(router: Router): void {
 
 export function registeredFeatures(): string[] {
   return [...registered]
+}
+
+/** The manifests of the features this server registered, in list order: what the menu shows. */
+export function enabledManifests(): FeatureManifest[] {
+  return manifestsFor(registeredFeatures())
 }

@@ -1,13 +1,17 @@
 /**
- * The admin half of each enabled feature. Keep in step with src/features.ts
- * and src/features.manifest.ts.
+ * The admin half of every feature, loaded only when the site enables it, so
+ * a feature the site leaves off is not in the admin bundle's startup path.
+ * Keep the keys in step with src/features.ts and src/features.manifest.ts.
  */
 import type { AdminFeature } from './host/index.ts'
-import analytics from '../features/analytics/admin.tsx'
-import members from '../features/members/admin.tsx'
-import mysendbox from '../features/mysendbox/admin.tsx'
-import theme from '../features/theme/admin.tsx'
 
-const features: AdminFeature[] = [analytics, members, mysendbox, theme]
+type Loader = () => Promise<{ default: AdminFeature }>
+
+const features: Record<string, Loader> = {
+  analytics: () => import('../features/analytics/admin.tsx'),
+  members: () => import('../features/members/admin.tsx'),
+  mysendbox: () => import('../features/mysendbox/admin.tsx'),
+  theme: () => import('../features/theme/admin.tsx')
+}
 
 export default features

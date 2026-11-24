@@ -116,9 +116,10 @@ describe('the sidebar does not flicker on the way between screens', () => {
       'the two menus disagree — an item in one and not the other blinks on every navigation'
     )
     assert.ok(menuIn(layout, 'const CORE_MENU').length > 10, 'the core menu was not found')
-    // Features' pages are added to both by the same function from the same list.
+    // Features' pages are added to both by the same function, from the
+    // manifests of the features the site enabled.
     for (const source of [layout, controller]) {
-      assert.match(source, /const DEFAULT_MENU(?:: MenuItem\[\])? = withFeaturePages\(CORE_MENU, featureManifests\)/)
+      assert.match(source, /function defaultMenu\(\)(?:: MenuItem\[\])? \{\s*return withFeaturePages\(CORE_MENU, enabledManifests\(\)\)/)
     }
   })
 
@@ -145,7 +146,7 @@ describe('the sidebar does not flicker on the way between screens', () => {
     // Without something outside the component the state resets to the fallback
     // and the request starts again, on every click.
     assert.match(layout, /^let lastMenu: MenuItem\[\] \| null = null$/m)
-    assert.match(layout, /useState<MenuItem\[\]>\(lastMenu \?\? DEFAULT_MENU\)/)
+    assert.match(layout, /useState<MenuItem\[\]>\(\(\) => lastMenu \?\? defaultMenu\(\)\)/)
     assert.match(layout, /lastMenu = data\.menu/)
   })
 
@@ -181,7 +182,7 @@ describe('the sidebar does not flicker on the way between screens', () => {
   })
 
   test("every feature page brings its own icon", async () => {
-    const manifests = (await import('../src/features.manifest.ts')).default
+    const manifests = Object.values((await import('../src/features.manifest.ts')).default)
     for (const page of manifests.flatMap((m) => m.pages ?? [])) {
       assert.match(page.iconPath ?? '', /^M[\d\s.,MLHVCSQTAZmlhvcsqtaz-]+$/, `${page.path} has no SVG path`)
     }
