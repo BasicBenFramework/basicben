@@ -266,10 +266,10 @@ describe('the rule lives in one place', () => {
 describe('autosaving a post that has never been saved', () => {
   test('the first title is enough to make a draft, which then autosaves like any post', async () => {
     const res = response()
-    await PostController.autosaveNew(as(ids.author, 'author', { title: 'Hi', content: '', excerpt: '' }), res)
+    await PostController.autosaveNew(as(ids.author, 'author', { title: 'Hey', content: '', excerpt: '' }), res)
     assert.strictEqual(res.status, 201, JSON.stringify(res.body))
     const row = await db.get('SELECT title, slug, status, published, user_id FROM posts WHERE id = ?', [res.body.post.id])
-    assert.deepStrictEqual({ ...row, published: Number(row.published) }, { title: 'Hi', slug: null, status: 'draft', published: 0, user_id: ids.author })
+    assert.deepStrictEqual({ ...row, published: Number(row.published) }, { title: 'Hey', slug: null, status: 'draft', published: 0, user_id: ids.author })
 
     const saved = response()
     await PostController.autosave(as(ids.author, 'author', { title: 'Hi there', content: 'More words now', excerpt: '' }, { id: String(res.body.post.id) }), saved)
@@ -277,7 +277,7 @@ describe('autosaving a post that has never been saved', () => {
     assert.ok(saved.body.autosave.id)
 
     // The first real save, with the slug box blank as the editor leaves it,
-    // derives the address from the title it has by then — not from "Hi".
+    // derives the address from the title it has by then — not from "Hey".
     const real = response()
     await PostController.update(as(ids.author, 'author', { title: 'Hi there, readers', content: 'More words now', slug: '' }, { id: String(res.body.post.id) }), real)
     assert.strictEqual(real.status, 200, JSON.stringify(real.body))
@@ -293,11 +293,13 @@ describe('autosaving a post that has never been saved', () => {
     }
   })
 
-  test('nothing typed creates nothing', async () => {
+  test('nothing typed, or a stray keystroke, creates nothing', async () => {
     const before = await db.get('SELECT COUNT(*) AS n FROM posts')
-    const res = response()
-    await PostController.autosaveNew(as(ids.author, 'author', { title: '  ', content: '' }), res)
-    assert.strictEqual(res.status, 422)
+    for (const body of [{ title: '  ', content: '' }, { title: 'a', content: '' }, { title: 'Hi', content: 'short' }]) {
+      const res = response()
+      await PostController.autosaveNew(as(ids.author, 'author', body), res)
+      assert.strictEqual(res.status, 422, JSON.stringify(body))
+    }
     const after = await db.get('SELECT COUNT(*) AS n FROM posts')
     assert.strictEqual(Number(after.n), Number(before.n))
   })
@@ -315,6 +317,31 @@ describe('autosaving a post that has never been saved', () => {
     )
   })
 
+  test('a repeat with the same key gets the same draft, not a second one', async () => {
+    const key = 'editor-screen-key-1'
+    const first = response()
+    await PostController.autosaveNew(as(ids.author, 'author', { title: 'Keyed draft', content: '', autosave_key: key }), first)
+    assert.strictEqual(first.status, 201)
+
+    // The response to that was lost; the editor tries again with newer text.
+    const again = response()
+    await PostController.autosaveNew(as(ids.author, 'author', { title: 'Keyed draft, more', content: 'and a body now', autosave_key: key }), again)
+    assert.strictEqual(again.status, 200)
+    assert.strictEqual(again.body.post.id, first.body.post.id)
+    const rows = await db.get('SELECT COUNT(*) AS n FROM posts WHERE autosave_key = ?', [key])
+    assert.strictEqual(Number(rows.n), 1)
+
+    // The key is the author's: someone else's same key is a draft of their own.
+    const other = response()
+    await PostController.autosaveNew(as(ids.other, 'author', { title: 'Same key, other author', content: '', autosave_key: key }), other)
+    assert.strictEqual(other.status, 201)
+    assert.notStrictEqual(other.body.post.id, first.body.post.id)
+
+    const bad = response()
+    await PostController.autosaveNew(as(ids.author, 'author', { title: 'Bad key here', content: '', autosave_key: 'x' }), bad)
+    assert.strictEqual(bad.status, 422)
+  })
+
   test('the route needs a person who may create posts', () => {
     assert.match(read('src/routes/api/posts.ts'), /router\.post\('\/api\/posts\/autosave', auth, requireCapability\('post\.create'\), PostController\.autosaveNew\)/)
   })
@@ -322,7 +349,8 @@ describe('autosaving a post that has never been saved', () => {
   test('the editor creates the draft once, on the first title or body, and keeps the screen', () => {
     const editor = read('src/client/pages/admin/PostEditor.tsx')
     assert.match(editor, /api\s*\.post<[^>]+>\('\/api\/posts\/autosave'/)
-    assert.match(editor, /const hasText = Boolean\(formData\.title\.trim\(\) \|\| formData\.content\.trim\(\)\)/)
+    assert.match(editor, /const hasText = worthAutosaving\(formData\.title, formData\.content\)/)
+    assert.match(editor, /autosave_key: autosaveKey\.current/)
     assert.match(editor, /if \(isPage \|\| postId \|\| !hasText\) return/)
     // Replaced in place, and not reloaded over the typing.
     assert.match(editor, /navigate\(to, \{ replace: true \}\)/)
@@ -353,6 +381,22 @@ describe('social card images', () => {
     assert.strictEqual(miss.body.media.length, 0)
   })
 
+  test('a key with _ or % in it is matched exactly, not as a pattern', async () => {
+    const row = await db.run(
+      "INSERT INTO media (filename, original_name, path, mime_type, size, user_id) VALUES ('uploads/a_b%.png', 'a_b%.png', 'uploads/a_b%.png', 'image/png', 10, ?)",
+      [ids.editor]
+    )
+    const hit = response()
+    await MediaController.index({ query: { url: 'https://cdn.example/uploads/a_b%25.png' }, headers: {} }, hit)
+    assert.deepStrictEqual(hit.body.media.map((m) => m.id), [Number(row.lastInsertRowid)])
+
+    for (const url of ['https://cdn.example/uploads/aXbY.png', 'https://cdn.example/uploads/a_bcd.png']) {
+      const miss = response()
+      await MediaController.index({ query: { url }, headers: {} }, miss)
+      assert.strictEqual(miss.body.media.length, 0, url)
+    }
+  })
+
   test('the chosen ids are saved, and become the cards', async () => {
     const res = response()
     await PostController.update(as(ids.editor, 'editor', {
@@ -369,5 +413,54 @@ describe('social card images', () => {
     assert.match(editor, /<SocialImageField\s+id="og_image"/)
     assert.match(editor, /<SocialImageField\s+id="twitter_image"/)
     assert.match(read('src/client/components/admin/SocialImageField.tsx'), /<MediaPicker /)
+  })
+})
+
+describe('nothing else names a private item', () => {
+  let redirects
+
+  before(async () => {
+    redirects = await load('src/helpers/redirects.ts')
+  })
+
+  const rows = async () => (await db.all('SELECT from_path, to_path FROM redirects')).map((r) => `${r.from_path} -> ${r.to_path}`)
+
+  test('renaming a private post or page records no public redirect', async () => {
+    const before = await rows()
+    await redirects.redirectIfSlugChanged('post', { id: 1, slug: 'q3-layoffs', published: 1, is_private: 1 }, { id: 1, slug: 'q3-plan', published: 1, is_private: 1 })
+    await redirects.redirectIfSlugChanged('page', { id: 2, slug: 'secret-page', published: 1, is_private: 1 }, { id: 2, slug: 'renamed-page', published: 1, is_private: 1 })
+    // Made private in the same save as the rename: the new path is private too.
+    await redirects.redirectIfSlugChanged('post', { id: 3, slug: 'was-public', published: 1, is_private: 0 }, { id: 3, slug: 'now-private', published: 1, is_private: 1 })
+    assert.deepStrictEqual(await rows(), before)
+
+    // A public rename still redirects.
+    await redirects.redirectIfSlugChanged('post', { id: 4, slug: 'old-public', published: 1, is_private: 0 }, { id: 4, slug: 'new-public', published: 1, is_private: 0 })
+    assert.ok((await rows()).some((r) => r.includes('old-public') && r.includes('new-public')))
+  })
+
+  test('through the controller too', async () => {
+    const before = await rows()
+    const res = response()
+    await PostController.update(as(ids.editor, 'editor', {
+      title: 'Hidden musings', content: 'PRIVATE BODY that nobody else reads.', slug: 'hidden-musings-renamed'
+    }, { id: String(ids.private) }), res)
+    assert.strictEqual(res.status, 200, JSON.stringify(res.body))
+    assert.strictEqual(res.body.post.slug, 'hidden-musings-renamed')
+    assert.deepStrictEqual(await rows(), before)
+  })
+
+  test('a reply on a post made private sends no mail, and is not marked sent', async () => {
+    const { notifyParentOfReply } = await load('src/helpers/comment-mail.ts')
+    const parent = await db.run(
+      "INSERT INTO comments (post_id, content, author_name, author_email, status, notify_replies) VALUES (?, 'First!', 'Reader', 'reader@example.test', 'approved', 1)",
+      [ids.private]
+    )
+    const reply = await db.run(
+      "INSERT INTO comments (post_id, content, author_name, author_email, status, parent_id) VALUES (?, 'A reply', 'Other', 'other@example.test', 'approved', ?)",
+      [ids.private, Number(parent.lastInsertRowid)]
+    )
+    await notifyParentOfReply(Number(reply.lastInsertRowid))
+    const row = await db.get('SELECT reply_notified FROM comments WHERE id = ?', [Number(reply.lastInsertRowid)])
+    assert.strictEqual(Number(row.reply_notified), 0)
   })
 })

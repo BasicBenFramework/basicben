@@ -17,6 +17,7 @@ import type { AuthorProfile, Page, Post } from '../../../types/index.ts'
 import { Link } from '../../components/Link.tsx'
 import { can } from '@basicbenframework/core/auth/permissions'
 import { useT, slots } from '../../i18n/index.ts'
+import { worthAutosaving } from '../../../helpers/autosave.ts'
 
 type Status = 'draft' | 'pending' | 'published'
 
@@ -206,6 +207,14 @@ export default function AdminPostEditor() {
   // is not loaded back over the top of the typing.
   const adopted = useRef<number | null>(null)
   const creatingDraft = useRef<Promise<number | null> | null>(null)
+  // One per screen, so a retry after a lost response returns the draft the
+  // first try made instead of making another. randomUUID needs a secure
+  // context; an admin served over plain http elsewhere gets the fallback.
+  const autosaveKey = useRef(
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
+  )
 
   useEffect(() => {
     if (postId && postId === adopted.current) return
@@ -227,7 +236,7 @@ export default function AdminPostEditor() {
 
     const sent = { title: latest.current.title, content: latest.current.content, excerpt: latest.current.excerpt }
     creatingDraft.current = api
-      .post<{ post: { id: number } }>('/api/posts/autosave', { ...sent, post_type: postType })
+      .post<{ post: { id: number } }>('/api/posts/autosave', { ...sent, post_type: postType, autosave_key: autosaveKey.current })
       .then(res => {
         const id = res?.post?.id
         if (!id) throw new Error('No id')
@@ -255,8 +264,9 @@ export default function AdminPostEditor() {
   }
 
   // A new post's first autosave: a few seconds after there is a title or a
-  // body, timed from that first edit rather than reset by every keystroke.
-  const hasText = Boolean(formData.title.trim() || formData.content.trim())
+  // body worth keeping (helpers/autosave.ts — a stray keystroke is not),
+  // timed from that point rather than reset by every keystroke.
+  const hasText = worthAutosaving(formData.title, formData.content)
   useEffect(() => {
     if (isPage || postId || !hasText) return
     const timer = setTimeout(() => void createDraft(), FIRST_AUTOSAVE_AFTER)

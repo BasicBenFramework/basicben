@@ -51,9 +51,17 @@ export const Media = {
 
     if (filters.servedAt) {
       // Every storage driver serves a key at a URL ending in that key, after
-      // whatever prefix its bucket, CDN or local route adds.
-      where.push("(m.path = ? OR ? LIKE '%/' || m.path)")
-      params.push(filters.servedAt, filters.servedAt)
+      // whatever prefix its bucket, CDN or local route adds. So the key is one
+      // of the path's whole-segment suffixes: compared exactly, because a
+      // stored key used as a LIKE pattern would make `_` and `%` wildcards.
+      const segments = filters.servedAt.split('/').filter(Boolean).slice(-20)
+      const suffixes = segments.map((_, i) => segments.slice(i).join('/'))
+      if (suffixes.length) {
+        where.push(`m.path IN (${suffixes.map(() => '?').join(', ')})`)
+        params.push(...suffixes)
+      } else {
+        where.push('1 = 0')
+      }
     }
 
     if (filters.type === 'other') {

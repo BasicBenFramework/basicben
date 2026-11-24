@@ -26,6 +26,7 @@ import { renderMail } from './mail-templates.ts'
 import { capabilitiesFor, ROLES } from '@basicbenframework/core/auth/permissions'
 import { getDb } from '@basicbenframework/core/db'
 import { Comment } from '../models/Comment.ts'
+import { livePost } from '../models/visibility.ts'
 import { Settings } from '../models/Settings.ts'
 import { issueUnsubscribeToken } from './comment-guard.ts'
 import type { Comment as CommentType } from '../types/index.ts'
@@ -183,11 +184,15 @@ export async function notifyParentOfReply(replyId: number): Promise<void> {
   const sameAccount = reply.user_id && parent.user_id && Number(reply.user_id) === Number(parent.user_id)
   if (sameAccount || (replyEmail && replyEmail === to.toLowerCase())) return
 
-  if (!(await Comment.claimReplyNotification(Number(reply.id)))) return
-
+  // Only for a post readers can see. One made private (or unpublished, or
+  // trashed) since the comment was left must not be named, or linked, in a
+  // mail to someone who cannot open it. Checked before the claim, so nothing
+  // is marked sent that was not.
   const db = await getDb()
-  const post = await db.get('SELECT id, title FROM posts WHERE id = ?', [reply.post_id]) as { id: number; title: string } | undefined
+  const post = await db.get(`SELECT id, title FROM posts WHERE id = ? AND ${livePost('posts')}`, [reply.post_id]) as { id: number; title: string } | undefined
   if (!post) return
+
+  if (!(await Comment.claimReplyNotification(Number(reply.id)))) return
 
   const unsubscribeUrl = `${appUrl()}/api/comments/unsubscribe?token=${encodeURIComponent(issueUnsubscribeToken(Number(parent.id)))}`
   const replyUrl = `${appUrl()}/feed/${post.id}#comment-${reply.id}`

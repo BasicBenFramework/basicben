@@ -34,6 +34,8 @@ interface CreatePostData {
   post_type?: string
   /** Custom field values as stored: a JSON string, already validated. */
   fields?: string | null
+  /** The editor's idempotency key for a first autosave (migration 044). */
+  autosave_key?: string
 }
 
 interface UpdatePostData {
@@ -395,6 +397,7 @@ export const Post = {
       is_private: data.is_private ? 1 : 0,
       post_type: data.post_type ?? 'post',
       fields: data.fields ?? null,
+      ...(data.autosave_key ? { autosave_key: data.autosave_key } : {}),
       ...Object.fromEntries(SEO_FIELDS.filter((key) => data[key] !== undefined).map((key) => [key, data[key]]))
     })
 
@@ -468,6 +471,12 @@ export const Post = {
    * back as if the author had chosen it. Null is what a post with no slug yet
    * already means, and the unique index allows any number of them.
    */
+  /** The draft a first autosave with this key already made, if any (migration 044). */
+  async findByAutosaveKey(userId: number, key: string): Promise<PostType | undefined> {
+    const db = await getDb()
+    return db.get('SELECT * FROM posts WHERE user_id = ? AND autosave_key = ?', [userId, key])
+  },
+
   async forgetSlug(id: number): Promise<void> {
     const db = await getDb()
     await db.run('UPDATE posts SET slug = NULL WHERE id = ?', [id])

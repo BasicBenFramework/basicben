@@ -6,6 +6,7 @@ import type { Post as PostType, Request, Response } from '../types/index.ts'
 import { paginationFrom, meta } from '../models/pagination.ts'
 import { PostRevision } from '../models/PostRevision.ts'
 import { seoFields, privateFlag } from '../helpers/seo-fields.ts'
+import { worthAutosaving, validAutosaveKey } from '../helpers/autosave.ts'
 import { LISTING_FILTERS, type ListingFilter } from '../models/Post.ts'
 import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/visibility.ts'
 import { lockConflict } from './PostLockController.ts'
@@ -393,12 +394,23 @@ export const PostController = {
    * save: a draft is allowed to be the first few words of itself.
    */
   async autosaveNew(req: Request, res: Response) {
-    const { title, content, excerpt, post_type } = (req.body ?? {}) as Record<string, unknown>
+    const { title, content, excerpt, post_type, autosave_key } = (req.body ?? {}) as Record<string, unknown>
     if (typeof title !== 'string' || typeof content !== 'string') {
       return res.json({ error: 'title and content are required' }, 422)
     }
-    if (!title.trim() && !content.trim()) {
+    // A stray keystroke is not a draft: see helpers/autosave.ts.
+    if (!worthAutosaving(title, content)) {
       return res.json({ error: 'Nothing to save yet' }, 422)
+    }
+
+    // The editor's key for this screen. A repeat — its earlier response lost
+    // after the row was written — gets the draft that request made, not a
+    // second one.
+    const key = validAutosaveKey(autosave_key) ? autosave_key : null
+    if (autosave_key !== undefined && !key) return res.json({ errors: { autosave_key: ['Invalid key'] } }, 422)
+    if (key) {
+      const earlier = await Post.findByAutosaveKey(req.userId!, key)
+      if (earlier) return res.json({ post: earlier })
     }
 
     const typed = await typeAndFields(post_type === undefined ? {} : { post_type }, null)
@@ -419,15 +431,24 @@ export const PostController = {
     // A listener may adjust the text, not the state: what comes out of here is
     // a draft of the signed-in user's, whatever the filter returned.
     const value = creating.value as Record<string, unknown>
-    const post = await Post.create({
-      title: String(value.title ?? ''),
-      content: String(value.content ?? ''),
-      ...(typeof value.excerpt === 'string' ? { excerpt: value.excerpt } : {}),
-      ...(typeof value.post_type === 'string' ? { post_type: value.post_type } : {}),
-      user_id: req.userId!,
-      status: 'draft',
-      published: false
-    })
+    let post: PostType
+    try {
+      post = await Post.create({
+        title: String(value.title ?? ''),
+        content: String(value.content ?? ''),
+        ...(typeof value.excerpt === 'string' ? { excerpt: value.excerpt } : {}),
+        ...(typeof value.post_type === 'string' ? { post_type: value.post_type } : {}),
+        ...(key ? { autosave_key: key } : {}),
+        user_id: req.userId!,
+        status: 'draft',
+        published: false
+      })
+    } catch (error) {
+      // Two requests with one key raced, and the unique index let one in.
+      const earlier = key ? await Post.findByAutosaveKey(req.userId!, key) : undefined
+      if (earlier) return res.json({ post: earlier })
+      throw error
+    }
 
     // Its address is chosen on the first real save, from the title it has by
     // then, not from the first few letters typed.

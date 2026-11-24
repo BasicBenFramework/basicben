@@ -43,6 +43,8 @@ interface Movable {
   slug?: string | null
   published?: boolean | number | null
   deleted_at?: string | null
+  /** Private (migration 043): published, but not public. */
+  is_private?: boolean | number | null
   /** The post's content type key; absent or `post` means `/blog`. */
   post_type?: string | null
 }
@@ -63,7 +65,11 @@ async function baseFor(type: string | null | undefined): Promise<string | null> 
  *
  * Only content that was public before the save: a draft's slug was never a
  * URL anyone could have linked to, so redirecting from it would only litter
- * the table. A post without a slug answered to its id, and still does — the
+ * the table. Nor a private one, on either side of the save: its slugs were
+ * never public, and `/api/v1/redirects` lists every redirect to anyone, so
+ * recording one would publish the old address and the new.
+ *
+ * A post without a slug answered to its id, and still does — the
  * content API accepts an id wherever it accepts a slug — so it needs nothing.
  */
 export async function redirectIfSlugChanged(
@@ -77,6 +83,7 @@ export async function redirectIfSlugChanged(
 ): Promise<void> {
   if (!after || !before.slug || !after.slug) return
   if (!before.published || before.deleted_at) return
+  if (Number(before.is_private) || Number(after.is_private)) return
 
   // Looked up from the rows themselves when the caller did not say, so the
   // controller's one-line call covers custom types without knowing about them.
