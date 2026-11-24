@@ -2,17 +2,19 @@
  * The site template's two Vercel files, and what their functions carry.
  *
  * Vercel ships a function with only the files its tracer can reach from
- * `api/index.js` by following imports. The CMS's own files are reached: the
- * server entry imports config.ts and the mail helper, which point at the
- * package's db/migrations and mail/ with `new URL(…, import.meta.url)`, a
- * form the tracer follows. The site's are not:
+ * `api/index.js` by following imports. Files read at runtime are not reached:
  *
+ * - The package's `db/migrations/` and `mail/`: config.ts and the mail helper
+ *   name the directories with `new URL(…, import.meta.url)` and read them with
+ *   readdir and readFile. Named explicitly from node_modules rather than
+ *   trusting the tracer with a directory. Without them Site health has no
+ *   migration files to compare, and every mail fails to render.
  * - `basicben.config.js`: core's loadConfig finds it with existsSync and
  *   imports a computed URL. Left out, the app runs on defaults: no features,
  *   no CORS allowlist, console mail. Nothing errors.
  * - `mail/` and `db/migrations/`: the site's overrides and its own migrations.
  *
- * So both files name them in `includeFiles`.
+ * So both files name all of them in `includeFiles`.
  *
  * - `vercel.json` (the theme on): every path the SPA does not own goes to the
  *   function, so the theme's /:slug pages are served. The theme answers the
@@ -33,10 +35,16 @@ const read = (path) => readFileSync(join(ROOT, path), 'utf-8')
 const variants = ['vercel.json', 'vercel.headless.json'].map((name) => [name, JSON.parse(readFileSync(join(SITE, name), 'utf-8'))])
 
 for (const [name, vercel] of variants) {
-  test(`${name}: the function carries the site's config, mail and migrations`, () => {
+  test(`${name}: the function carries the site's and the package's config, mail and migrations`, () => {
     const include = vercel.functions?.['api/index.js']?.includeFiles
     assert.ok(include, `${name} must set functions["api/index.js"].includeFiles`)
-    for (const entry of ['basicben.config.js', 'mail/**', 'db/migrations/**']) {
+    for (const entry of [
+      'basicben.config.js',
+      'mail/**',
+      'db/migrations/**',
+      'node_modules/@basicbenframework/cms/mail/**',
+      'node_modules/@basicbenframework/cms/db/migrations/**'
+    ]) {
       assert.ok(include.includes(entry), `includeFiles must name ${entry}`)
     }
     assert.ok(existsSync(join(SITE, 'basicben.config.js')))
