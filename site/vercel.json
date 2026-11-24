@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/client",
+  "buildCommand": "npm run build && rm -rf dist/vercel-static && cp -R dist/client dist/vercel-static && mv dist/vercel-static/index.html dist/vercel-static/app.html",
+  "outputDirectory": "dist/vercel-static",
   "framework": null,
   "functions": {
     "api/index.js": {
@@ -11,11 +11,11 @@
   "rewrites": [
     {
       "source": "/:segment(admin|login|register|logout|forgot-password|reset-password|invite|profile|posts|docs|feed)",
-      "destination": "/index.html"
+      "destination": "/app.html"
     },
     {
       "source": "/:segment(admin|login|register|logout|forgot-password|reset-password|invite|profile|posts|docs|feed)/(.*)",
-      "destination": "/index.html"
+      "destination": "/app.html"
     },
     {
       "source": "/(.*)",

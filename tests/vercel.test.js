@@ -20,6 +20,14 @@
  *   function, so the theme's /:slug pages are served. The theme answers the
  *   rest with the app shell, read from dist/client/index.html, so that ships
  *   with the function too.
+ *
+ *   Vercel serves a static file before it applies any rewrite, and an
+ *   index.html at the root of the output answers `/`. Left there, the home
+ *   page was the SPA and never the theme's. So the build copies dist/client to
+ *   dist/vercel-static with the shell renamed to app.html, that is the output,
+ *   and the SPA's own paths are rewritten to /app.html. `/` reaches the
+ *   function, which renders the theme's home, or serves the shell when the
+ *   theme is off.
  * - `vercel.headless.json`: only the API, feeds, sitemap, robots and oEmbed
  *   reach the function, and everything else gets the SPA.
  */
@@ -62,6 +70,21 @@ test('the theme variant serves everything the SPA does not own, and ships the sh
   const segments = [...theme.match(/const SPA_SEGMENTS = new Set\(\[([^\]]*)\]/)[1].matchAll(/'([\w-]+)'/g)].map((m) => m[1])
   const routed = vercel.rewrites[0].source.match(/\(([^)]*)\)/)[1].split('|')
   assert.deepStrictEqual(routed.sort(), segments.sort())
+})
+
+test("the theme variant's static output has no index.html, so / reaches the function", () => {
+  const [, vercel] = variants[0]
+  const out = vercel.outputDirectory
+  assert.notStrictEqual(out, 'dist/client', 'dist/client holds index.html, which Vercel would serve for /')
+  const steps = vercel.buildCommand.split('&&').map((step) => step.trim())
+  assert.strictEqual(steps[0], 'npm run build')
+  assert.ok(steps.includes(`cp -R dist/client ${out}`), `the build must copy dist/client to ${out}`)
+  assert.ok(steps.includes(`mv ${out}/index.html ${out}/app.html`), 'the build must move the shell off the root')
+
+  // Every rewrite to a static file names the renamed shell.
+  const toStatic = vercel.rewrites.filter((r) => !r.destination.startsWith('/api/'))
+  assert.ok(toStatic.length > 0)
+  for (const rewrite of toStatic) assert.strictEqual(rewrite.destination, '/app.html')
 })
 
 test('the headless variant sends only the API and its documents to the function', () => {
