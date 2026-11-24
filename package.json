@@ -27,7 +27,7 @@
     "restore": "node --env-file-if-exists=.env scripts/restore.mjs"
   },
   "dependencies": {
-    "@basicbenframework/core": "^0.6.0",
+    "@basicbenframework/core": "^0.7.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -6,6 +6,7 @@ import { Post } from '../models/Post'
 import { can } from '@basicbenframework/core/auth/permissions'
 import { paginationFrom, meta } from '../models/pagination'
 import { clientIp } from '../middleware/rate-limits'
+import { guardWrite } from '../helpers/write-hooks'
 import {
   MAX_DEPTH, HONEYPOT_FIELD, DEFAULT_MAX_LINKS, COMMENT_STATUSES,
   isCommentStatus, issueFormToken, readUnsubscribeToken, parseBlocklist, assess,
@@ -254,7 +255,7 @@ export const CommentController = {
 
     // A filter, so a spam check can reject a comment or force it into
     // moderation before it is ever stored.
-    const draft = await hooks.filter(HOOKS.COMMENT_CREATING, {
+    const creating = await guardWrite(HOOKS.COMMENT_CREATING, {
       post_id: postId,
       user_id: req.userId,
       parent_id,
@@ -266,11 +267,12 @@ export const CommentController = {
       held_reason: verdict.reason,
       author_ip: ip || null,
       notify_replies: notifyReplies
-    }, { req })
+    }, { req }, { refused: 'Comment rejected.', showErrors: false })
 
-    if (draft?.cancel) {
-      return res.json({ error: draft.reason || 'Comment rejected.' }, 422)
-    }
+    // A public write: a listener that throws gets a generic refusal, never
+    // its own error message.
+    if (!creating.ok) return res.json({ error: creating.error }, creating.status)
+    const draft = creating.value
 
     // Listeners written before `status` existed set `approved`. Whichever of
     // the two a listener changed is the one it meant.

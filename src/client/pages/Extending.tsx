@@ -78,7 +78,10 @@ hooks.on(HOOKS.MEDIA_UPLOADED, async ({ url }) => {
           </CodeBlock>
 
           <p className={`text-sm ${t.muted} mt-4`}>
-            A listener that throws is contained: the others still run. Pass a name so the logged
+            A listener that throws is contained: the others still run. The exception is the{' '}
+            <code>*.creating</code>, <code>*.updating</code> and <code>*.deleting</code> filters
+            for posts, pages, comments and media: there a throw refuses the write, the same as{' '}
+            <code>cancel</code>, so a guard that crashes cannot wave a write through. Pass a name so the logged
             error points at the culprit — without one it says which hook threw but not which
             listener, which is no help on a hook with several.
           </p>
@@ -103,7 +106,9 @@ hooks.on(HOOKS.MEDIA_UPLOADED, async ({ url }) => {
             <code>content.render/save/delete</code>, <code>media.*</code>, <code>auth.*</code>,{' '}
             <code>email.*</code>, <code>mail.*</code>, <code>admin.*</code>. Every hook the
             framework declares fires — that is checked by a test that walks the constants and looks
-            for a call site.
+            for a call site. The CMS adds three of its own, <code>media.creating</code>,{' '}
+            <code>media.updating</code> and <code>media.deleting</code>, exported as{' '}
+            <code>MEDIA_HOOKS</code> from <code>src/helpers/write-hooks.ts</code>.
           </p>
         </Card>
 

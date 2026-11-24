@@ -6,6 +6,7 @@ import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
 import { pagePath } from '../helpers/content-paths'
 import type { Request, Response } from '../types'
 import { paginationFrom, meta } from '../models/pagination'
+import { guardWrite } from '../helpers/write-hooks'
 
 export const PageController = {
   async index(req: Request, res: Response) {
@@ -93,7 +94,7 @@ export const PageController = {
     const seo = seoFields(req.body)
     if ('errors' in seo) return res.json({ errors: seo.errors }, 422)
 
-    const draft = await hooks.filter(HOOKS.PAGE_CREATING, {
+    const creating = await guardWrite(HOOKS.PAGE_CREATING, {
       ...seo.values,
       title,
       slug,
@@ -107,11 +108,10 @@ export const PageController = {
       menu_order,
       meta_title,
       meta_description
-    }, { req })
+    }, { req }, { refused: 'Page rejected.' })
 
-    if (draft?.cancel) {
-      return res.json({ error: draft.reason || 'Page rejected.' }, 422)
-    }
+    if (!creating.ok) return res.json({ error: creating.error }, creating.status)
+    const draft = creating.value
 
     const page = await Page.create(draft)
 
@@ -177,7 +177,7 @@ export const PageController = {
     const seo = seoFields(req.body)
     if ('errors' in seo) return res.json({ errors: seo.errors }, 422)
 
-    const changes = await hooks.filter(HOOKS.PAGE_UPDATING, {
+    const updating = await guardWrite(HOOKS.PAGE_UPDATING, {
       ...seo.values,
       title,
       slug,
@@ -192,11 +192,10 @@ export const PageController = {
       menu_order,
       meta_title,
       meta_description
-    }, { req, page })
+    }, { req, page }, { refused: 'Update rejected.' })
 
-    if (changes?.cancel) {
-      return res.json({ error: changes.reason || 'Update rejected.' }, 422)
-    }
+    if (!updating.ok) return res.json({ error: updating.error }, updating.status)
+    const changes = updating.value
 
     const updated = await Page.update(parseInt(req.params.id), changes)
 
@@ -216,11 +215,8 @@ export const PageController = {
 
     // A deleted page is exactly what a rebuild needs to know about, and until
     // page.deleted existed it was the one content change that notified nothing.
-    const intent = await hooks.filter(HOOKS.PAGE_DELETING, { page, cancel: false }, { req })
-
-    if (intent?.cancel) {
-      return res.json({ error: intent.reason || 'Deletion rejected.' }, 422)
-    }
+    const intent = await guardWrite(HOOKS.PAGE_DELETING, { page, cancel: false }, { req }, { refused: 'Deletion rejected.' })
+    if (!intent.ok) return res.json({ error: intent.error }, intent.status)
 
     await Page.delete(parseInt(req.params.id))
 

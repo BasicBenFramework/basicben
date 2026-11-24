@@ -56,7 +56,7 @@ plain Node, without booting the server or a database.
 | `host.cron.task(name, everySeconds, run)` | Runs `run` at most that often, as `<feature>:<name>` |
 | `host.health.check(name, run)` | Adds to the site health page. Return `null` to add nothing; a check that throws shows as a warning |
 | `host.access.policy({ levels, headers, identify, mayRead })` | Become the site's one access policy (below). A second registration throws at boot |
-| `host.hooks` | The framework's hooks. A `post.creating` / `post.updating` filter may refuse a save with `{ cancel: true, reason, status: 403 }`; any other status is 422 |
+| `host.hooks` | The framework's hooks. A `*.creating` / `*.updating` / `*.deleting` filter (posts, pages, comments, and media's `media.creating` / `media.updating` / `media.deleting`) refuses the write by returning `{ cancel: true, reason }` or by throwing; `status: 403` is kept, any other status is 422. A throw's message is shown to the admin making the write, never on a public comment |
 
 ## The admin host
 

@@ -13,6 +13,7 @@ import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
 import { postPath } from '../helpers/content-paths'
 import { withholdBody } from '../helpers/gating'
 import { accessLevels, viewerOf } from '../helpers/access'
+import { guardWrite } from '../helpers/write-hooks'
 import { typeAndFields, saveTerms, publicPathOf, editorExtras } from '../helpers/content-model'
 
 /**
@@ -95,7 +96,7 @@ export const PostController = {
     const publishing = resolvePublishing(req, null)
     if ('error' in publishing) return res.json({ error: publishing.error }, publishing.status)
 
-    const draft = await hooks.filter(HOOKS.POST_CREATING, {
+    const creating = await guardWrite<any>(HOOKS.POST_CREATING, {
       // Attribution. Anyone may write as themselves; assigning a post to
       // someone else is `post.edit`, the same capability that lets you edit
       // their work — the WordPress rule, where only an editor can hand a post
@@ -103,7 +104,10 @@ export const PostController = {
       user_id: authorFor(req),
       ...fields.values,
       ...publishing.values
-    }, { req })
+    }, { req }, { refused: 'Post rejected.' })
+
+    if (!creating.ok) return res.json({ error: creating.error }, creating.status)
+    const draft = creating.value
 
     // Checked again after the filter, so a listener cannot publish on behalf
     // of someone who may not. Publishing is its own capability: a contributor
@@ -111,10 +115,6 @@ export const PostController = {
     // puts them live.
     if (draft?.published && !can(req.user, 'post.publish')) {
       return res.json({ error: 'You do not have permission to publish posts.' }, 403)
-    }
-
-    if (draft?.cancel) {
-      return res.json({ error: draft.reason || 'Post rejected.' }, refusalStatus(draft))
     }
 
     const post = await Post.create(draft)
@@ -179,15 +179,14 @@ export const PostController = {
     const publishing = resolvePublishing(req, post)
     if ('error' in publishing) return res.json({ error: publishing.error }, publishing.status)
 
-    const changes = await hooks.filter(HOOKS.POST_UPDATING, {
+    const updating = await guardWrite<any>(HOOKS.POST_UPDATING, {
       ...fields.values,
       ...(reassigned === post.user_id ? {} : { user_id: reassigned }),
       ...publishing.values
-    }, { req, post })
+    }, { req, post }, { refused: 'Update rejected.' })
 
-    if (changes?.cancel) {
-      return res.json({ error: changes.reason || 'Update rejected.' }, refusalStatus(changes))
-    }
+    if (!updating.ok) return res.json({ error: updating.error }, updating.status)
+    const changes = updating.value
 
     if (changes?.published && !can(req.user, 'post.publish')) {
       return res.json({ error: 'You do not have permission to publish posts.' }, 403)
@@ -476,17 +475,6 @@ function editableFields(body: unknown, existing: { visibility?: unknown } | null
 }
 
 /**
- * The status for a write a `*.creating` / `*.updating` listener refused.
- *
- * 422 by default; a listener refusing on permission grounds may say 403. No
- * other code, so a listener cannot make a refusal look like success or a
- * server fault.
- */
-function refusalStatus(result: { status?: unknown }): 403 | 422 {
-  return result?.status === 403 ? 403 : 422
-}
-
-/**
  * Work out the publishing state a request asks for, and whether it may.
  *
  * Accepts `status` (`draft`, `pending`, `published`) and, for clients written
@@ -564,10 +552,8 @@ async function removePost(
 
   const permanent = Boolean(post.deleted_at)
 
-  const intent = await hooks.filter(HOOKS.POST_DELETING, { post, cancel: false, permanent }, { req })
-  if (intent?.cancel) {
-    return { error: intent.reason || 'Deletion rejected.', status: 422 }
-  }
+  const intent = await guardWrite(HOOKS.POST_DELETING, { post, cancel: false, permanent }, { req }, { refused: 'Deletion rejected.' })
+  if (!intent.ok) return { error: intent.error, status: intent.status }
 
   if (permanent) {
     await Post.delete(post.id)

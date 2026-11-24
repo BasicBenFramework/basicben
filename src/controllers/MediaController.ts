@@ -21,6 +21,7 @@ import { imageSize } from '../helpers/image-size'
 import { signUpload, confirmUpload, deleteUpload } from '@basicbenframework/core/storage/uploads'
 import { getStorage } from '@basicbenframework/core/storage'
 import { Media } from '../models/Media'
+import { guardWrite, MEDIA_HOOKS } from '../helpers/write-hooks'
 import type { Request, Response } from '../types'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -132,7 +133,9 @@ export const MediaController = {
       dimensions = { width: info.width, height: info.height }
     }
 
-    const media = await Media.create({
+    // The file is in storage by now, so a refusal removes it: a library
+    // entry that was refused should not leave an orphaned object behind.
+    const creating = await guardWrite(MEDIA_HOOKS.CREATING, {
       user_id: req.userId,
       filename: result.key as string,
       original_name: filename || (result.key as string).split('/').pop() || 'file',
@@ -142,7 +145,16 @@ export const MediaController = {
       alt_text: altText,
       width: dimensions?.width ?? null,
       height: dimensions?.height ?? null
-    })
+    }, { req }, { refused: 'Upload rejected.' })
+
+    if (!creating.ok) {
+      await deleteUpload(result.key as string, { userId: req.userId }).catch(() => {})
+      return res.json({ error: creating.error }, creating.status)
+    }
+
+    // The key is the object that was verified; a listener may change the
+    // row's other fields, not which file it points at.
+    const media = await Media.create({ ...creating.value, filename: result.key as string, path: result.key as string })
 
     res.json({ media: { ...media, url: result.url } }, 201)
   },
@@ -160,7 +172,10 @@ export const MediaController = {
     }
 
     const { alt_text } = req.body as { alt_text?: string }
-    const updated = await Media.update(parseInt(req.params.id), { alt_text })
+    const updating = await guardWrite(MEDIA_HOOKS.UPDATING, { alt_text }, { req, media }, { refused: 'Update rejected.' })
+    if (!updating.ok) return res.json({ error: updating.error }, updating.status)
+
+    const updated = await Media.update(parseInt(req.params.id), { alt_text: updating.value.alt_text })
 
     // Through withUrls like index and show, so a caller that swaps the updated
     // row into its list does not lose the URL and blank out the thumbnail.
@@ -180,6 +195,10 @@ export const MediaController = {
     if (!can(req.user, 'media.delete', media)) {
       return res.json({ error: 'You do not have permission to delete this item.' }, 403)
     }
+
+    // A listener may refuse, say for an image a published post still uses.
+    const intent = await guardWrite(MEDIA_HOOKS.DELETING, { media, cancel: false }, { req }, { refused: 'Deletion rejected.' })
+    if (!intent.ok) return res.json({ error: intent.error }, intent.status)
 
     await Media.delete(parseInt(req.params.id))
 
