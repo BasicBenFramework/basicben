@@ -5,7 +5,7 @@ import AdminLayout from '../../layouts/AdminLayout'
 import MarkdownEditor from '../../components/MarkdownEditor'
 import { excerpt, slugify } from '@basicbenframework/core/content'
 import FeaturedImageBox from '../../components/admin/FeaturedImageBox'
-import PostAccessBox, { type Visibility } from '../../components/admin/PostAccessBox'
+import { Slot, hasFills } from '../../host'
 import TermPicker from '../../components/admin/TermPicker'
 import SnippetPicker from '../../components/admin/SnippetPicker'
 import { usePostLock } from '../../hooks/usePostLock'
@@ -155,9 +155,9 @@ export default function AdminPostEditor() {
     twitter_description: '',
     canonical_url: '',
     noindex: false,
-    // Posts only: who may read the body, and the request to email it.
-    visibility: 'public' as Visibility,
-    send_newsletter: false,
+    // Posts only: who may read the body. The levels beyond public, and what
+    // they mean, belong to a feature (see the post.editor.sidebar slot below).
+    visibility: 'public',
     // The media id that gets saved, and the URL that gets shown. The server
     // resolves the second from the first, because only it knows where files
     // are served from.
@@ -181,6 +181,9 @@ export default function AdminPostEditor() {
   // nobody else can have it open; pages are another controller's and unlocked.
   const lock = usePostLock(postId, !isPage && isEditing)
   const lockedOut = !lock.canSave
+  // The post as loaded, and the fields the sidebar's feature panels set.
+  const [loaded, setLoaded] = useState<Record<string, unknown> | null>(null)
+  const [extra, setExtra] = useState<Record<string, unknown>>({})
 
   useEffect(() => {
     loadData()
@@ -254,6 +257,7 @@ export default function AdminPostEditor() {
       if (postId) {
         const res = await api.get<{ post?: Post; page?: Page; autosave?: Autosave | null }>(`/api/${resource}/${postId}`)
         const record = (isPage ? res?.page : res?.post) as (Post & Page) | undefined
+        setLoaded(record ? (record as unknown as Record<string, unknown>) : null)
 
         if (!isPage) {
           setAutosave(res?.autosave ?? null)
@@ -282,8 +286,7 @@ export default function AdminPostEditor() {
             twitter_description: record.twitter_description || '',
             canonical_url: record.canonical_url || '',
             noindex: Boolean(Number(record.noindex ?? 0)),
-            visibility: (record.visibility as Visibility) || 'public',
-            send_newsletter: Boolean(Number(record.send_newsletter ?? 0)),
+            visibility: String(record.visibility || 'public'),
             featured_image: record.featured_image ?? null,
             featured_image_url: record.featured_image_url ?? null,
             user_id: record.user_id ?? ''
@@ -378,8 +381,9 @@ export default function AdminPostEditor() {
 
       const finalStatus = submitStatus ?? status
 
-      // Posts only: a page has no visibility or newsletter to send.
-      const { visibility, send_newsletter, ...shared } = common
+      // Posts only: a page has no visibility. `extra` is what the sidebar's
+      // feature panels set; see PostEditorSidebarProps.
+      const { visibility, ...shared } = common
 
       // category_ids and tags are arrays the server syncs; a page has neither,
       // and no excerpt column to put an excerpt in. A page publishes with the
@@ -394,7 +398,7 @@ export default function AdminPostEditor() {
             ...(publish_at ? { publish_at: fromLocalInput(publish_at) } : {}),
             excerpt,
             visibility,
-            send_newsletter,
+            ...extra,
             category_ids,
             tags,
             // Only when the menu was shown and a choice was made. Sending it
@@ -857,16 +861,31 @@ export default function AdminPostEditor() {
             </div>
 
             {!isPage && (
-              <PostAccessBox
+              <Slot
+                name="post.editor.sidebar"
+                kind="post"
                 postId={postId}
-                visibility={formData.visibility}
-                sendNewsletter={formData.send_newsletter}
+                record={loaded}
+                values={{ visibility: formData.visibility, ...extra }}
                 disabled={lockedOut}
-                onChange={changes => {
+                onChange={(changes: Record<string, unknown>) => {
                   dirty.current = true
-                  setFormData(prev => ({ ...prev, ...changes }))
+                  const { visibility, ...rest } = changes
+                  if (typeof visibility === 'string') setFormData(prev => ({ ...prev, visibility }))
+                  if (Object.keys(rest).length) setExtra(prev => ({ ...prev, ...rest }))
                 }}
               />
+            )}
+
+            {/* A level saved under a feature this site no longer runs. The post
+                stays withheld from readers (core denies what no policy allows),
+                so say so rather than show nothing. */}
+            {!isPage && formData.visibility !== 'public' && !hasFills('post.editor.sidebar') && (
+              <div className="admin-card">
+                <small style={{ color: 'var(--fg-muted)' }}>
+                  {t('Readable by: {level}. This site no longer offers that level, so the body is withheld from every reader.', { level: formData.visibility })}
+                </small>
+              </div>
             )}
 
             {/* Both posts and pages carry one now. A page could only ever get a

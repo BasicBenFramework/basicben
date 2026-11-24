@@ -10,13 +10,13 @@
 
 import { can } from '@basicbenframework/core/auth/permissions'
 import { getDb } from '@basicbenframework/core/db'
-import { Member, MEMBER_STATUSES, normalizeLabels, looksLikeEmail, type MemberRow, type MemberStatus } from '../models/Member.ts'
-import { normalizeEmail } from '../helpers/member-auth.ts'
-import { paginationFrom, meta } from '../models/pagination.ts'
-import { parseCsv, toCsv } from '../helpers/csv.ts'
-import { newsletterFor, sendTestNewsletter, kickNewsletterQueue } from '../helpers/newsletter.ts'
-import { emailSendLimiter } from '../middleware/rate-limits.ts'
-import type { Request, Response } from '../types'
+import { Member, MEMBER_STATUSES, normalizeLabels, looksLikeEmail, type MemberRow, type MemberStatus } from './Member.ts'
+import { normalizeEmail } from './session.ts'
+import { paginationFrom, meta } from '../../models/pagination.ts'
+import { parseCsv, toCsv } from './csv.ts'
+import { newsletterFor, sendTestNewsletter, kickNewsletterQueue } from './newsletter.ts'
+import { emailSendLimiter } from '../../middleware/rate-limits.ts'
+import type { Request, Response } from '../../types'
 
 /** Rows one import request may carry. Sequential inserts on a remote database are not free. */
 export const MAX_IMPORT_ROWS = 5000
@@ -195,7 +195,7 @@ export const MemberAdminController = {
    * `GET /api/members/export` — every member, as CSV.
    *
    * The same columns the import reads, so an export can be imported
-   * elsewhere. Cells are defused against spreadsheet formulas (helpers/csv.ts).
+   * elsewhere. Cells are defused against spreadsheet formulas (csv.ts).
    */
   async export(_req: Request, res: Response) {
     const members = await Member.all()

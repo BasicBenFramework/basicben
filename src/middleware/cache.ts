@@ -13,6 +13,7 @@
  */
 
 import { strongEtag, conditional } from '@basicbenframework/core/etag'
+import { credentialHeaders } from '../helpers/access.ts'
 import type { Request, Response } from '../types'
 
 type Next = () => void
@@ -38,13 +39,16 @@ export const cacheable = (req: Request, res: Response, next: Next) => {
     // token at all; `private` keeps it in the requesting client's own cache.
     // Anonymous reads (public_api on) stay public and shareable.
     //
-    // A member session counts as a credential too: with one, a members-only
-    // post's body is in the response, and a shared cache that stored it would
-    // hand it to the next anonymous reader. The header's mere presence is
-    // enough — valid or not — so the rule cannot depend on a lookup, and
-    // `Vary` names it so a cache keyed on headers never crosses the two.
-    const credentialed = Boolean(req.headers.authorization || req.headers['x-member-token'])
-    res.setHeader('Vary', 'Authorization, X-Member-Token')
+    // A reader's credential for restricted posts (the access policy names
+    // its headers; the members feature's is X-Member-Token) counts too: with
+    // one, a restricted body is in the response, and a shared cache that
+    // stored it would hand it to the next anonymous reader. The header's mere
+    // presence is enough — valid or not — so the rule cannot depend on a
+    // lookup, and `Vary` names it so a cache keyed on headers never crosses
+    // the two.
+    const readerHeaders = credentialHeaders()
+    const credentialed = Boolean(req.headers.authorization || readerHeaders.some((name) => req.headers[name.toLowerCase()]))
+    res.setHeader('Vary', ['Authorization', ...readerHeaders].join(', '))
 
     if (
       conditional(req, res, {

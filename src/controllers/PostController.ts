@@ -11,9 +11,8 @@ import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/vis
 import { lockConflict } from './PostLockController'
 import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
 import { postPath } from '../helpers/content-paths'
-import { isPostVisibility, POST_VISIBILITIES, withholdBody } from '../helpers/gating'
-import { newsletterRefusal } from '../helpers/newsletter'
-import { memberFromRequest } from '../middleware/member-auth'
+import { withholdBody } from '../helpers/gating'
+import { accessLevels, viewerOf } from '../helpers/access'
 import { typeAndFields, saveTerms, publicPathOf, editorExtras } from '../helpers/content-model'
 
 /**
@@ -85,11 +84,9 @@ export const PostController = {
       return res.json({ errors: result.errors }, 422)
     }
 
-    const fields = editableFields(req.body)
+    const fields = editableFields(req.body, null)
     if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
 
-    const newsletter = newsletterRefusal(req, fields.values, null)
-    if (newsletter) return res.json({ error: newsletter }, 403)
     // Content type and custom fields; see helpers/content-model.ts.
     const typed = await typeAndFields(req.body, null)
     if ('errors' in typed) return res.json({ errors: typed.errors }, 422)
@@ -117,7 +114,7 @@ export const PostController = {
     }
 
     if (draft?.cancel) {
-      return res.json({ error: draft.reason || 'Post rejected.' }, 422)
+      return res.json({ error: draft.reason || 'Post rejected.' }, refusalStatus(draft))
     }
 
     const post = await Post.create(draft)
@@ -170,11 +167,9 @@ export const PostController = {
 
     const reassigned = authorFor(req, post.user_id)
 
-    const fields = editableFields(req.body)
+    const fields = editableFields(req.body, post)
     if ('errors' in fields) return res.json({ errors: fields.errors }, 422)
 
-    const newsletter = newsletterRefusal(req, fields.values, post)
-    if (newsletter) return res.json({ error: newsletter }, 403)
     const typed = await typeAndFields(req.body, post)
     if ('errors' in typed) return res.json({ errors: typed.errors }, 422)
     Object.assign(fields.values, typed.values)
@@ -191,7 +186,7 @@ export const PostController = {
     }, { req, post })
 
     if (changes?.cancel) {
-      return res.json({ error: changes.reason || 'Update rejected.' }, 422)
+      return res.json({ error: changes.reason || 'Update rejected.' }, refusalStatus(changes))
     }
 
     if (changes?.published && !can(req.user, 'post.publish')) {
@@ -386,10 +381,10 @@ export const PostController = {
   },
 
   async feed(req: Request, res: Response) {
-    // The built-in blog's feed. Members-only bodies are withheld unless the
-    // request carries a member session — see helpers/gating.ts.
-    const member = Boolean(await memberFromRequest(req))
-    const posts = (await Post.findPublished()).map((post) => withholdBody(post as unknown as Record<string, unknown>, member))
+    // The built-in blog's feed. Restricted bodies are withheld unless the
+    // access policy lets this reader have them — see helpers/gating.ts.
+    const viewer = await viewerOf(req)
+    const posts = (await Post.findPublished()).map((post) => withholdBody(post as unknown as Record<string, unknown>, viewer))
     res.json({ posts })
   },
 
@@ -398,7 +393,7 @@ export const PostController = {
     if (!post) {
       return res.json({ error: 'Post not found' }, 404)
     }
-    res.json({ post: withholdBody(post as unknown as Record<string, unknown>, Boolean(await memberFromRequest(req))) })
+    res.json({ post: withholdBody(post as unknown as Record<string, unknown>, await viewerOf(req)) })
   }
 }
 
@@ -444,7 +439,7 @@ function authorFor(req: Request, fallback?: number): number {
  * Publishing state — `status`, `published`, `publish_at` — is not here; see
  * `resolvePublishing`, which also decides who may change it.
  */
-function editableFields(body: unknown):
+function editableFields(body: unknown, existing: { visibility?: unknown } | null):
   | { values: Record<string, unknown> }
   | { errors: Record<string, string[]> } {
   const payload = (body ?? {}) as Record<string, unknown>
@@ -466,15 +461,29 @@ function editableFields(body: unknown):
   if ('errors' in seo) Object.assign(errors, seo.errors)
   else Object.assign(fields, seo.values)
 
-  // Who may read the body, and the request to email it (permission for the
-  // latter is `newsletterRefusal`, which needs the request).
+  // Who may read the body: `public` or a level the access policy offers. The
+  // level the post already has is always accepted, so a post saved under a
+  // feature that has since been removed can still be edited without being
+  // made public by accident.
   if ('visibility' in payload) {
-    if (isPostVisibility(payload.visibility)) fields.visibility = payload.visibility
-    else errors.visibility = [`Must be one of ${POST_VISIBILITIES.join(', ')}`]
+    const levels = accessLevels()
+    const value = payload.visibility
+    if (typeof value === 'string' && (levels.includes(value) || value === existing?.visibility)) fields.visibility = value
+    else errors.visibility = [`Must be one of ${levels.join(', ')}`]
   }
-  if ('send_newsletter' in payload) fields.send_newsletter = payload.send_newsletter ? 1 : 0
 
   return Object.keys(errors).length ? { errors } : { values: fields }
+}
+
+/**
+ * The status for a write a `*.creating` / `*.updating` listener refused.
+ *
+ * 422 by default; a listener refusing on permission grounds may say 403. No
+ * other code, so a listener cannot make a refusal look like success or a
+ * server fault.
+ */
+function refusalStatus(result: { status?: unknown }): 403 | 422 {
+  return result?.status === 403 ? 403 : 422
 }
 
 /**

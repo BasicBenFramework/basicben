@@ -95,11 +95,11 @@ async function feedPosts(scope: FeedScope): Promise<FeedPost[]> {
   `, scope.params)
 
   // A feed is public — readers and aggregators fetch it with no session — so
-  // a members-only post appears with its excerpt and a pointer, never its
+  // a restricted post appears with its excerpt and a pointer, never its
   // body. Done here, once, so neither format can forget. See helpers/gating.ts.
   return rows.map(row => isGated(row.visibility)
     ? (() => {
-        const excerpt = publicExcerpt(row.excerpt, plainText(row.content ?? '', Number.MAX_SAFE_INTEGER), row.visibility, false)
+        const excerpt = publicExcerpt(row.excerpt, plainText(row.content ?? '', Number.MAX_SAFE_INTEGER), row.visibility, null)
         return { ...row, excerpt, content: '', content_html: gatedFeedHtml(excerpt) }
       })()
     : row)

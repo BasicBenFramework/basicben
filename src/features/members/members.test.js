@@ -1,5 +1,5 @@
 /**
- * Phase 3: members, members-only posts, and newsletters.
+ * The members feature: members, members-only posts, and newsletters.
  *
  * Runs for real against a scratch SQLite database migrated from
  * db/migrations, because what matters here is behaviour: a member session
@@ -18,7 +18,8 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { registerHooks } from 'node:module'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
+const FEATURE = 'src/features/members'
 const read = (path) => readFileSync(join(ROOT, path), 'utf-8')
 const load = (path) => import(pathToFileURL(join(ROOT, path)).href)
 
@@ -131,18 +132,22 @@ before(async () => {
 
   auth = await load('src/middleware/auth.ts')
   session = await load('src/helpers/session.ts')
-  memberAuth = await load('src/helpers/member-auth.ts')
-  memberMw = await load('src/middleware/member-auth.ts')
-  ;({ MemberController } = await load('src/controllers/MemberController.ts'))
-  ;({ MemberAdminController } = await load('src/controllers/MemberAdminController.ts'))
-  ;({ Member } = await load('src/models/Member.ts'))
+  // Registered through the real host, as the server does: the settings, the
+  // access policy, the newsletter listeners and the cron tasks.
+  await (await load('src/host/index.ts')).registerFeatures([(await load(`${FEATURE}/index.ts`)).default])
+
+  memberAuth = await load(`${FEATURE}/session.ts`)
+  memberMw = await load(`${FEATURE}/middleware.ts`)
+  ;({ MemberController } = await load(`${FEATURE}/MemberController.ts`))
+  ;({ MemberAdminController } = await load(`${FEATURE}/MemberAdminController.ts`))
+  ;({ Member } = await load(`${FEATURE}/Member.ts`))
   ;({ PublicContent } = await load('src/models/PublicContent.ts'))
   ;({ cacheable } = await load('src/middleware/cache.ts'))
   ;({ FeedController } = await load('src/controllers/FeedController.ts'))
   ;({ PostController } = await load('src/controllers/PostController.ts'))
-  newsletter = await load('src/helpers/newsletter.ts')
+  newsletter = await load(`${FEATURE}/newsletter.ts`)
   gating = await load('src/helpers/gating.ts')
-  csv = await load('src/helpers/csv.ts')
+  csv = await load(`${FEATURE}/csv.ts`)
   siteSettings = await load('src/helpers/site-settings.ts')
 
   ids.admin = await addUser('Admin', 'admin')
@@ -207,12 +212,12 @@ describe('a member session is never an admin session', () => {
   })
 
   test('the member middleware never sets the admin principal', () => {
-    const source = read('src/middleware/member-auth.ts').replace(/\/\*[\s\S]*?\*\//g, '')
+    const source = read(`${FEATURE}/middleware.ts`).replace(/\/\*[\s\S]*?\*\//g, '')
     assert.doesNotMatch(source, /req\.user\s*=|req\.userId\s*=/)
   })
 
   test('the session is not signed with APP_KEY itself', () => {
-    const source = read('src/helpers/member-auth.ts')
+    const source = read(`${FEATURE}/session.ts`)
     assert.match(source, /createHmac\('sha256', appKey\(/)
     assert.doesNotMatch(source, /signJwt\([^)]*process\.env\.APP_KEY/)
   })
@@ -224,7 +229,7 @@ describe('magic links', () => {
   test('sign-up: one uniform answer, a link that works once, then a session', async () => {
     const { res } = await ask({ email: 'New.Reader@Example.test', name: 'New Reader' })
     assert.strictEqual(res.status, 200)
-    assert.strictEqual(res.body.message, MemberController && (await load('src/controllers/MemberController.ts')).MAGIC_LINK_SENT)
+    assert.strictEqual(res.body.message, MemberController && (await load(`${FEATURE}/MemberController.ts`)).MAGIC_LINK_SENT)
 
     // Nobody is created until the link is followed.
     assert.strictEqual(await Member.findByEmail('new.reader@example.test'), undefined)
@@ -310,8 +315,8 @@ describe('magic links', () => {
   })
 
   test('the address limit is its own namespace', () => {
-    assert.match(read('src/middleware/rate-limits.ts'), /key: addressIn\('member-magic-link'\)/)
-    assert.match(read('src/routes/api/members.ts'), /'\/api\/v1\/members\/magic-link', memberMagicLinkLimit/)
+    assert.match(read(`${FEATURE}/rate-limits.ts`), /key: addressIn\('member-magic-link'\)/)
+    assert.match(read(`${FEATURE}/routes.ts`), /'\/api\/v1\/members\/magic-link', memberMagicLinkLimit/)
   })
 })
 
@@ -391,7 +396,9 @@ describe('members-only posts', () => {
   })
 
   test('and given to members', async () => {
-    const { posts } = await PublicContent.posts({ perPage: 50, member: true })
+    const viewer = await memberMw.resolveMember(ids.gatedReaderToken)
+    assert.ok(viewer)
+    const { posts } = await PublicContent.posts({ perPage: 50, viewer })
     const gated = posts.find(p => p.id === ids.gatedPost)
     assert.strictEqual(gated.gated, false)
     assert.match(gated.content, /SECRET body/)
@@ -399,14 +406,16 @@ describe('members-only posts', () => {
 
   test('through the controller, the session comes from X-Member-Token beside the content token', async () => {
     const { PublicApiController } = await load('src/controllers/PublicApiController.ts')
+    const { identifyViewer } = await load('src/middleware/viewer.ts')
     const req = request({ headers: { authorization: 'Bearer bb_sitetoken', 'x-member-token': ids.gatedReaderToken }, params: { slug: String(ids.gatedPost) } })
-    await run(memberMw.optionalMember, req)
+    await run(identifyViewer, req)
+    assert.ok(req.member, 'the policy identified the member')
     const res = response()
     await PublicApiController.post(req, res)
     assert.match(res.body.data.content, /SECRET body/)
 
     const anon = request({ headers: { 'x-member-token': 'forged.token.value' }, params: { slug: String(ids.gatedPost) } })
-    await run(memberMw.optionalMember, anon)
+    await run(identifyViewer, anon)
     const anonRes = response()
     await PublicApiController.post(anon, anonRes)
     assert.strictEqual(anonRes.body.data.content, null, 'a bad token is no token')
@@ -427,10 +436,10 @@ describe('members-only posts', () => {
     assert.match(anonymous.headers.vary, /X-Member-Token/, 'a cache keyed on headers never crosses the two')
   })
 
-  test('the member middleware runs before the cache on the post routes', () => {
-    const v1 = read('src/routes/api/v1.ts')
-    assert.match(v1, /'\/api\/v1\/posts', [^\n]*optionalMember, cacheable, PublicApiController\.posts/)
-    assert.match(v1, /'\/api\/v1\/posts\/:slug', [^\n]*optionalMember, cacheable, PublicApiController\.post/)
+  test('the policy is this feature, offering members and paid, keyed on X-Member-Token', async () => {
+    const access = await load('src/helpers/access.ts')
+    assert.deepStrictEqual(access.accessLevels(), ['public', 'members', 'paid'])
+    assert.deepStrictEqual(access.credentialHeaders(), ['X-Member-Token'])
   })
 
   test('cross-origin front ends may send the header', () => {
@@ -469,21 +478,23 @@ describe('members-only posts', () => {
     assert.strictEqual(gating.isGated(null), false)
     assert.strictEqual(gating.isGated('members'), true)
     assert.strictEqual(gating.isGated('paid'), true)
-    assert.strictEqual(gating.mayReadBody('members', true), true)
-    assert.strictEqual(gating.visibilityOf('nonsense'), 'public')
+    assert.strictEqual(gating.mayReadBody('members', { id: 1 }), true)
+    assert.strictEqual(gating.mayReadBody('members', null), false)
+    // A level no policy offers is withheld from everyone, members included.
+    assert.strictEqual(gating.mayReadBody('nonsense', { id: 1 }), false)
     assert.doesNotMatch(gating.gatedFeedHtml('<b>x</b>', 'https://a/b"c'), /<b>|b"c/)
   })
 
   // An automatic excerpt of a short post is the whole post.
   test('a gated post never publishes an excerpt that is its whole body', () => {
     const body = 'The secret body of a gated post.'
-    assert.strictEqual(gating.publicExcerpt(body, body, 'members', false), null)
-    assert.strictEqual(gating.publicExcerpt(body, body, 'members', true), body)
-    assert.strictEqual(gating.publicExcerpt(body, body, 'public', false), body)
+    assert.strictEqual(gating.publicExcerpt(body, body, 'members', null), null)
+    assert.strictEqual(gating.publicExcerpt(body, body, 'members', { id: 1 }), body)
+    assert.strictEqual(gating.publicExcerpt(body, body, 'public', null), body)
     const long = 'word '.repeat(100)
-    assert.strictEqual(gating.publicExcerpt('word word word…', long, 'members', false), 'word word word…')
+    assert.strictEqual(gating.publicExcerpt('word word word…', long, 'members', null), 'word word word…')
 
-    const row = gating.withholdBody({ visibility: 'members', excerpt: body, content: body, content_html: `<p>${body}</p>` }, false)
+    const row = gating.withholdBody({ visibility: 'members', excerpt: body, content: body, content_html: `<p>${body}</p>` }, null)
     assert.strictEqual(row.excerpt, null)
     assert.strictEqual(row.content_html, null)
   })
@@ -678,7 +689,7 @@ describe('newsletters', () => {
     assert.ok('sent' in right.body)
     delete process.env.CRON_SECRET
 
-    assert.match(read('src/routes/api/cron.ts'), /'\/api\/cron\/newsletters', newslettersCronEndpoint/)
+    assert.match(read(`${FEATURE}/routes.ts`), /'\/api\/cron\/newsletters', newslettersCronEndpoint/)
   })
 
   test('a test send goes to the signed-in account only, and is limited', async () => {
@@ -695,7 +706,6 @@ describe('newsletters', () => {
   })
 
   test('last: the post.updated listener queues it when a scheduled post goes live', async () => {
-    await load('src/hooks.ts')
     const later = await addPost(ids.editor, { title: 'Scheduled letter', send_newsletter: 1 })
     await hooks.fire(HOOKS.POST_UPDATED, { post: { id: later }, scheduled: true })
     const send = await newsletter.newsletterFor(later)
@@ -770,7 +780,7 @@ describe('the admin member list', () => {
   })
 
   test('is behind user.manage, after auth', () => {
-    const routes = read('src/routes/api/members.ts')
+    const routes = read(`${FEATURE}/routes.ts`)
     assert.match(routes, /const manage = \[auth, requireCapability\('user\.manage'\)\]/)
     for (const path of ["'/api/members'", "'/api/members/export'", "'/api/members/import'", "'/api/members/:id'", "'/api/newsletters'"]) {
       assert.match(routes, new RegExp(`${path.replace(/[/:]/g, m => '\\' + m)}, \\.\\.\\.manage`), `${path} is managed`)

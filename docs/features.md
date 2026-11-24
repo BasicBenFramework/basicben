@@ -1,7 +1,7 @@
 # Features
 
-A feature is something the CMS does that the core does not need: analytics
-today, and members, newsletters and the reference theme next. Each one is a
+A feature is something the CMS does that the core does not need: analytics,
+and members with their newsletters, today; the reference theme next. Each one is a
 folder in `src/features/` that plugs into the core through a small host. Delete
 the folder and its line in each of the three lists, and the core still builds,
 passes its tests and runs. `npm test` checks that on every import.
@@ -52,19 +52,58 @@ plain Node, without booting the server or a database.
 | `host.settings.define({ key: { group, check } })` | Opens `PUT /api/settings` to the feature's keys. Validators are `checks` in `helpers/site-settings.ts`. A key core already owns is refused at boot |
 | `host.cron.task(name, everySeconds, run)` | Runs `run` at most that often, as `<feature>:<name>` |
 | `host.health.check(name, run)` | Adds to the site health page. Return `null` to add nothing; a check that throws shows as a warning |
-| `host.hooks` | The framework's hooks |
+| `host.access.policy({ levels, headers, identify, mayRead })` | Become the site's one access policy (below). A second registration throws at boot |
+| `host.hooks` | The framework's hooks. A `post.creating` / `post.updating` filter may refuse a save with `{ cancel: true, reason, status: 403 }`; any other status is 422 |
 
 ## The admin host
 
 | Call | Does |
 |---|---|
 | `admin.page(path, Component)` | The screen for a page the manifest declares. A page not in the manifest is refused, so the menu and the routes cannot disagree |
-| `admin.fill(slot, Component)` | Adds to a named place in a core screen |
+| `admin.fill(slot, Component)` | Adds to a named place in a core screen. The one slot is `post.editor.sidebar` (below) |
 | `admin.dictionaries({ es: () => import('./i18n/es') })` | Translations, merged over the admin's own when the language loads |
 
 A manifest page's `label` and `section` go through `t()` like core's menu, so
 they belong in the feature's dictionary. A page needs an `iconPath`, an SVG
 path on the admin's 24×24 grid, because core's icon set does not know it.
+
+## Access
+
+Who may read a restricted post is split in two. Core owns the mechanism in
+`helpers/access.ts` and `helpers/gating.ts`: every surface that serves a body
+(the content API, the feeds, the built-in blog, the theme) withholds it the
+same way, with the body, custom fields and a whole-body excerpt removed,
+`gated` set and the response marked private. One feature owns the policy:
+
+```ts
+host.access.policy({
+  levels: ['members', 'paid'],     // offered in the editor, beside public
+  headers: ['X-Member-Token'],     // treated like Authorization for caching
+  identify: (req) => reader | null,
+  mayRead: (post, reader) => boolean
+})
+```
+
+- **Deny by default.** With no policy, public posts are readable and nothing
+  else is. A site that removes the members feature keeps its members-only
+  posts withheld, from everyone.
+- **A policy that throws** denies, and its reader counts as anonymous.
+- **The editor** accepts `public`, a level the policy offers, or the level
+  the post already has, so a post saved under a removed feature can still be
+  edited without being published by accident.
+
+CORS's `allowedHeaders` stays in `basicben.config.js`; the config loads
+before features do.
+
+## The post editor's sidebar
+
+A `post.editor.sidebar` fill gets `PostEditorSidebarProps`: `kind`, `postId`,
+the `record` as loaded, `values` (the post's `visibility` and anything fills
+have set) and `onChange(changes)`. Whatever a fill sets is sent with the next
+save. Core does not know what it means; the feature's server half reads it
+from the request in a `post.creating` / `post.updating` filter, which runs
+inside core's save, so a post that has never been saved can carry it too.
+That is how the members feature saves `send_newsletter`.
 
 ## Cron
 
@@ -80,7 +119,8 @@ is shared by every serverless instance. A task that throws is logged, recorded
 and retried at its next interval. Tasks run one after another within a 25
 second budget, and anything left is due at the next tick.
 
-`/api/cron/maintenance` is kept as an alias of the tick.
+`/api/cron/maintenance` and the members feature's `/api/cron/newsletters`
+are kept as aliases.
 
 On Vercel, schedule the tick in `vercel.json`. The Hobby plan allows one run a
 day, which is enough for the analytics purge. It is not enough for scheduled

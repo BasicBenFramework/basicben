@@ -4,7 +4,8 @@
  */
 import type { AdminFeature } from './host'
 import analytics from '../features/analytics/admin'
+import members from '../features/members/admin'
 
-const features: AdminFeature[] = [analytics]
+const features: AdminFeature[] = [analytics, members]
 
 export default features

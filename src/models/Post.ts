@@ -27,7 +27,7 @@ interface CreatePostData {
   twitter_image?: number | null
   canonical_url?: string | null
   noindex?: number
-  visibility?: 'public' | 'members' | 'paid'
+  visibility?: string
   send_newsletter?: number
   /** Content type key (migration 038). Absent means `post`. */
   post_type?: string
@@ -57,7 +57,7 @@ interface UpdatePostData {
   twitter_image?: number | null
   canonical_url?: string | null
   noindex?: number
-  visibility?: 'public' | 'members' | 'paid'
+  visibility?: string
   send_newsletter?: number
   post_type?: string
   fields?: string | null

@@ -1,23 +1,13 @@
-import { MemberController } from '../../controllers/MemberController'
-import { MemberAdminController } from '../../controllers/MemberAdminController'
-import { auth } from '../../middleware/auth'
-import { requireMember } from '../../middleware/member-auth'
-import {
-  memberMagicLinkLimit,
-  memberVerifyLimit,
-  memberAccountLimit,
-  memberUnsubscribeLimit
-} from '../../middleware/rate-limits'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
-import { Post } from '../../models/Post'
+import { MemberController } from './MemberController.ts'
+import { MemberAdminController } from './MemberAdminController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { requireMember } from './middleware.ts'
+import { memberMagicLinkLimit, memberVerifyLimit, memberAccountLimit, memberUnsubscribeLimit } from './rate-limits.ts'
+import { newslettersCronEndpoint } from './newsletter.ts'
+import { Post } from '../../models/Post.ts'
+import type { Router } from '../../host'
 import type { Request } from '../../types'
-
-interface Router {
-  get: (path: string, ...handlers: Function[]) => void
-  post: (path: string, ...handlers: Function[]) => void
-  put: (path: string, ...handlers: Function[]) => void
-  delete: (path: string, ...handlers: Function[]) => void
-}
 
 /**
  * Members, newsletters, and their admin.
@@ -32,7 +22,7 @@ interface Router {
  * route. `auth` refuses member sessions outright: they are signed with a
  * different key and never verify as an admin session.
  */
-export default (router: Router) => {
+export function memberRoutes(router: Router): void {
   // --- Readers (cross-origin, bearer tokens, no cookies) ---------------------
   router.post('/api/v1/members/magic-link', memberMagicLinkLimit, MemberController.magicLink)
   router.post('/api/v1/members/verify', memberVerifyLimit, MemberController.verify)
@@ -71,4 +61,8 @@ export default (router: Router) => {
 
   router.get('/api/posts/:id/newsletter', auth, editablePost, MemberAdminController.status)
   router.post('/api/posts/:id/newsletter/test', auth, editablePost, MemberAdminController.test)
+
+  // Kept from before the cron tick, which now sends newsletters too. Sends
+  // the next batch now (`?limit=`, default 100), whether or not one is due.
+  router.get('/api/cron/newsletters', newslettersCronEndpoint)
 }

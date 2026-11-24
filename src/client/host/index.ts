@@ -20,6 +20,25 @@ export interface AdminFeature {
 /** Named places in core screens that features may add to. */
 export type SlotName = 'post.editor.sidebar'
 
+/**
+ * What the post editor gives a `post.editor.sidebar` fill.
+ *
+ * `values` holds the post's `visibility` and whatever fields fills have set
+ * this session; `onChange` sets them, and the editor sends them with the next
+ * save (posts only). Core does not know what they mean: the server-side half
+ * of the feature does, through the `post.creating` / `post.updating` filters.
+ */
+export interface PostEditorSidebarProps {
+  kind: 'post' | 'page'
+  /** Null until the post is first saved. */
+  postId: number | null
+  /** The post as loaded, or null for a new one. */
+  record: Record<string, unknown> | null
+  values: Record<string, unknown>
+  disabled: boolean
+  onChange(changes: Record<string, unknown>): void
+}
+
 export interface AdminHost {
   /** The screen for a page the feature's manifest declares. */
   page(path: string, component: ComponentType<any>): void
@@ -51,6 +70,11 @@ export function registerAdminFeatures(features: AdminFeature[], manifests: Array
       }
     })
   }
+}
+
+/** Whether any feature fills a slot. */
+export function hasFills(name: SlotName): boolean {
+  return (fills.get(name)?.length ?? 0) > 0
 }
 
 export function featurePages(): Array<[string, ComponentType<any>]> {

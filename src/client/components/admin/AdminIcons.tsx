@@ -94,7 +94,6 @@ const paths: Record<string, React.ReactNode> = {
   ),
   taxonomies: (<><path d="M4 6h16M4 12h10M4 18h6" /><circle cx="18" cy="16" r="3" /></>),
   contentTypes: (<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>),
-  members: (<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></>),
   health: <path d="M3 12h4l2-5 4 10 2-5h6" />,
   tools: (
     <>
@@ -132,8 +131,7 @@ const byPath: Record<string, string> = {
   '/admin/settings': 'settings',
   '/admin/users': 'users',
   '/admin/tools': 'tools',
-  '/admin/health': 'health',
-  '/admin/members': 'members'
+  '/admin/health': 'health'
 }
 
 interface AdminIconProps {

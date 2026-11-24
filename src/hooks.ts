@@ -19,8 +19,6 @@ import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { deliver } from '@basicbenframework/core/webhooks'
 import { Settings } from './models/Settings.ts'
 import { startCronInterval } from './host/cron.ts'
-import { queueNewsletterFor, processNewsletterQueue, kickNewsletterQueue } from './helpers/newsletter.ts'
-import { pruneMagicLinks } from './helpers/member-auth.ts'
 
 /**
  * Trim titles before a post is written.
@@ -112,49 +110,3 @@ for (const [event, kind] of CONTENT_EVENTS) {
  * is no process to keep a timer, so a platform cron calls GET /api/cron/tick.
  */
 hooks.on(HOOKS.SERVER_STARTED, async () => startCronInterval(), { name: 'cron:interval' })
-
-/**
- * Email a post to members when it goes live, if its author asked.
- *
- * Both events, because a post can go live through either: created already
- * published, or updated into it — by the editor, a bulk action, or the
- * publish-due tick announcing a scheduled post whose time came. The listener
- * only *queues*; `queueNewsletterFor` checks the post is live, asked for a
- * send and has none yet, so firing it on every save is harmless. See
- * helpers/newsletter.ts.
- */
-for (const event of [HOOKS.POST_CREATED, HOOKS.POST_UPDATED]) {
-  hooks.on(
-    event,
-    async (payload: { post?: { id?: number } }) => {
-      const id = Number(payload?.post?.id)
-      if (!Number.isInteger(id)) return
-
-      const send = await queueNewsletterFor(id)
-      // Start sending now rather than at the next tick. In the background: the
-      // editor's save should not wait on a mail provider.
-      if (send && send.status !== 'sent') kickNewsletterQueue(25)
-    },
-    { name: `newsletter:${event}` }
-  )
-}
-
-/**
- * Send queued newsletters on a server that stays up, a batch a minute.
- *
- * Serverless hosts have no process to run an interval in; there
- * `GET /api/cron/newsletters` (and the admin's opportunistic tick) do the
- * same job.
- */
-hooks.on(
-  HOOKS.SERVER_STARTED,
-  async () => {
-    if (process.env.VERCEL) return
-    const tick = () =>
-      processNewsletterQueue(100)
-        .then(() => pruneMagicLinks())
-        .catch((err) => console.error('[newsletter]', err.message))
-    setInterval(tick, 60_000).unref()
-  },
-  { name: 'newsletter:interval' }
-)

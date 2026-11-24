@@ -13,6 +13,7 @@
 import { hooks } from '@basicbenframework/core/hooks'
 import { defineSettings, type SettingDefinition } from '../helpers/site-settings.ts'
 import type { HealthCheck } from '../helpers/health.ts'
+import { setAccessPolicy, type AccessPolicy, type Viewer } from '../helpers/access.ts'
 
 /** The router as route files see it. */
 export interface Router {
@@ -54,6 +55,10 @@ export interface Host {
   health: {
     /** Add to the site-health page. Return null to add nothing. */
     check(name: string, run: HealthCheckFn): void
+  }
+  access: {
+    /** Become the site's one access policy (helpers/access.ts). A second registration throws. */
+    policy<V extends Viewer>(policy: AccessPolicy<V>): void
   }
 }
 
@@ -101,6 +106,11 @@ function hostFor(feature: string): Host {
     health: {
       check(name, run) {
         healthChecks.push({ name: `${feature}:${name}`, run })
+      }
+    },
+    access: {
+      policy(policy) {
+        setAccessPolicy(policy)
       }
     }
   }

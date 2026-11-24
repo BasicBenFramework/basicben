@@ -3,7 +3,7 @@
  *
  * Called by headless front ends on other origins, so everything is bearer
  * tokens in headers and JSON bodies — no cookies, no redirects. The session
- * this hands out is a member session (helpers/member-auth.ts), which no admin
+ * this hands out is a member session (session.ts), which no admin
  * route accepts.
  *
  * Two rules shape the sign-in endpoint, the same two that shape password
@@ -13,10 +13,10 @@
  */
 
 import { sendMail, renderMail } from '@basicbenframework/core/mail'
-import { Member, memberProfile, looksLikeEmail } from '../models/Member.ts'
-import { Settings } from '../models/Settings.ts'
-import { MEMBER_SIGNUP_MODES } from '../helpers/site-settings.ts'
-import { siteUrl } from '../helpers/site.ts'
+import { Member, memberProfile, looksLikeEmail } from './Member.ts'
+import { Settings } from '../../models/Settings.ts'
+import { MEMBER_SIGNUP_MODES } from './settings.ts'
+import { siteUrl } from '../../helpers/site.ts'
 import {
   issueMagicLink,
   redeemMagicLink,
@@ -24,9 +24,9 @@ import {
   readMemberUnsubscribeToken,
   normalizeEmail,
   MAGIC_LINK_TTL_MS
-} from '../helpers/member-auth.ts'
-import { emailSendLimiter } from '../middleware/rate-limits.ts'
-import type { Request, Response } from '../types'
+} from './session.ts'
+import { emailSendLimiter } from '../../middleware/rate-limits.ts'
+import type { Request, Response } from '../../types'
 
 /** The one answer the magic-link endpoint gives, whoever asks. */
 export const MAGIC_LINK_SENT = 'If that address can sign in, a link is on its way. It works once, for an hour.'

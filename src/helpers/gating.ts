@@ -1,48 +1,31 @@
 /**
- * Members-only posts: which ones are gated, and what a reader without access
+ * Restricted posts: which ones are gated, and what a reader without access
  * gets instead of the body.
  *
  * The rule in one place, for the same reason `livePost` is in one place: the
  * content API, the feeds and the built-in blog all serve post bodies, and a
- * second copy of "is this gated?" is the copy that forgets `paid`.
+ * second copy of "is this gated?" is the copy that forgets a level. What a
+ * level means is the access policy's business (helpers/access.ts); what
+ * withholding removes is decided here.
+ *
+ * `viewer` below is what `viewerOf(req)` returned: null for an anonymous
+ * reader.
  *
  * No database access, so tests import it directly.
  */
 
-/** Who may read a post's body. */
-export const POST_VISIBILITIES = ['public', 'members', 'paid'] as const
-export type PostVisibility = (typeof POST_VISIBILITIES)[number]
+import { isRestricted, mayRead, visibilityOf } from './access.ts'
 
-export function isPostVisibility(value: unknown): value is PostVisibility {
-  return typeof value === 'string' && (POST_VISIBILITIES as readonly string[]).includes(value)
-}
+export { visibilityOf }
 
-/** A stored value as a visibility. Anything unrecognised is public, which is what the column defaults to. */
-export function visibilityOf(value: unknown): PostVisibility {
-  return isPostVisibility(value) ? value : 'public'
-}
-
-/**
- * Does reading this post's body need a member session?
- *
- * `paid` is treated exactly like `members` until paid subscriptions exist —
- * see migration 034. When they do, this is the function that learns about
- * tiers, and every surface that serves a body follows.
- */
+/** Does reading this post's body need more than an anonymous visit? */
 export function isGated(visibility: unknown): boolean {
-  const value = visibilityOf(visibility)
-  return value === 'members' || value === 'paid'
+  return isRestricted(visibility)
 }
 
-/**
- * Whether *this reader* may have the body.
- *
- * `member` is whether the request carried a valid member session. Kept as a
- * boolean rather than a member record: nothing here should depend on who the
- * member is until tiers exist.
- */
-export function mayReadBody(visibility: unknown, member: boolean): boolean {
-  return !isGated(visibility) || member
+/** Whether *this reader* may have the body of a post with this visibility. */
+export function mayReadBody(visibility: unknown, viewer: unknown): boolean {
+  return mayRead({ visibility }, viewer)
 }
 
 /**
@@ -53,15 +36,15 @@ export function mayReadBody(visibility: unknown, member: boolean): boolean {
  * the post in whichever format it forgot. Everything else — title, excerpt,
  * image, dates — stays, because a listing of what members get is the point.
  */
-export function withholdBody<T extends Record<string, unknown>>(row: T, member: boolean): T & { gated: boolean } {
-  if (mayReadBody(row.visibility, member)) return { ...row, gated: false }
+export function withholdBody<T extends Record<string, unknown>>(row: T, viewer: unknown): T & { gated: boolean } {
+  if (mayRead(row, viewer)) return { ...row, gated: false }
 
   // `content_html` is the render, so its text is the body's text. Stripped
   // crudely here — this file stays free of imports — which only has to be
   // good enough to tell a teaser from the whole post.
   const html = String(row.content_html ?? row.content ?? '')
   const text = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-  const excerpt = publicExcerpt(row.excerpt as string | null | undefined, text, row.visibility, member)
+  const excerpt = publicExcerpt(row.excerpt as string | null | undefined, text, row.visibility, viewer)
 
   return { ...row, ...('excerpt' in row ? { excerpt } : {}), content: null, content_html: null, gated: true }
 }
@@ -81,10 +64,10 @@ export function publicExcerpt(
   excerpt: string | null | undefined,
   bodyText: string | null | undefined,
   visibility: unknown,
-  member: boolean
+  viewer: unknown
 ): string | null {
   if (!excerpt) return excerpt ?? null
-  if (mayReadBody(visibility, member)) return excerpt
+  if (mayReadBody(visibility, viewer)) return excerpt
 
   const squash = (value: string) => value.replace(/\s+/g, ' ').trim().replace(/(\.\.\.|…)$/, '').trim()
   const text = squash(bodyText ?? '')

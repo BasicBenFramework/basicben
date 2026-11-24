@@ -7,8 +7,8 @@
  */
 
 import { getDb, query } from '@basicbenframework/core/db'
-import { normalizeEmail } from '../helpers/member-auth.ts'
-import { parseStoredTimestamp } from './visibility.ts'
+import { normalizeEmail } from './session.ts'
+import { parseStoredTimestamp } from '../../models/visibility.ts'
 
 export type MemberStatus = 'active' | 'unsubscribed'
 export const MEMBER_STATUSES: MemberStatus[] = ['active', 'unsubscribed']

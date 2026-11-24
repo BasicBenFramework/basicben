@@ -2,7 +2,7 @@
  * Member sessions on a request.
  *
  * Readers signed in with a magic link carry a member session (see
- * helpers/member-auth.ts). It is never an admin credential and nothing here
+ * session.ts). It is never an admin credential and nothing here
  * sets `req.user` or `req.userId` — those belong to `auth`, and a route that
  * checks them cannot be satisfied by a member whatever this file does.
  *
@@ -23,9 +23,9 @@
  * same autoloader, which uses Node's own `import()`.
  */
 
-import { readMemberSession, MEMBER_HEADER } from '../helpers/member-auth.ts'
-import { Member, type MemberRow } from '../models/Member.ts'
-import type { Request, Response } from '../types'
+import { readMemberSession, MEMBER_HEADER } from './session.ts'
+import { Member, type MemberRow } from './Member.ts'
+import type { Request, Response } from '../../types'
 
 type Next = () => void
 
@@ -68,19 +68,6 @@ export async function memberFromRequest(req: Request): Promise<MemberRow | null>
   const member = await resolveMember(memberToken(req))
   req.member = member
   return member
-}
-
-/**
- * Identify the member if there is one, and carry on either way.
- *
- * For reads that are served to everyone but serve members more — a gated
- * post's body. A bad or revoked token is treated as none: the request was
- * allowed without one, and a reader whose session ended sees what anyone sees.
- */
-export const optionalMember = async (req: Request, _res: Response, next: Next) => {
-  const member = await memberFromRequest(req)
-  if (member) await Member.touch(member).catch(() => {})
-  next()
 }
 
 /** Require a member session. */

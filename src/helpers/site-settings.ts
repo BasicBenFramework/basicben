@@ -17,7 +17,7 @@
 import { isHttpUrl, isRelativePath, MAX_URL_LENGTH } from './content-paths.ts'
 
 // Core's groups, plus any a feature names when it defines settings.
-export type SettingGroup = 'general' | 'reading' | 'discussion' | 'integrations' | 'identity' | 'locale' | 'code_injection' | 'members' | (string & {})
+export type SettingGroup = 'general' | 'reading' | 'discussion' | 'integrations' | 'identity' | 'locale' | 'code_injection' | (string & {})
 
 /** A validator returns the value to store, or an error message. */
 export type Check = (value: unknown) => { value: string } | { error: string }
@@ -175,15 +175,6 @@ const httpUrlOrBlank: Check = (value) => {
 }
 
 /**
- * Who may become a member. See MemberController.
- *
- * - `open`: anyone may sign up with a magic link.
- * - `invite`: only addresses an admin added or imported may sign in.
- * - `closed`: no magic links at all. Existing sessions run until they end.
- */
-export const MEMBER_SIGNUP_MODES = ['open', 'invite', 'closed'] as const
-
-/**
  * The known settings.
  *
  * Code injection is HTML a front end inserts verbatim into every page's
@@ -222,16 +213,7 @@ export const SETTINGS: Record<string, SettingDefinition> = {
   admin_locale: { group: 'locale', check: locale },
 
   code_injection_head: { group: 'code_injection', check: text(100_000) },
-  code_injection_foot: { group: 'code_injection', check: text(100_000) },
-
-  // Members and newsletters. The sign-in URL is the front-end page a magic
-  // link opens — a setting, not a request parameter, so a caller can never
-  // have a link (and the token in it) delivered to a page of their choosing.
-  members_signup: { group: 'members', check: oneOf(MEMBER_SIGNUP_MODES) },
-  members_signin_url: { group: 'members', check: httpUrlOrBlank },
-  newsletter_sender_name: { group: 'members', check: text(100) },
-  newsletter_reply_to: { group: 'members', check: emailOrBlank },
-  newsletter_footer: { group: 'members', check: text(2000) }
+  code_injection_foot: { group: 'code_injection', check: text(100_000) }
 }
 
 /**

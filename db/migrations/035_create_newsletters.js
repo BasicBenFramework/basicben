@@ -17,7 +17,7 @@
  *
  * - `status`: `pending`, `sending` (claimed), `sent`, `failed` (gave up after
  *   the maximum attempts, or was interrupted mid-send — see
- *   helpers/newsletter.ts for why an interrupted send is not retried) or
+ *   src/features/members/newsletter.ts for why an interrupted send is not retried) or
  *   `skipped` (the member unsubscribed or was deleted before their turn).
  * - `email` is the address at enqueue time, kept for the record; the mail goes
  *   to the member's current address.

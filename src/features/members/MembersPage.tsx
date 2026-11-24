@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import { Pagination, type PageMeta } from '../../components/admin/Pagination'
-import { useT, currentLocale, slots } from '../../i18n'
+import { api } from '../../helpers/api'
+import AdminLayout from '../../client/layouts/AdminLayout'
+import { Pagination, type PageMeta } from '../../client/components/admin/Pagination'
+import { useT, currentLocale, slots } from '../../client/i18n'
 
 interface Member {
   id: number

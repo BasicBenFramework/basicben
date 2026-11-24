@@ -20,7 +20,6 @@ const strings: Dictionary = {
   'Navigation': 'Navegación',
   'Redirects': 'Redirecciones',
   'Users': 'Usuarios',
-  'Members': 'Miembros',
   'Tools': 'Herramientas',
   'Site health': 'Estado del sitio',
   'Profile': 'Perfil',

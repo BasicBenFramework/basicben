@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api } from '../../../helpers/api'
-import { useT } from '../../i18n'
+import { api } from '../../helpers/api'
+import { useT } from '../../client/i18n'
+import type { PostEditorSidebarProps } from '../../client/host'
 
 /**
  * Who may read a post, and whether it is emailed to members.
@@ -25,15 +26,13 @@ interface NewsletterSend {
   completed_at: string | null
 }
 
-interface PostAccessBoxProps {
-  postId: number | null
-  visibility: Visibility
-  sendNewsletter: boolean
-  disabled?: boolean
-  onChange: (changes: { visibility?: Visibility; send_newsletter?: boolean }) => void
-}
+/** The editor's sidebar fill (see PostEditorSidebarProps). Posts only. */
+export default function PostAccessBox({ kind, postId, record, values, disabled, onChange }: PostEditorSidebarProps) {
+  const visibility = String(values.visibility || 'public') as Visibility
+  const sendNewsletter = 'send_newsletter' in values
+    ? Boolean(values.send_newsletter)
+    : Boolean(Number(record?.send_newsletter ?? 0))
 
-export default function PostAccessBox({ postId, visibility, sendNewsletter, disabled, onChange }: PostAccessBoxProps) {
   const { t } = useT()
   const [send, setSend] = useState<NewsletterSend | null>(null)
   const [maySend, setMaySend] = useState(true)
@@ -73,6 +72,8 @@ export default function PostAccessBox({ postId, visibility, sendNewsletter, disa
       setTesting(false)
     }
   }
+
+  if (kind !== 'post') return null
 
   return (
     <div className="admin-card">

@@ -4,6 +4,7 @@ import {
   contentFormat
 } from '../models/PublicContent'
 import { taxonomyFilters } from '../models/Taxonomy'
+import { viewerOf } from '../helpers/access'
 import type { Request, Response } from '../types'
 
 /**
@@ -29,8 +30,8 @@ export const PublicApiController = {
       author: req.query.author,
       search: req.query.search,
       format: contentFormat(req.query),
-      // Set by `optionalMember` in v1.ts. Gated bodies are withheld without it.
-      member: Boolean(req.member),
+      // Identified by `identifyViewer` in v1.ts; restricted bodies are withheld without a reader the policy lets in.
+      viewer: await viewerOf(req),
       // Content types and custom taxonomies. `type` defaults to `post` in the
       // model, so leaving it off is the listing every consumer already had.
       type: req.query.type || undefined,
@@ -53,7 +54,7 @@ export const PublicApiController = {
   },
 
   async post(req: Request, res: Response) {
-    const post = await PublicContent.post(req.params.slug, contentFormat(req.query), { member: Boolean(req.member), type: req.query.type || 'post' })
+    const post = await PublicContent.post(req.params.slug, contentFormat(req.query), { viewer: await viewerOf(req), type: req.query.type || 'post' })
 
     if (!post) {
       return res.json({ error: 'Not found' }, 404)

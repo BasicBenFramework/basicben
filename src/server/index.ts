@@ -40,7 +40,6 @@ import redirectsRoutes from '../routes/api/redirects'
 import snippetsRoutes from '../routes/api/snippets'
 import exportRoutes from '../routes/api/export'
 import opsRoutes from '../routes/api/ops'
-import membersRoutes from '../routes/api/members'
 import contentModelRoutes from '../routes/api/content-model'
 import themeRoutes from '../routes/theme'
 
@@ -86,7 +85,6 @@ navigationRoutes(router)
 redirectsRoutes(router)
 exportRoutes(router)
 opsRoutes(router)
-membersRoutes(router)
 // The public content API. Versioned because its consumers are outside this
 // repository, and read-only because the admin API already owns the writes.
 v1Routes(router)

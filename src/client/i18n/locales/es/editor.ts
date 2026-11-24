@@ -102,31 +102,9 @@ const strings: Dictionary = {
   'Could not add that {term}.': 'No se pudo añadir el término ({term}).',
   'No {terms} yet.': 'Aún no hay {terms}.',
 
-  // Access and newsletter
-  'Access & newsletter': 'Acceso y boletín',
-  'Who can read it': 'Quién puede leerla',
-  'Everyone': 'Todos',
-  'Members only': 'Solo miembros',
-  'Paid members (treated as members for now)': 'Miembros de pago (por ahora, tratados como miembros)',
-  'The whole post is public.': 'Toda la entrada es pública.',
-  'Title, excerpt and image stay public; the body needs a member sign-in.':
-    'El título, el extracto y la imagen siguen siendo públicos; para leer el cuerpo hay que iniciar sesión como miembro.',
-  'Newsletter sent': 'Boletín enviado',
-  'Newsletter sending': 'Enviando boletín',
-  '{sent} of {total} delivered.': '{sent} de {total} entregados.',
-  '{sent} of {total} delivered, {failed} failed.': '{sent} de {total} entregados, {failed} con error.',
-  '{sent} of {total} delivered, {skipped} skipped.': '{sent} de {total} entregados, {skipped} omitidos.',
-  '{sent} of {total} delivered, {failed} failed, {skipped} skipped.': '{sent} de {total} entregados, {failed} con error, {skipped} omitidos.',
-  'A post is only ever sent once.': 'Una entrada solo se envía una vez.',
-  'Email to subscribed members when it goes live': 'Enviar por correo a los miembros suscritos cuando se publique',
-  'Sent once, when the post is published (or when its schedule arrives).':
-    'Se envía una sola vez, cuando se publica la entrada (o cuando llega su fecha programada).',
-  'An editor or admin can send a post as a newsletter.': 'Un editor o administrador puede enviar una entrada como boletín.',
   'Sending…': 'Enviando…',
-  'Send a test to me': 'Enviarme una prueba',
-  'Uses the last saved version.': 'Usa la última versión guardada.',
-  'Sent.': 'Enviado.',
-  'Could not send the test.': 'No se pudo enviar la prueba.',
+  'Readable by: {level}. This site no longer offers that level, so the body is withheld from every reader.':
+    'Legible para: {level}. Este sitio ya no ofrece ese nivel, así que el cuerpo se oculta a todos los lectores.',
 
   // Featured image and media
   '+ Set featured image': '+ Establecer imagen destacada',

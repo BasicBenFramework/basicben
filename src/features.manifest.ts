@@ -7,7 +7,8 @@
  */
 import type { FeatureManifest } from './host/manifest.ts'
 import analytics from './features/analytics/manifest.ts'
+import members from './features/members/manifest.ts'
 
-const manifests: FeatureManifest[] = [analytics]
+const manifests: FeatureManifest[] = [analytics, members]
 
 export default manifests

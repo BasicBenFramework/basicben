@@ -85,9 +85,9 @@ export interface Post {
   twitter_image?: number | null
   canonical_url?: string | null
   noindex?: number | boolean
-  /** Who may read the body: `public`, `members`, or `paid` (enforced as members for now). */
-  visibility?: 'public' | 'members' | 'paid'
-  /** The author asked for this post to be emailed to members when it goes live. */
+  /** Who may read the body: `public`, or a level the access policy defines (helpers/access.ts). */
+  visibility?: string
+  /** Written by the members feature: the author asked for this post to be emailed when it goes live. */
   send_newsletter?: number | boolean
   /** Content type key (migration 038). `post` for every post that predates types. */
   post_type?: string
@@ -230,11 +230,11 @@ export interface Request {
    */
   apiToken?: { id: number; name: string; scopes: string[] }
   /**
-   * Set by the member middleware: the signed-in reader, or null when the
-   * request carried no valid member session. Never an admin principal —
-   * nothing that sets this touches `user` or `userId`.
+   * The reader the access policy identified (helpers/access.ts), or null.
+   * Opaque to core. Never an admin principal: nothing that sets this touches
+   * `user` or `userId`.
    */
-  member?: import('../models/Member').MemberRow | null
+  viewer?: object | null
 }
 
 export interface Response {
