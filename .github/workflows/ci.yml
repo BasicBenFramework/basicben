@@ -19,15 +19,18 @@ jobs:
 
       # The tests read the framework's own source: hook coverage scans the
       # installed core for call sites, and the API reference generator imports
-      # SCOPES from it. Both were satisfied by the vendored copy until core
-      # became an installed dependency, which is when this job started failing.
-      # Production dependencies are enough — nothing here needs tsc or the
-      # React types.
+      # SCOPES from it. The import-extensions test parses src/ with the
+      # TypeScript compiler, a dev dependency, so this installs everything.
       - name: Install dependencies
-        run: npm ci --omit=dev
+        run: npm ci
 
       - name: Run tests
         run: npm test
+
+      # src/ compiled to lib/ the way the package will ship it (phase 4b). It
+      # must keep compiling, with no type errors, before anything depends on it.
+      - name: Compile lib/
+        run: npm run build:lib
 
   smoke:
     runs-on: ubuntu-latest
