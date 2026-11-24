@@ -77,13 +77,16 @@ fi
   || { cat "$WORK_DIR/pack.log"; fail "npm pack of the CMS failed"; }
 CMS_TGZ="$(cd "$WORK_DIR" && ls basicbenframework-cms-*.tgz | head -1)"
 [ -n "$CMS_TGZ" ] || fail "npm pack wrote no CMS tarball"
-CMS_FILES="$(tar -tzf "$WORK_DIR/$CMS_TGZ" | wc -l | tr -d ' ')"
+# Listed once, then searched. Piping tar into `grep -q` fails under pipefail
+# on Linux: grep exits at the first match and GNU tar reports a write error.
+tar -tzf "$WORK_DIR/$CMS_TGZ" > "$WORK_DIR/cms-files.txt"
+CMS_FILES="$(wc -l < "$WORK_DIR/cms-files.txt" | tr -d ' ')"
 for shipped in package/lib/server/index.js package/lib/main.js package/lib/config.js package/lib/vite.js \
                package/lib/cli/index.mjs package/lib/client/styles.css package/mail/invitation.html \
                package/db/migrations/001_create_users.js; do
-  tar -tzf "$WORK_DIR/$CMS_TGZ" | grep -qx "$shipped" || fail "the CMS tarball is missing ${shipped#package/}"
+  grep -qx "$shipped" "$WORK_DIR/cms-files.txt" || fail "the CMS tarball is missing ${shipped#package/}"
 done
-if tar -tzf "$WORK_DIR/$CMS_TGZ" | grep -qE '^package/(src|tests|site)/'; then
+if grep -qE '^package/(src|tests|site)/' "$WORK_DIR/cms-files.txt"; then
   fail "the CMS tarball ships its source, tests or template"
 fi
 pass "packed the CMS ($CMS_FILES files)"
