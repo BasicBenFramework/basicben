@@ -3,6 +3,11 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/client",
   "framework": null,
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "{basicben.config.js,mail/**,db/migrations/**}"
+    }
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/feed.xml", "destination": "/api/index" },
