@@ -149,18 +149,19 @@ export default function AdminTaxonomies() {
   }
 
   return (
-    <AdminLayout title={t('Taxonomies')}>
+    <AdminLayout
+      title={t('Taxonomies')}
+      actions={
+        <button type="button" className="admin-btn admin-btn-primary" onClick={() => {
+          setEditingTaxonomy(null)
+          setTaxonomyForm(EMPTY_TAXONOMY)
+          setShowTaxonomyForm(true)
+        }}>{t('+ New taxonomy')}</button>
+      }
+    >
       <div className="admin-grid admin-grid-2">
         <div>
           <div className="admin-card">
-            <div className="admin-card-header">
-              <h2 className="admin-card-title">{t('Taxonomies')}</h2>
-              <button type="button" className="admin-btn admin-btn-primary" onClick={() => {
-                setEditingTaxonomy(null)
-                setTaxonomyForm(EMPTY_TAXONOMY)
-                setShowTaxonomyForm(true)
-              }}>{t('+ New taxonomy')}</button>
-            </div>
             <p style={{ color: 'var(--fg-muted)', marginTop: 0 }}>
               {t('Categories and tags are built in. Add others — a cuisine, a season — and choose which content types use them.')}
             </p>

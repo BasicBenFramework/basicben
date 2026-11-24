@@ -156,21 +156,19 @@ export default function AdminPosts() {
   const inTrash = filter === 'trash'
 
   return (
-    <AdminLayout title={plural}>
+    <AdminLayout
+      title={plural}
+      actions={type === 'post' ? (
+        <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
+          {t('+ New Post')}
+        </Link>
+      ) : (
+        <button type="button" className="admin-btn admin-btn-primary" onClick={() => navigateWithType(navigate, '/admin/posts/new', type)}>
+          {current?.singular_label ? t('+ New {name}', { name: current.singular_label }) : t('+ New entry')}
+        </button>
+      )}
+    >
       <div className="admin-card">
-        <div className="admin-card-header">
-          <h2 className="admin-card-title">{plural}</h2>
-          {type === 'post' ? (
-            <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
-              {t('+ New Post')}
-            </Link>
-          ) : (
-            <button type="button" className="admin-btn admin-btn-primary" onClick={() => navigateWithType(navigate, '/admin/posts/new', type)}>
-              {current?.singular_label ? t('+ New {name}', { name: current.singular_label }) : t('+ New entry')}
-            </button>
-          )}
-        </div>
-
         {/* One content type at a time. Shown only once a site has more than
             the built-in one, so a plain blog's screen is unchanged. */}
         {types.length > 1 && (

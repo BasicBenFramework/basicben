@@ -224,14 +224,13 @@ export default function AdminContentTypes() {
   }
 
   return (
-    <AdminLayout title={t('Content types')}>
+    <AdminLayout
+      title={t('Content types')}
+      actions={<button type="button" className="admin-btn admin-btn-primary" onClick={startNew}>{t('+ New type')}</button>}
+    >
       {message && <div className="admin-card" role="status">{message}</div>}
 
       <div className="admin-card">
-        <div className="admin-card-header">
-          <h2 className="admin-card-title">{t('Content types')}</h2>
-          <button type="button" className="admin-btn admin-btn-primary" onClick={startNew}>{t('+ New type')}</button>
-        </div>
         <p style={{ color: 'var(--fg-muted)', marginTop: 0 }}>
           {t('Each type is written in the same editor as posts and gets its own address on the public site.')}{' '}
           {slots(t('Types listed here appear in the content API as {code}.'), { code: <code>/api/v1/posts?type=key</code> })}

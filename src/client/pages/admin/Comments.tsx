@@ -186,7 +186,6 @@ export default function AdminComments() {
     <AdminLayout title={t('Comments')}>
       <div className="admin-card">
         <div className="admin-card-header" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
-          <h2 className="admin-card-title">{t('Comments')}</h2>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {TABS.map(({ key }) => (
               <button

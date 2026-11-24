@@ -70,7 +70,6 @@ const strings: Dictionary = {
   // Pages
   'Are you sure you want to delete this page?': '¿Seguro que quieres eliminar esta página?',
   'Failed to delete page': 'No se pudo eliminar la página',
-  'All Pages': 'Todas las páginas',
   '+ New Page': '+ Nueva página',
   'No pages yet. Create your first page!': 'Aún no hay páginas. ¡Crea tu primera página!',
   'Template': 'Plantilla',

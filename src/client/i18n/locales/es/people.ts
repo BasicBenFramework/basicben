@@ -76,6 +76,7 @@ const strings: Dictionary = {
   'Enable': 'Activar',
   'Disable': 'Desactivar',
   'users': 'usuarios',
+  '{count} account|{count} accounts': { one: '{count} cuenta', other: '{count} cuentas' },
   'Invite someone': 'Invitar a alguien',
   'Name (optional)': 'Nombre (opcional)',
   'Filled in on their sign-up form; they can change it': 'Se rellena en su formulario de registro; puede cambiarlo',

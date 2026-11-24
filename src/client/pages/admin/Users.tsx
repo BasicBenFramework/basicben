@@ -244,7 +244,10 @@ export default function AdminUsers() {
   }
 
   return (
-    <AdminLayout title={t('Users')}>
+    <AdminLayout
+      title={t('Users')}
+      description={meta ? tn('{count} account', '{count} accounts', meta.total) : undefined}
+    >
       <style>{userStyles}</style>
 
       {notice && (
@@ -284,11 +287,6 @@ export default function AdminUsers() {
       )}
 
       <div className="admin-card">
-        <div className="admin-card-header">
-          <h2 className="admin-card-title">{t('Users')}</h2>
-          {meta && <span className="users-count">{meta.total}</span>}
-        </div>
-
         <form className="users-row users-filters" onSubmit={handleSearch}>
           <input
             className="admin-input"

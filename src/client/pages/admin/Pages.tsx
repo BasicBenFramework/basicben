@@ -66,15 +66,15 @@ export default function AdminPages() {
   }
 
   return (
-    <AdminLayout title={t('Pages')}>
+    <AdminLayout
+      title={t('Pages')}
+      actions={
+        <Link href="/admin/pages/new" className="admin-btn admin-btn-primary">
+          {t('+ New Page')}
+        </Link>
+      }
+    >
       <div className="admin-card">
-        <div className="admin-card-header">
-          <h2 className="admin-card-title">{t('All Pages')}</h2>
-          <Link href="/admin/pages/new" className="admin-btn admin-btn-primary">
-            {t('+ New Page')}
-          </Link>
-        </div>
-
         {pages.length === 0 ? (
           <p style={{ color: 'var(--fg-muted)', textAlign: 'center', padding: '2rem' }}>
             {t('No pages yet. Create your first page!')}
