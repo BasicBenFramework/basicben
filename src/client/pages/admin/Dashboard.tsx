@@ -86,108 +86,96 @@ export default function AdminDashboard() {
     { label: t('Media Files'), value: stats?.media }
   ].filter((card): card is { label: string; value: number } => typeof card.value === 'number')
 
+  const newPost = (
+    <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
+      {t('New Post')}
+    </Link>
+  )
+
   if (loading) {
     return (
-      <AdminLayout title={t('Dashboard')}>
+      <AdminLayout title={t('Dashboard')} description={t('How the site is doing, and what changed recently.')}>
         <div className="admin-loading">{t('Loading...')}</div>
       </AdminLayout>
     )
   }
 
+  const shortcuts = [
+    { href: '/admin/pages/new', label: t('New Page'), sub: t('A page outside the post stream') },
+    { href: '/admin/media', label: t('Upload Media'), sub: t('Images and files for posts and pages') },
+    { href: '/admin/settings', label: t('Settings'), sub: t('Site name, reading and comments') },
+    { href: 'https://basicben.com/docs', label: t('Documentation'), sub: 'basicben.com/docs', external: true },
+    { href: '/', label: t('View Site'), sub: t('Open the public site') }
+  ]
+
   return (
-    <AdminLayout title={t('Dashboard')}>
-      {/* Stats Grid. The column count follows the number of cards, so the two
-          an author can see are not two cards and two empty quarters. */}
+    <AdminLayout
+      title={t('Dashboard')}
+      description={t('How the site is doing, and what changed recently.')}
+      actions={newPost}
+    >
+      {/* Stats. The column count follows the number of cards, so the two an
+          author can see are not two cards and two empty quarters. */}
       {cards.length > 0 && (
         <div className={`admin-grid admin-grid-${Math.min(4, Math.max(2, cards.length))}`}>
           {cards.map(card => (
             <div key={card.label} className="admin-stat-card">
-              <div className="admin-stat-value">{card.value}</div>
               <div className="admin-stat-label">{card.label}</div>
+              <div className="admin-stat-value">{card.value.toLocaleString(locale)}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Recent Posts */}
-      <div className="admin-card">
-        <div className="admin-card-header">
-          <h2 className="admin-card-title">{t('Recent Posts')}</h2>
-          <Link href="/admin/posts/new" className="admin-btn admin-btn-primary">
-            {t('New Post')}
-          </Link>
-        </div>
+      <div className="admin-grid admin-grid-2">
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h2 className="admin-card-title">{t('Recent Posts')}</h2>
+            <Link href="/admin/posts" className="admin-link">{t('View all')}</Link>
+          </div>
 
-        {recentPosts.length === 0 ? (
-          <p style={{ color: 'var(--fg-muted)' }}>{t('No posts yet. Create your first post!')}</p>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>{t('Title')}</th>
-                <th>{t('Status')}</th>
-                <th>{t('Date')}</th>
-                <th>{t('Actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
+          {recentPosts.length === 0 ? (
+            <p style={{ color: 'var(--fg-muted)', margin: 0 }}>{t('No posts yet. Create your first post!')}</p>
+          ) : (
+            <ul className="admin-list">
               {recentPosts.map(post => (
-                <tr key={post.id}>
-                  <td>{post.title}</td>
-                  <td>
+                <li key={post.id} className="admin-list-row">
+                  <div className="admin-list-main">
+                    <Link href={`/admin/posts/${post.id}/edit`} className="admin-list-title">{post.title}</Link>
+                    <span className="admin-list-sub">{new Date(post.created_at).toLocaleDateString(locale, { dateStyle: 'medium' })}</span>
+                  </div>
+                  <div className="admin-list-end">
                     <span className={`admin-badge ${post.published ? 'admin-badge-success' : 'admin-badge-warning'}`}>
                       {post.published ? t('Published') : t('Draft')}
                     </span>
-                  </td>
-                  <td>{new Date(post.created_at).toLocaleDateString(locale)}</td>
-                  <td>
-                    <Link href={`/admin/posts/${post.id}/edit`} className="admin-btn admin-btn-secondary">
-                      {t('Edit')}
-                    </Link>
-                  </td>
-                </tr>
+                  </div>
+                </li>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="admin-grid admin-grid-3">
-        <div className="admin-card">
-          <h3 className="admin-card-title">{t('Content')}</h3>
-          <div className="admin-stack">
-            <Link href="/admin/posts/new" className="admin-btn admin-btn-secondary">
-              {t('New Post')}
-            </Link>
-            <Link href="/admin/pages/new" className="admin-btn admin-btn-secondary">
-              {t('New Page')}
-            </Link>
-            <Link href="/admin/media" className="admin-btn admin-btn-secondary">
-              {t('Upload Media')}
-            </Link>
-          </div>
+            </ul>
+          )}
         </div>
 
         <div className="admin-card">
-          <h3 className="admin-card-title">{t('Extend')}</h3>
-          <div className="admin-stack">
-            <Link href="/admin/settings" className="admin-btn admin-btn-secondary">
-              {t('Settings')}
-            </Link>
+          <div className="admin-card-header">
+            <h2 className="admin-card-title">{t('Shortcuts')}</h2>
           </div>
-        </div>
-
-        <div className="admin-card">
-          <h3 className="admin-card-title">{t('Help')}</h3>
-          <div className="admin-stack">
-            <Link href="https://basicben.com/docs" target="_blank" rel="noopener noreferrer" className="admin-btn admin-btn-secondary">
-              {t('Documentation')}
-            </Link>
-            <Link href="/" className="admin-btn admin-btn-secondary">
-              {t('View Site')}
-            </Link>
-          </div>
+          <ul className="admin-list">
+            {shortcuts.map(item => (
+              <li key={item.href} className="admin-list-row">
+                <div className="admin-list-main">
+                  <Link
+                    href={item.href}
+                    className="admin-list-title"
+                    {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  >
+                    {item.label}
+                  </Link>
+                  <span className="admin-list-sub">{item.sub}</span>
+                </div>
+                <span className="admin-list-end" aria-hidden="true">{item.external ? '↗' : '→'}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </AdminLayout>

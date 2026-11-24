@@ -97,6 +97,10 @@ function bySection(items: MenuItem[]): Array<{ title?: string; items: MenuItem[]
 interface AdminLayoutProps {
   children: React.ReactNode
   title?: string
+  /** A line under the title saying what the page is for. */
+  description?: string
+  /** Buttons beside the title: the page's main action. */
+  actions?: React.ReactNode
 }
 
 type Appearance = 'system' | 'light' | 'dark'
@@ -109,7 +113,7 @@ function storedAppearance(): Appearance {
   return value === 'light' || value === 'dark' ? value : 'system'
 }
 
-export default function AdminLayout({ children, title }: AdminLayoutProps) {
+export default function AdminLayout({ children, title, description, actions }: AdminLayoutProps) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const currentPath = usePath()
@@ -238,8 +242,6 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 
       <div className={`admin-main ${sidebarOpen ? '' : 'expanded'}`}>
         <header className="admin-header">
-          {title && <h1 className="admin-page-title">{title}</h1>}
-
           <div className="admin-header-right">
             <div className="admin-appearance" role="group" aria-label={t('Appearance')}>
               {(['system', 'light', 'dark'] as Appearance[]).map(option => (
@@ -264,6 +266,15 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
         </header>
 
         <main className="admin-content">
+          {title && (
+            <div className="admin-page-head">
+              <div>
+                <h1 className="admin-page-title">{title}</h1>
+                {description && <p className="admin-page-description">{description}</p>}
+              </div>
+              {actions && <div className="admin-page-actions">{actions}</div>}
+            </div>
+          )}
           {children}
         </main>
       </div>
@@ -281,30 +292,35 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
 */
 const adminStyles = `
   .admin-layout {
-    --bg: #fafafa;
+    --bg: #f7f6f2;
+    --sidebar: #efeee9;
     --surface: #ffffff;
-    --surface-hover: #f4f4f5;
-    --surface-active: #ededee;
-    --border: #e7e7e9;
-    --border-strong: #d4d4d8;
-    --fg: #09090b;
-    --fg-muted: #64646b;
-    --fg-subtle: #909099;
-    --accent: #09090b;
+    --surface-hover: #ecebe5;
+    --surface-active: #e3e2db;
+    --border: #e4e2da;
+    --border-strong: #cfccc2;
+    --card-border: #e9e7e0;
+    --fg: #1d1c1a;
+    --fg-muted: #6b6961;
+    --fg-subtle: #9a978d;
+    --accent: #1d1c1a;
     --accent-fg: #ffffff;
-    --focus: #0070f3;
-    --danger: #e5484d;
+    --link: #2b6fd6;
+    --focus: #2b6fd6;
+    --danger: #d4483f;
     --danger-fg: #ffffff;
-    --success: #1a7f45;
-    --warning: #9a6700;
-    --info: #0060df;
-    --tint-success: #e8f5ec;
-    --tint-warning: #fdf5e3;
-    --tint-info: #e8f1fd;
-    --tint-danger: #fdeaea;
+    --success: #1f7a44;
+    --warning: #946200;
+    --info: #2b6fd6;
+    --tint-success: #e5f2e8;
+    --tint-warning: #fbf2dc;
+    --tint-info: #e6eefb;
+    --tint-danger: #fbe8e6;
     --radius: 8px;
-    --radius-lg: 12px;
-    --sidebar-w: 232px;
+    --radius-lg: 16px;
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Charter,
+      "Bitstream Charter", Georgia, serif;
+    --sidebar-w: 248px;
     --sidebar-w-closed: 60px;
 
     display: flex;
@@ -320,52 +336,58 @@ const adminStyles = `
 
   @media (prefers-color-scheme: dark) {
     .admin-layout:not([data-theme="light"]) {
-      --bg: #0a0a0a;
-      --surface: #111113;
-      --surface-hover: #18181b;
-      --surface-active: #202024;
-      --border: #232327;
-      --border-strong: #333338;
-      --fg: #ededef;
-      --fg-muted: #a1a1a8;
-      --fg-subtle: #70707a;
-      --accent: #ededef;
-      --accent-fg: #09090b;
-      --focus: #3b82f6;
-      --danger: #f2555a;
-      --danger-fg: #0a0a0a;
-      --success: #3dd68c;
-      --warning: #f5b544;
-      --info: #6aa6ff;
-      --tint-success: #10261a;
-      --tint-warning: #2a2011;
-      --tint-info: #11213a;
-      --tint-danger: #2c1315;
+      --bg: #1c1c1b;
+      --sidebar: #191918;
+      --surface: #252524;
+      --surface-hover: #2c2c2a;
+      --surface-active: #343432;
+      --border: #30302e;
+      --border-strong: #42423f;
+      --card-border: transparent;
+      --fg: #ecebe6;
+      --fg-muted: #a5a39b;
+      --fg-subtle: #75736c;
+      --accent: #f4f3ee;
+      --accent-fg: #1c1c1b;
+      --link: #6aa5ff;
+      --focus: #4b8ef5;
+      --danger: #f0645c;
+      --danger-fg: #1c1c1b;
+      --success: #5fcf86;
+      --warning: #f0b44c;
+      --info: #6aa5ff;
+      --tint-success: #1e3326;
+      --tint-warning: #3a2f1a;
+      --tint-info: #1c2c45;
+      --tint-danger: #3d2120;
     }
   }
 
   .admin-layout[data-theme="dark"] {
-    --bg: #0a0a0a;
-    --surface: #111113;
-    --surface-hover: #18181b;
-    --surface-active: #202024;
-    --border: #232327;
-    --border-strong: #333338;
-    --fg: #ededef;
-    --fg-muted: #a1a1a8;
-    --fg-subtle: #70707a;
-    --accent: #ededef;
-    --accent-fg: #09090b;
-    --focus: #3b82f6;
-    --danger: #f2555a;
-    --danger-fg: #0a0a0a;
-    --success: #3dd68c;
-    --warning: #f5b544;
-    --info: #6aa6ff;
-    --tint-success: #10261a;
-    --tint-warning: #2a2011;
-    --tint-info: #11213a;
-    --tint-danger: #2c1315;
+    --bg: #1c1c1b;
+    --sidebar: #191918;
+    --surface: #252524;
+    --surface-hover: #2c2c2a;
+    --surface-active: #343432;
+    --border: #30302e;
+    --border-strong: #42423f;
+    --card-border: transparent;
+    --fg: #ecebe6;
+    --fg-muted: #a5a39b;
+    --fg-subtle: #75736c;
+    --accent: #f4f3ee;
+    --accent-fg: #1c1c1b;
+    --link: #6aa5ff;
+    --focus: #4b8ef5;
+    --danger: #f0645c;
+    --danger-fg: #1c1c1b;
+    --success: #5fcf86;
+    --warning: #f0b44c;
+    --info: #6aa5ff;
+    --tint-success: #1e3326;
+    --tint-warning: #3a2f1a;
+    --tint-info: #1c2c45;
+    --tint-danger: #3d2120;
   }
 
   .admin-layout *,
@@ -376,7 +398,7 @@ const adminStyles = `
 
   .admin-sidebar {
     width: var(--sidebar-w);
-    background: var(--surface);
+    background: var(--sidebar);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -393,9 +415,8 @@ const adminStyles = `
   .admin-sidebar-header {
     display: flex;
     align-items: center;
-    height: 56px;
-    padding: 0 12px;
-    border-bottom: 1px solid var(--border);
+    height: 64px;
+    padding: 0 14px;
   }
 
   .admin-logo {
@@ -418,7 +439,7 @@ const adminStyles = `
     width: 24px;
     height: 24px;
     flex-shrink: 0;
-    border-radius: 6px;
+    border-radius: 7px;
     background: var(--accent);
     color: var(--accent-fg);
     font-size: 13px;
@@ -427,11 +448,13 @@ const adminStyles = `
 
   .admin-nav {
     flex: 1;
-    padding: 8px;
+    padding: 4px 12px 12px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 1px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
   }
 
   .admin-nav-group {
@@ -467,11 +490,11 @@ const adminStyles = `
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 7px 8px;
-    border-radius: var(--radius);
+    padding: 8px 10px;
+    border-radius: 10px;
     color: var(--fg-muted);
     text-decoration: none;
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 450;
     white-space: nowrap;
     border: none;
@@ -500,7 +523,7 @@ const adminStyles = `
   }
 
   .admin-sidebar-footer {
-    padding: 8px;
+    padding: 10px 12px;
     border-top: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -524,21 +547,40 @@ const adminStyles = `
     justify-content: space-between;
     gap: 16px;
     height: 56px;
-    padding: 0 24px;
-    background: color-mix(in srgb, var(--surface) 80%, transparent);
+    padding: 0 40px;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
     backdrop-filter: blur(8px);
-    border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
     z-index: 50;
   }
 
+  /* The page's name, in the content rather than the bar: a serif at display
+     size, with an optional line under it and the page's main action beside. */
+  .admin-page-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 4px 0 28px;
+  }
+
   .admin-page-title {
-    font-size: 15px;
-    font-weight: 550;
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.2;
     letter-spacing: -0.01em;
     margin: 0;
   }
+
+  .admin-page-description {
+    margin: 6px 0 0;
+    color: var(--fg-muted);
+    font-size: 15px;
+  }
+
+  .admin-page-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
   .admin-header-right {
     display: flex;
@@ -574,16 +616,18 @@ const adminStyles = `
   .admin-appearance-option:hover { color: var(--fg); background: var(--surface-hover); }
   .admin-appearance-option.active { color: var(--fg); background: var(--surface-active); }
 
-  .admin-content { padding: 24px; max-width: 1400px; }
+  .admin-content { padding: 8px 40px 48px; max-width: 1320px; }
 
   /* --- Cards ------------------------------------------------------------- */
 
+  /* Filled rather than outlined: on the dark palette the border is
+     transparent and the step in surface colour is the edge. */
   .admin-card {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid var(--card-border);
     border-radius: var(--radius-lg);
-    padding: 20px;
-    margin-bottom: 20px;
+    padding: 22px 24px;
+    margin-bottom: 24px;
   }
 
   .admin-card-header {
@@ -595,8 +639,8 @@ const adminStyles = `
   }
 
   .admin-card-title {
-    font-size: 14px;
-    font-weight: 550;
+    font-size: 16px;
+    font-weight: 500;
     letter-spacing: -0.01em;
     margin: 0;
   }
@@ -608,26 +652,84 @@ const adminStyles = `
 
   .admin-stat-card {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid var(--card-border);
     border-radius: var(--radius-lg);
-    padding: 18px 20px;
+    padding: 20px 24px 22px;
   }
 
-  /* The label sits *under* the value in the markup, so its bottom margin was
-     padding the card rather than separating the two — the number and its name
-     were tight against each other and the card was bottom-heavy. */
+  /* The name above the number, then an optional line under it. */
   .admin-stat-label {
-    color: var(--fg-muted);
-    font-size: 12.5px;
-    margin: 0;
+    color: var(--fg);
+    font-size: 15px;
+    margin: 0 0 14px;
   }
 
   .admin-stat-value {
-    font-size: 26px;
-    font-weight: 600;
+    font-size: 30px;
+    font-weight: 500;
     letter-spacing: -0.02em;
-    margin: 0 0 4px;
+    line-height: 1.1;
+    margin: 0;
     font-variant-numeric: tabular-nums;
+  }
+
+  .admin-stat-note {
+    color: var(--fg-muted);
+    font-size: 13.5px;
+    margin: 6px 0 0;
+  }
+
+  /* A heading between groups of cards, like "Spend breakdown". */
+  .admin-section-title {
+    font-size: 17px;
+    font-weight: 500;
+    margin: 8px 0 14px;
+  }
+
+  /* A link that is the way into more, in a card's header. Coloured, unlike
+     links in tables, because it is the one action the card offers. */
+  .admin-link {
+    color: var(--link);
+    font-size: 14px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+
+  /* Rows of a short list inside a card: a title, a line under it, and
+     something on the right. */
+  .admin-list { list-style: none; margin: 0 -24px -22px; padding: 0; }
+  .admin-list-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+  }
+  .admin-list-main { flex: 1; min-width: 0; }
+  .admin-list-title {
+    display: block;
+    color: var(--fg);
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .admin-list-sub { display: block; color: var(--fg-muted); font-size: 13.5px; }
+  .admin-list-end { display: flex; align-items: center; gap: 12px; flex-shrink: 0; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+
+  /* A bar for a share of something: a stat against its limit. */
+  .admin-meter {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--surface-active);
+    overflow: hidden;
+  }
+  .admin-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--link);
   }
 
   /* --- Grid -------------------------------------------------------------- */
@@ -639,7 +741,7 @@ const adminStyles = `
      Cards *inside* a grid are spaced by the gap, so their own margin would add
      a second, uneven one. Only direct children are reset — a column of stacked
      cards, which is what the editor's sidebar is, still needs its margins. */
-  .admin-grid { display: grid; gap: 16px; margin-bottom: 20px; }
+  .admin-grid { display: grid; gap: 20px; margin-bottom: 24px; }
   .admin-grid > .admin-card { margin-bottom: 0; }
   .admin-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -660,14 +762,14 @@ const adminStyles = `
     align-items: center;
     justify-content: center;
     gap: 6px;
-    height: 32px;
-    padding: 0 12px;
-    border-radius: var(--radius);
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
     border: 1px solid var(--border-strong);
     background: var(--surface);
     color: var(--fg);
     font-family: inherit;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     line-height: 1;
     cursor: pointer;
@@ -1109,16 +1211,14 @@ const adminStyles = `
     text-align: left;
     padding: 8px 12px;
     color: var(--fg-muted);
-    font-weight: 500;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-weight: 450;
+    font-size: 13px;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
   }
 
   .admin-table td {
-    padding: 11px 12px;
+    padding: 13px 12px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
   }
@@ -1131,10 +1231,10 @@ const adminStyles = `
   .admin-badge {
     display: inline-flex;
     align-items: center;
-    height: 20px;
-    padding: 0 8px;
+    height: 22px;
+    padding: 0 10px;
     border-radius: 999px;
-    font-size: 11.5px;
+    font-size: 12.5px;
     font-weight: 500;
     background: var(--surface-active);
     color: var(--fg-muted);
@@ -1168,6 +1268,9 @@ const adminStyles = `
      underline on hover is what marks them as links. */
   .admin-content a:not([class*="admin-btn"]):hover { text-decoration: underline; }
 
+  /* After the two rules above, which would otherwise take its colour. */
+  .admin-layout a.admin-link { color: var(--link); text-decoration: underline; }
+
   @media (max-width: 700px) {
     .admin-sidebar { width: var(--sidebar-w-closed); }
     .admin-sidebar .admin-nav-label,
@@ -1180,7 +1283,9 @@ const adminStyles = `
       border-top: 1px solid var(--border);
     }
     .admin-main { margin-left: var(--sidebar-w-closed); }
-    .admin-content { padding: 16px; }
+    .admin-content { padding: 4px 16px 32px; }
     .admin-header { padding: 0 16px; }
+    .admin-page-head { flex-direction: column; }
+    .admin-page-title { font-size: 26px; }
   }
 `

@@ -197,8 +197,10 @@ describe("the admin's vertical rhythm", () => {
     // carried a bottom margin. Two numbers down one page is one too many.
     const grid = layout.slice(layout.indexOf('.admin-grid {'))
 
-    assert.match(grid.slice(0, grid.indexOf('}')), /margin-bottom: 20px/)
-    assert.match(layout, /\.admin-card \{[^}]*margin-bottom: 20px/)
+    const gridGap = grid.slice(0, grid.indexOf('}')).match(/margin-bottom: (\d+px)/)?.[1]
+    const cardGap = layout.match(/\.admin-card \{[^}]*margin-bottom: (\d+px)/)?.[1]
+    assert.ok(gridGap, 'a grid carries a bottom margin')
+    assert.strictEqual(gridGap, cardGap)
   })
 
   test('cards inside a grid are spaced by the gap, not by both', () => {

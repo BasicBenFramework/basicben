@@ -9,10 +9,15 @@ const strings: Dictionary = {
   'New Post': 'Nueva entrada',
   'New Page': 'Nueva página',
   'Upload Media': 'Subir medios',
-  'Extend': 'Ampliar',
-  'Help': 'Ayuda',
   'Documentation': 'Documentación',
   'View Site': 'Ver sitio',
+  'How the site is doing, and what changed recently.': 'Cómo va el sitio y qué ha cambiado últimamente.',
+  'View all': 'Ver todo',
+  'Shortcuts': 'Atajos',
+  'A page outside the post stream': 'Una página fuera del listado de entradas',
+  'Images and files for posts and pages': 'Imágenes y archivos para entradas y páginas',
+  'Site name, reading and comments': 'Nombre del sitio, lectura y comentarios',
+  'Open the public site': 'Abrir el sitio público',
 
   // Settings
   'Settings saved successfully!': '¡Ajustes guardados correctamente!',
