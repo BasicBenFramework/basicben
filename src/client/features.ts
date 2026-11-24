@@ -5,8 +5,9 @@
 import type { AdminFeature } from './host'
 import analytics from '../features/analytics/admin'
 import members from '../features/members/admin'
+import mysendbox from '../features/mysendbox/admin'
 import theme from '../features/theme/admin'
 
-const features: AdminFeature[] = [analytics, members, theme]
+const features: AdminFeature[] = [analytics, members, mysendbox, theme]
 
 export default features

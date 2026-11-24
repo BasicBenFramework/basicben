@@ -31,8 +31,13 @@ export default {
   },
 
   // Body parser options
+  //
+  // Routes under /api/webhooks/ read the request themselves: a webhook's
+  // signature is over the exact bytes sent, which parsing and re-serialising
+  // would not reproduce (src/features/mysendbox/webhook.ts).
   bodyParser: {
-    limit: '1mb'
+    limit: '1mb',
+    skip: ['/api/webhooks/']
   },
 
   // Static file serving

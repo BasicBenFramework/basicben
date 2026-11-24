@@ -1,8 +1,9 @@
 # Features
 
-A feature is something the CMS does that the core does not need. Three ship
-with the CMS: `analytics`, `members` (with newsletters and the access policy)
-and `theme` (the server-rendered public site and oEmbed). Each one is a
+A feature is something the CMS does that the core does not need. Four ship
+with the CMS: `analytics`, `members` (with newsletters and the access policy),
+`mysendbox` (newsletters through MySendbox, off without an API key) and
+`theme` (the server-rendered public site and oEmbed). Each one is a
 folder in `src/features/` that plugs into the core through a small host. Delete
 the folder and its line in each of the three lists, and the core still builds,
 passes its tests and runs. `npm test` checks that on every import.
@@ -126,13 +127,25 @@ second budget, and anything left is due at the next tick.
 are kept as aliases.
 
 On Vercel, schedule the tick in `vercel.json`. The Hobby plan allows one run a
-day, which is enough for the analytics purge. It is not enough for scheduled
-publishing or newsletters, which want a run every minute or so from an external
-scheduler:
+day. That is enough for the analytics purge and for scheduled publishing (a
+scheduled post appears on time anyway, and its webhook fires on the first
+read after). It is not enough for the built-in newsletter queue, which wants a
+run every minute or so from an external scheduler. With the `mysendbox`
+feature set up, newsletters need no frequent run: MySendbox does the sending.
 
 ```json
 { "crons": [{ "path": "/api/cron/tick", "schedule": "0 4 * * *" }] }
 ```
+
+## Features that work together
+
+Features never import each other. When one builds on another, the first
+announces through hooks and the second listens, so either can be removed:
+`mysendbox` listens to members' `member.*` events and its
+`newsletter.delivering` filter, and reports back through
+`newsletter.subscription` (see the members README). The names are spelled out
+on both sides, and a test checks they match.
+
 
 ## Checking a feature can be removed
 

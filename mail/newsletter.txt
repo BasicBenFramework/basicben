@@ -10,6 +10,4 @@ Read it on the site:
 --
 {{footer}}
 
-You are receiving this because you subscribed to {{siteName}}.
-Unsubscribe, no account needed:
-{{unsubscribeUrl}}
+{{{unsubscribeText}}}

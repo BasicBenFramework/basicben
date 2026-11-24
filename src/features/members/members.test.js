@@ -825,3 +825,75 @@ describe('settings', () => {
     assert.deepStrictEqual(Object.keys(bad.errors).sort(), ['members_signin_url', 'members_signup', 'newsletter_reply_to'])
   })
 })
+
+describe('the newsletter provider seam', () => {
+  test('a listener that declines leaves the send to the built-in queue', async () => {
+    const declines = (value) => value
+    hooks.on('newsletter.delivering', declines, { name: 'test:declines' })
+    try {
+      const postId = await addPost(ids.editor, { title: 'Declined by provider', send_newsletter: 1 })
+      const send = await newsletter.queueNewsletterFor(postId)
+      assert.strictEqual(send.status, 'sending')
+      assert.ok(Number(send.total_count) > 0, 'queued for the members')
+    } finally {
+      hooks.off('newsletter.delivering', 'test:declines')
+    }
+  })
+
+  test('a listener that throws holds the send: nothing queued, nothing mailed', async () => {
+    hooks.on('newsletter.delivering', () => { throw new Error('provider down') }, { name: 'test:throws' })
+    const quiet = console.error
+    console.error = () => {}
+    try {
+      const before = outbox.length
+      const postId = await addPost(ids.editor, { title: 'Provider down', send_newsletter: 1 })
+      const send = await newsletter.queueNewsletterFor(postId)
+      assert.strictEqual(send.status, 'handoff_failed')
+      assert.match(send.handoff_error, /provider down/)
+      await newsletter.processNewsletterQueue(100)
+      assert.strictEqual(Number((await db.get('SELECT COUNT(*) AS n FROM newsletter_queue WHERE send_id = ?', [send.id])).n), 0)
+      assert.strictEqual(outbox.filter((m) => m.subject === 'Provider down').length, 0)
+      assert.strictEqual(outbox.length >= before, true)
+    } finally {
+      console.error = quiet
+      hooks.off('newsletter.delivering', 'test:throws')
+    }
+  })
+
+  test('a listener that takes it gets the newsletter without the site\'s unsubscribe link', async () => {
+    let seen
+    hooks.on('newsletter.delivering', (value) => { seen = value; return { ...value, handledBy: 'test', externalId: 'x1' } }, { name: 'test:takes' })
+    try {
+      const postId = await addPost(ids.editor, { title: 'Taken by provider', send_newsletter: 1 })
+      const send = await newsletter.queueNewsletterFor(postId)
+      assert.strictEqual(send.status, 'handed_off')
+      assert.strictEqual(send.provider, 'test')
+      assert.strictEqual(send.external_id, 'x1')
+      assert.strictEqual(seen.message.to, undefined)
+      assert.doesNotMatch(String(seen.message.html), /members\/unsubscribe/)
+      assert.strictEqual(seen.message.headers['List-Unsubscribe'], undefined)
+    } finally {
+      hooks.off('newsletter.delivering', 'test:takes')
+    }
+  })
+
+  test('member changes are announced, with who made them', async () => {
+    const heard = []
+    for (const hook of ['member.created', 'member.updated', 'member.deleted']) {
+      hooks.on(hook, (payload) => { heard.push([hook, payload.origin ?? null, payload.member?.email]) }, { name: `test:${hook}` })
+    }
+    try {
+      const member = await Member.create({ email: 'announced@example.test', source: 'admin' })
+      await Member.update(member.id, { name: 'Same' }, { origin: 'member' })
+      await Member.update(member.id, { name: 'Same' }, { origin: 'member' })
+      await Member.delete(member.id)
+      assert.deepStrictEqual(heard, [
+        ['member.created', null, 'announced@example.test'],
+        ['member.updated', 'member', 'announced@example.test'],
+        ['member.deleted', null, 'announced@example.test']
+      ], 'an update that changes nothing is not announced')
+    } finally {
+      for (const hook of ['member.created', 'member.updated', 'member.deleted']) hooks.off(hook, `test:${hook}`)
+    }
+  })
+})

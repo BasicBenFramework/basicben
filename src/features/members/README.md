@@ -88,3 +88,25 @@ Each mail carries a signed one-click unsubscribe link and RFC 8058
 confirmation button; `POST` unsubscribes, with no account needed.
 
 Sender name, reply-to and footer are settings on the Members page.
+
+### Sending through a provider
+
+Another feature can take over sending, such as `mysendbox`. Members announces
+what it does through hooks, and the provider listens; neither imports the
+other. The names are in `events.ts`:
+
+- `member.created`, `member.updated` (with `previous` and `origin`) and
+  `member.deleted`, so a provider can keep its contact list in step. An update
+  that changes nothing is not announced.
+- `newsletter.delivering`, a strict filter run once per post before the queue
+  is filled. A provider takes the send by returning it with `handledBy` and
+  `externalId`; the send becomes `handed_off` and nothing is queued. If the
+  provider throws, the send becomes `handoff_failed` and is retried every ten
+  minutes the cron runs. It is never sent by the built-in queue instead, so
+  an outage cannot become a second sender.
+- `newsletter.status`, for the editor's panel to show the provider's counts.
+- `newsletter.subscription`, which members listens to: a provider reporting
+  that someone unsubscribed (or subscribed) on its side. The member follows.
+
+The message a provider is given has no recipient and no site unsubscribe
+link, since the provider adds its own.

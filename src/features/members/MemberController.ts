@@ -228,7 +228,7 @@ export const MemberController = {
       changes.status = body.newsletter ? 'active' : 'unsubscribed'
     }
 
-    const updated = await Member.update(req.member!.id, changes)
+    const updated = await Member.update(req.member!.id, changes, { origin: 'member' })
     res.setHeader('Cache-Control', 'no-store')
     res.json({ member: memberProfile(updated!) })
   },
@@ -276,7 +276,7 @@ export const MemberController = {
 
     // A deleted member has nothing to stop; the answer is the same.
     const member = await Member.find(id)
-    if (member && member.status !== 'unsubscribed') await Member.update(id, { status: 'unsubscribed' })
+    if (member && member.status !== 'unsubscribed') await Member.update(id, { status: 'unsubscribed' }, { origin: 'member' })
 
     return page(res, 200, 'Unsubscribed', '<p>You will no longer receive posts by email.</p>')
   }

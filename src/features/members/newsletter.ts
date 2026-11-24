@@ -41,6 +41,9 @@ import { livePost } from '../../models/visibility.ts'
 import { Settings } from '../../models/Settings.ts'
 import { siteUrl } from '../../helpers/site.ts'
 import { issueMemberUnsubscribeToken, pruneMagicLinks } from './session.ts'
+import { NEWSLETTER_HOOKS } from './events.ts'
+import { hooks } from '@basicbenframework/core/hooks'
+import { guardWrite } from '../../helpers/write-hooks.ts'
 import type { Request, Response } from '../../types'
 
 /** Tries per recipient before a provider error is final. */
@@ -59,8 +62,11 @@ type Send = (message: Record<string, unknown>) => Promise<unknown>
 export interface NewsletterSendRow {
   id: number
   post_id: number
-  status: 'preparing' | 'sending' | 'sent'
+  status: 'preparing' | 'sending' | 'sent' | 'handing_off' | 'handed_off' | 'handoff_failed'
   subject: string | null
+  provider?: string | null
+  external_id?: string | null
+  handoff_error?: string | null
   total_count: number
   sent_count: number
   failed_count: number
@@ -129,9 +135,86 @@ export async function queueNewsletterFor(postId: number): Promise<NewsletterSend
     send = await newsletterFor(post.id)
   }
 
-  if (send?.status === 'preparing') await prepareSend(send.id)
+  if (send?.status === 'preparing') {
+    if (hasProvider()) await handOffSend(send.id)
+    else await prepareSend(send.id)
+  }
 
   return (await newsletterFor(post.id)) ?? null
+}
+
+/** Is a feature listening to take newsletters? */
+export function hasProvider(): boolean {
+  return hooks.has(NEWSLETTER_HOOKS.DELIVERING)
+}
+
+/** A hand-off that failed is tried again after this long, and one claimed this long ago is taken as interrupted. */
+export const HANDOFF_RETRY_MS = 10 * 60 * 1000
+
+/**
+ * Give a post's send to the provider listening on `newsletter.delivering`.
+ *
+ * The listener gets `{ send, post, message, handledBy: null, externalId: null }`
+ * — `message` is the newsletter as the built-in queue would send it, minus a
+ * recipient and minus the site's unsubscribe link, which a provider replaces
+ * with its own — and takes the send by returning it with `handledBy` (its
+ * name) and `externalId` set.
+ *
+ * - **Claimed first**, with a conditional UPDATE, so two callers cannot both
+ *   hand a post off. A provider must still make its own call idempotent per
+ *   `send.id`: a claim that was interrupted is retried after
+ *   HANDOFF_RETRY_MS, and nothing can tell whether the provider heard it.
+ * - **Strict.** A listener that throws (or cancels) leaves the send
+ *   `handoff_failed`, retried later. It never falls back to the built-in
+ *   queue: a provider outage must not become a second sender.
+ * - **Declined:** if listeners return it untaken, the built-in queue sends it.
+ */
+export async function handOffSend(sendId: number): Promise<void> {
+  const db = await getDb()
+  const now = new Date().toISOString()
+  const retryBefore = new Date(Date.now() - HANDOFF_RETRY_MS).toISOString()
+
+  const claim = await db.run(
+    `UPDATE newsletter_sends SET status = 'handing_off', started_at = ?
+     WHERE id = ? AND (status = 'preparing'
+       OR (status IN ('handoff_failed', 'handing_off') AND (started_at IS NULL OR started_at < ?)))`,
+    [now, sendId, retryBefore]
+  )
+  if (Number(claim?.changes ?? 0) !== 1) return
+
+  const send = (await db.get('SELECT * FROM newsletter_sends WHERE id = ?', [sendId])) as NewsletterSendRow
+  const post = (await db.get(
+    `SELECT p.id, p.title, p.slug, p.excerpt, p.content_html FROM posts p WHERE p.id = ? AND ${livePost('p')}`,
+    [send.post_id]
+  )) as PostForMail | undefined
+
+  const fail = (error: string) =>
+    db.run("UPDATE newsletter_sends SET status = 'handoff_failed', handoff_error = ? WHERE id = ?", [error.slice(0, 500), sendId])
+
+  // Taken down since it was queued: the editor's call wins, as in the queue.
+  if (!post) return void (await fail('The post is no longer published.'))
+
+  const { to: _nobody, ...message } = await buildNewsletterMessage(post, { email: '', memberId: null }, { unsubscribe: false })
+
+  const result = await guardWrite<any>(
+    NEWSLETTER_HOOKS.DELIVERING,
+    { send, post, message, handledBy: null, externalId: null },
+    {},
+    { refused: 'The newsletter provider refused the send.' }
+  )
+
+  if (!result.ok) return void (await fail(result.error))
+
+  if (!result.value?.handledBy) {
+    // Nobody took it: the built-in queue sends it, as with no provider at all.
+    await db.run("UPDATE newsletter_sends SET status = 'preparing', handoff_error = NULL WHERE id = ?", [sendId])
+    return prepareSend(sendId)
+  }
+
+  await db.run(
+    "UPDATE newsletter_sends SET status = 'handed_off', provider = ?, external_id = ?, handoff_error = NULL WHERE id = ?",
+    [String(result.value.handledBy).slice(0, 50), result.value.externalId == null ? null : String(result.value.externalId).slice(0, 200), sendId]
+  )
 }
 
 /**
@@ -221,6 +304,11 @@ export function postUrl(post: { id: number; slug: string | null }): string {
   return `${siteUrl()}/blog/${post.slug || post.id}`
 }
 
+/** For text placed inside the unsubscribe paragraph, which is inserted unescaped. */
+function escapeAttribute(value: string): string {
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
 /** A display name that cannot break out of a From header. */
 function cleanName(value: string): string {
   return value.replace(/[\r\n"<>\\]/g, '').trim().slice(0, 100)
@@ -238,7 +326,8 @@ function cleanName(value: string): string {
  */
 export async function buildNewsletterMessage(
   post: PostForMail,
-  recipient: { email: string; memberId: number | null }
+  recipient: { email: string; memberId: number | null },
+  { unsubscribe = true }: { unsubscribe?: boolean } = {}
 ): Promise<Record<string, unknown>> {
   const [siteName, senderName, replyTo, footer] = await Promise.all([
     Settings.getSiteName(),
@@ -259,6 +348,17 @@ export async function buildNewsletterMessage(
   const name = cleanName(senderName || siteName)
   const address = from ? extractAddress(from) : ''
 
+  // Without the site's own link when a provider sends it: the provider adds
+  // its unsubscribe footer and header, and a second link that only the CMS
+  // understands would unsubscribe someone from the wrong list.
+  const escaped = escapeAttribute(unsubscribeUrl)
+  const unsubscribeHtml = unsubscribe
+    ? `<p style="margin: 0; font-size: 13px; color: #666; line-height: 1.5;">You are receiving this because you subscribed to ${escapeAttribute(siteName)}. <a href="${escaped}" style="color: #666;">Unsubscribe</a> — no account needed.</p>`
+    : ''
+  const unsubscribeText = unsubscribe
+    ? `You are receiving this because you subscribed to ${siteName}.\nUnsubscribe, no account needed:\n${unsubscribeUrl}`
+    : ''
+
   return {
     to: recipient.email,
     ...(address && name ? { from: `"${name}" <${address}>` } : {}),
@@ -267,11 +367,13 @@ export async function buildNewsletterMessage(
     // RFC 8058 one-click: the mail client's own unsubscribe button POSTs to
     // the same link, so a reader never has to find it in the body — and
     // Gmail and Yahoo require it of bulk senders.
-    headers: {
-      'List-Unsubscribe': `<${unsubscribeUrl}>`,
-      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-      Precedence: 'bulk'
-    },
+    headers: unsubscribe
+      ? {
+          'List-Unsubscribe': `<${unsubscribeUrl}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          Precedence: 'bulk'
+        }
+      : { Precedence: 'bulk' },
     ...renderMail('newsletter', {
       title: post.title,
       siteName,
@@ -279,7 +381,8 @@ export async function buildNewsletterMessage(
       contentHtml,
       contentText: stripTags(contentHtml),
       footer: footer || '',
-      unsubscribeUrl
+      unsubscribeHtml,
+      unsubscribeText
     })
   }
 }
@@ -298,9 +401,18 @@ export async function processNewsletterQueue(
   const outcome = { sent: 0, failed: 0, skipped: 0, retried: 0 }
   const touched = new Set<number>()
 
-  // Sends whose queueing was interrupted finish queueing first.
+  // Sends whose queueing was interrupted finish queueing first, or, with a
+  // provider listening, are handed to it; a hand-off that failed or was
+  // interrupted is tried again (handOffSend waits HANDOFF_RETRY_MS between).
   const preparing = (await db.all("SELECT id FROM newsletter_sends WHERE status = 'preparing'")) as Array<{ id: number }>
-  for (const row of preparing) await prepareSend(row.id)
+  for (const row of preparing) {
+    if (hasProvider()) await handOffSend(row.id)
+    else await prepareSend(row.id)
+  }
+  if (hasProvider()) {
+    const stuck = (await db.all("SELECT id FROM newsletter_sends WHERE status IN ('handoff_failed', 'handing_off')")) as Array<{ id: number }>
+    for (const row of stuck) await handOffSend(row.id)
+  }
 
   // Claimed and never finished: the process died mid-send. Not retried — see
   // "Never twice" above.

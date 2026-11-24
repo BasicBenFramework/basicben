@@ -1,6 +1,8 @@
 <!-- Inline styles only: mail clients discard <style> blocks and stylesheets.
      contentHtml is triple-braced because it is markup: the post's sanitized
-     render, sanitized again and made absolute in src/features/members/newsletter.ts. -->
+     render, sanitized again and made absolute in src/features/members/newsletter.ts.
+     unsubscribeHtml is built there too, and is empty when a provider sending
+     the newsletter adds its own unsubscribe footer. -->
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #111;">
   <p style="margin: 0 0 8px; font-size: 13px; color: #666;">{{siteName}}</p>
 
@@ -20,8 +22,5 @@
 
   <p style="margin: 0 0 8px; font-size: 13px; color: #666; line-height: 1.5; white-space: pre-wrap;">{{footer}}</p>
 
-  <p style="margin: 0; font-size: 13px; color: #666; line-height: 1.5;">
-    You are receiving this because you subscribed to {{siteName}}.
-    <a href="{{unsubscribeUrl}}" style="color: #666;">Unsubscribe</a> — no account needed.
-  </p>
+  {{{unsubscribeHtml}}}
 </div>

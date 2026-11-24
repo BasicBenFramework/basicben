@@ -6,6 +6,8 @@
  * Node's own `import()` — so relative imports here carry their extension.
  */
 
+import { hooks } from '@basicbenframework/core/hooks'
+import { MEMBER_HOOKS } from './events.ts'
 import { getDb, query } from '@basicbenframework/core/db'
 import { normalizeEmail } from './session.ts'
 import { parseStoredTimestamp } from '../../models/visibility.ts'
@@ -64,6 +66,11 @@ export function looksLikeEmail(value: string): boolean {
   return value.length <= 254 && /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(value)
 }
 
+/** Tell listeners, never letting one fail a member write. `hooks.fire` contains a throwing listener. */
+async function tell(hook: string, payload: Record<string, unknown>): Promise<void> {
+  await hooks.fire(hook, payload)
+}
+
 export const Member = {
   async find(id: number): Promise<MemberRow | undefined> {
     const db = await getDb()
@@ -102,11 +109,17 @@ export const Member = {
       updated_at: now
     })
 
-    return (await this.find(Number(result.lastInsertRowid)))!
+    const member = (await this.find(Number(result.lastInsertRowid)))!
+    await tell(MEMBER_HOOKS.CREATED, { member })
+    return member
   },
 
   /** Write the fields a member or an admin may change. Absent keys are left alone. */
-  async update(id: number, changes: { name?: string | null; status?: MemberStatus; note?: string | null; labels?: string | null; email?: string }): Promise<MemberRow | undefined> {
+  async update(
+    id: number,
+    changes: { name?: string | null; status?: MemberStatus; note?: string | null; labels?: string | null; email?: string },
+    { origin = 'admin' }: { origin?: string } = {}
+  ): Promise<MemberRow | undefined> {
     const db = await getDb()
     const existing = await this.find(id)
     if (!existing) return undefined
@@ -135,19 +148,32 @@ export const Member = {
       sets.push('updated_at = ?')
       params.push(now)
       await db.run(`UPDATE members SET ${sets.join(', ')} WHERE id = ?`, [...params, id])
+      const member = await this.find(id)
+      // Announced only when something a listener could care about differs:
+      // re-saving the same values is not news.
+      const changed = member && (['email', 'name', 'status', 'note', 'labels', 'email_verified_at'] as const)
+        .some((key) => (member[key] ?? null) !== (existing[key] ?? null))
+      if (member && changed) await tell(MEMBER_HOOKS.UPDATED, { member, previous: existing, origin })
+      return member
     }
 
-    return this.find(id)
+    return existing
   },
 
   /** Following a magic link proves the address and counts as a visit. */
   async markVerified(id: number): Promise<void> {
     const db = await getDb()
     const now = new Date().toISOString()
+    const previous = await this.find(id)
     await db.run(
       'UPDATE members SET email_verified_at = COALESCE(email_verified_at, ?), last_seen_at = ? WHERE id = ?',
       [now, now, id]
     )
+    // A newly proved address is news to a provider: it may now be sent mail.
+    if (previous && !previous.email_verified_at) {
+      const member = await this.find(id)
+      if (member) await tell(MEMBER_HOOKS.UPDATED, { member, previous, origin: 'member' })
+    }
   },
 
   /**
@@ -173,11 +199,13 @@ export const Member = {
 
   async delete(id: number): Promise<void> {
     const db = await getDb()
+    const member = await this.find(id)
     // Queue rows and tokens go with it by cascade on Postgres; SQLite only
     // honours ON DELETE when foreign keys are switched on, so say it here too.
     await db.run('DELETE FROM newsletter_queue WHERE member_id = ? AND status IN (?, ?)', [id, 'pending', 'sending'])
     await db.run('DELETE FROM member_tokens WHERE member_id = ?', [id])
     await db.run('DELETE FROM members WHERE id = ?', [id])
+    if (member) await tell(MEMBER_HOOKS.DELETED, { member })
   },
 
   /** The admin listing: search over address, name and labels, optionally one status. */

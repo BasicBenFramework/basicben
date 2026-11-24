@@ -8,8 +8,9 @@
 import type { FeatureManifest } from './host/manifest.ts'
 import analytics from './features/analytics/manifest.ts'
 import members from './features/members/manifest.ts'
+import mysendbox from './features/mysendbox/manifest.ts'
 import theme from './features/theme/manifest.ts'
 
-const manifests: FeatureManifest[] = [analytics, members, theme]
+const manifests: FeatureManifest[] = [analytics, members, mysendbox, theme]
 
 export default manifests

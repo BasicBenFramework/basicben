@@ -9,8 +9,9 @@
 import type { Feature } from './host'
 import analytics from './features/analytics/index.ts'
 import members from './features/members/index.ts'
+import mysendbox from './features/mysendbox/index.ts'
 import theme from './features/theme/index.ts'
 
-const features: Feature[] = [analytics, members, theme]
+const features: Feature[] = [analytics, members, mysendbox, theme]
 
 export default features

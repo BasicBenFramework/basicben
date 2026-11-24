@@ -18,13 +18,28 @@ import type { PostEditorSidebarProps } from '../../client/host'
 export type Visibility = 'public' | 'members' | 'paid'
 
 interface NewsletterSend {
-  status: 'preparing' | 'sending' | 'sent'
+  status: 'preparing' | 'sending' | 'sent' | 'handing_off' | 'handed_off' | 'handoff_failed'
+  provider?: string | null
+  handoff_error?: string | null
   total_count: number
   sent_count: number
   failed_count: number
   skipped_count: number
   completed_at: string | null
 }
+
+/** What a provider that took the send says about it (`newsletter.status`). */
+interface ProviderStatus {
+  name: string
+  status: string
+  done: boolean
+  counts?: Record<string, number>
+  url?: string | null
+  note?: string | null
+}
+
+const isDone = (send: NewsletterSend | null, provider: ProviderStatus | null) =>
+  !send || send.status === 'sent' || (send.status === 'handed_off' && Boolean(provider?.done))
 
 /** The editor's sidebar fill (see PostEditorSidebarProps). Posts only. */
 export default function PostAccessBox({ kind, postId, record, values, disabled, onChange }: PostEditorSidebarProps) {
@@ -35,6 +50,7 @@ export default function PostAccessBox({ kind, postId, record, values, disabled, 
 
   const { t } = useT()
   const [send, setSend] = useState<NewsletterSend | null>(null)
+  const [provider, setProvider] = useState<ProviderStatus | null>(null)
   const [maySend, setMaySend] = useState(true)
   const [testing, setTesting] = useState(false)
   const [message, setMessage] = useState('')
@@ -44,10 +60,11 @@ export default function PostAccessBox({ kind, postId, record, values, disabled, 
     let cancelled = false
 
     const load = () =>
-      api.get<{ send: NewsletterSend | null; may_send: boolean }>(`/api/posts/${postId}/newsletter`)
+      api.get<{ send: NewsletterSend | null; provider: ProviderStatus | null; may_send: boolean }>(`/api/posts/${postId}/newsletter`)
         .then(res => {
           if (cancelled) return
           setSend(res?.send ?? null)
+          setProvider(res?.provider ?? null)
           setMaySend(res?.may_send !== false)
         })
         .catch(() => {})
@@ -55,9 +72,9 @@ export default function PostAccessBox({ kind, postId, record, values, disabled, 
     load()
     // While a send is in progress, watch it move. Loading the status is also
     // what nudges the queue along on a host with no cron.
-    const timer = setInterval(() => { if (send && send.status !== 'sent') load() }, 15_000)
+    const timer = setInterval(() => { if (!isDone(send, provider)) load() }, 15_000)
     return () => { cancelled = true; clearInterval(timer) }
-  }, [postId, send?.status])
+  }, [postId, send?.status, provider?.status])
 
   const sendTest = async () => {
     if (!postId) return
@@ -99,7 +116,30 @@ export default function PostAccessBox({ kind, postId, record, values, disabled, 
         </small>
       </div>
 
-      {send ? (
+      {send && send.status === 'handoff_failed' ? (
+        <div className="admin-form-group">
+          <p style={{ margin: 0 }}>
+            <span className="admin-badge admin-badge-warning">{t('Newsletter not sent yet')}</span>
+          </p>
+          <small style={{ color: 'var(--fg-muted)' }}>
+            {t('The newsletter service could not take it, and it will be tried again: {error}', { error: send.handoff_error || '' })}
+          </small>
+        </div>
+      ) : send && (send.status === 'handed_off' || send.status === 'handing_off') ? (
+        <div className="admin-form-group">
+          <p style={{ margin: 0 }}>
+            <span className={`admin-badge ${provider?.done ? 'admin-badge-success' : 'admin-badge-warning'}`}>
+              {provider ? t('{name}: {status}', { name: provider.name, status: provider.status }) : t('Newsletter handed off')}
+            </span>
+          </p>
+          <small style={{ color: 'var(--fg-muted)' }}>
+            {provider?.counts && Object.entries(provider.counts).map(([key, n]) => `${t(key)} ${n}`).join(' · ')}
+            {provider?.note ? <> {provider.note}</> : null}
+            {provider?.url ? <> <a href={provider.url} target="_blank" rel="noreferrer">{t('Open in {name}', { name: provider.name })}</a></> : null}
+            {' '}{t('A post is only ever sent once.')}
+          </small>
+        </div>
+      ) : send ? (
         <div className="admin-form-group">
           <p style={{ margin: 0 }}>
             <span className={`admin-badge ${send.status === 'sent' ? 'admin-badge-success' : 'admin-badge-warning'}`}>

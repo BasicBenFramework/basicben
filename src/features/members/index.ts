@@ -18,7 +18,8 @@ import { memberRoutes } from './routes.ts'
 import { memberFromRequest } from './middleware.ts'
 import { Member, type MemberRow } from './Member.ts'
 import { queueNewsletterFor, processNewsletterQueue, kickNewsletterQueue, newsletterRefusal } from './newsletter.ts'
-import { pruneMagicLinks } from './session.ts'
+import { pruneMagicLinks, normalizeEmail } from './session.ts'
+import { NEWSLETTER_HOOKS } from './events.ts'
 
 /** The levels this feature offers. `paid` is enforced as `members` until paid tiers exist (migration 034). */
 export const MEMBER_LEVELS = ['members', 'paid']
@@ -46,6 +47,28 @@ export function withNewsletterRequest(
   return { ...value, ...values }
 }
 
+/**
+ * A provider reporting a subscription change made on its side (an
+ * unsubscribe link in its mail, a bounce). Its status wins for newsletters,
+ * so the member follows. Unknown people are ignored: the provider may have
+ * contacts who never became members here.
+ */
+export async function applySubscription(payload: {
+  memberId?: unknown
+  email?: unknown
+  subscribed?: unknown
+  provider?: unknown
+}): Promise<void> {
+  const provider = String(payload?.provider || 'provider').slice(0, 50)
+  const id = Number(payload?.memberId)
+  let member = Number.isInteger(id) && id > 0 ? await Member.find(id) : undefined
+  if (!member && typeof payload?.email === 'string') member = await Member.findByEmail(normalizeEmail(payload.email))
+  if (!member) return
+
+  const status = payload.subscribed ? 'active' : 'unsubscribed'
+  if (member.status !== status) await Member.update(member.id, { status }, { origin: provider })
+}
+
 const members: Feature = {
   name: 'members',
 
@@ -67,6 +90,7 @@ const members: Feature = {
       mayRead: (post, member) => Boolean(member) && MEMBER_LEVELS.includes(String(post.visibility))
     })
 
+    host.hooks.on(NEWSLETTER_HOOKS.SUBSCRIPTION, applySubscription, { name: 'members:subscription' })
     host.hooks.on(HOOKS.POST_CREATING, withNewsletterRequest, { name: 'members:newsletter-request' })
     host.hooks.on(HOOKS.POST_UPDATING, withNewsletterRequest, { name: 'members:newsletter-request' })
 

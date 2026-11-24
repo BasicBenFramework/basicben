@@ -16,6 +16,8 @@ import { paginationFrom, meta } from '../../models/pagination.ts'
 import { parseCsv, toCsv } from './csv.ts'
 import { newsletterFor, sendTestNewsletter, kickNewsletterQueue } from './newsletter.ts'
 import { emailSendLimiter } from '../../middleware/rate-limits.ts'
+import { hooks } from '@basicbenframework/core/hooks'
+import { NEWSLETTER_HOOKS } from './events.ts'
 import type { Request, Response } from '../../types'
 
 /** Rows one import request may carry. Sequential inserts on a remote database are not free. */
@@ -235,11 +237,18 @@ export const MemberAdminController = {
   async status(req: Request, res: Response) {
     const post = req.resource as { id: number; send_newsletter?: number } | undefined
     const send = await newsletterFor(Number(post?.id))
-    if (send && send.status !== 'sent') kickNewsletterQueue()
+    if (send && send.status !== 'sent' && send.status !== 'handed_off') kickNewsletterQueue()
+
+    // A send a provider took: it says how far along it is. Not strict — the
+    // status panel should load even when the provider is unreachable.
+    const described = send?.provider
+      ? await hooks.filter(NEWSLETTER_HOOKS.STATUS, { send, provider: null }, { req })
+      : null
 
     res.json({
       requested: Boolean(Number(post?.send_newsletter ?? 0)),
       send: send ?? null,
+      provider: described?.provider ?? null,
       may_send: can(req.user, 'post.edit')
     })
   },
