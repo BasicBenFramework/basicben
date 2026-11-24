@@ -1,4 +1,4 @@
-import { useTheme } from './ThemeContext'
+import { useTheme } from './ThemeContext.tsx'
 
 export function Loading() {
   const { t } = useTheme()

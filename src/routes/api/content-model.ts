@@ -1,10 +1,10 @@
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
-import { ContentTypeController } from '../../controllers/ContentTypeController'
-import { TaxonomyController } from '../../controllers/TaxonomyController'
-import { ContentType } from '../../models/ContentType'
-import { auth } from '../../middleware/auth'
-import { authOrToken } from '../../middleware/api-auth'
+import { ContentTypeController } from '../../controllers/ContentTypeController.ts'
+import { TaxonomyController } from '../../controllers/TaxonomyController.ts'
+import { ContentType } from '../../models/ContentType.ts'
+import { auth } from '../../middleware/auth.ts'
+import { authOrToken } from '../../middleware/api-auth.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

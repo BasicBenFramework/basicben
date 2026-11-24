@@ -1,10 +1,10 @@
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
-import { ThemeController, themeEnabled } from './ThemeController'
-import { OEmbedController } from './OEmbedController'
-import { publicApiLimit } from '../../middleware/rate-limits'
-import { publishDueOpportunistically } from '../../helpers/publish-due'
+import { ThemeController, themeEnabled } from './ThemeController.ts'
+import { OEmbedController } from './OEmbedController.ts'
+import { publicApiLimit } from '../../middleware/rate-limits.ts'
+import { publishDueOpportunistically } from '../../helpers/publish-due.ts'
 
-import type { Router } from '../../host'
+import type { Router } from '../../host/index.ts'
 
 /**
  * The reference public site (server-rendered theme) and the oEmbed provider.

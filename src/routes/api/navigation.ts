@@ -1,5 +1,5 @@
-import { NavigationController } from '../../controllers/NavigationController'
-import { auth } from '../../middleware/auth'
+import { NavigationController } from '../../controllers/NavigationController.ts'
+import { auth } from '../../middleware/auth.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

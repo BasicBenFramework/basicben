@@ -1,6 +1,6 @@
-import { TokenController } from '../../controllers/TokenController'
-import { auth } from '../../middleware/auth'
-import { requireSession } from '../../middleware/api-auth'
+import { TokenController } from '../../controllers/TokenController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { requireSession } from '../../middleware/api-auth.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

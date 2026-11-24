@@ -2,8 +2,8 @@ import { verifyJwt } from '@basicbenframework/core/auth'
 import { DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import { isApiToken } from '@basicbenframework/core/auth/api-tokens'
 import { getDb } from '@basicbenframework/core/db'
-import type { SessionClaims } from '../helpers/session'
-import type { Request, Response } from '../types'
+import type { SessionClaims } from '../helpers/session.ts'
+import type { Request, Response } from '../types/index.ts'
 
 interface AccountState {
   role: string | null

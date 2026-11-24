@@ -1,9 +1,9 @@
 import { validate, rules } from '@basicbenframework/core/validation'
-import { User } from '../models/User'
+import { User } from '../models/User.ts'
 import { hashPassword, verifyPassword } from '@basicbenframework/core/auth'
-import { resetVerification, sendVerificationEmail } from './EmailVerificationController'
-import { issueSessionToken, revokeSessions } from '../helpers/session'
-import type { Request, Response } from '../types'
+import { resetVerification, sendVerificationEmail } from './EmailVerificationController.ts'
+import { issueSessionToken, revokeSessions } from '../helpers/session.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * An http(s) URL or nothing.

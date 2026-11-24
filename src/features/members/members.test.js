@@ -16,30 +16,11 @@ import { readFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { registerHooks } from 'node:module'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 const FEATURE = 'src/features/members'
 const read = (path) => readFileSync(join(ROOT, path), 'utf-8')
 const load = (path) => import(pathToFileURL(join(ROOT, path)).href)
-
-// Some of what is exercised here (the content API model, the feeds, the post
-// controller) imports its siblings without an extension, which Vite resolves
-// and plain Node does not. Resolve those the way Vite would, for this process
-// only, rather than editing shared files to suit the test.
-registerHooks({
-  resolve(specifier, context, nextResolve) {
-    try {
-      return nextResolve(specifier, context)
-    } catch (err) {
-      if (specifier.startsWith('.') && !/\.[cm]?[jt]sx?$/.test(specifier)) {
-        try { return nextResolve(`${specifier}.ts`, context) } catch {}
-        return nextResolve(`${specifier}/index.ts`, context)
-      }
-      throw err
-    }
-  }
-})
 
 const scratch = mkdtempSync(join(tmpdir(), 'basicben-phase3-'))
 process.env.DATABASE_URL = join(scratch, 'test.sqlite')

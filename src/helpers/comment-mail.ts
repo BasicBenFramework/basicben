@@ -23,10 +23,10 @@
 import { sendMail, renderMail } from '@basicbenframework/core/mail'
 import { capabilitiesFor, ROLES } from '@basicbenframework/core/auth/permissions'
 import { getDb } from '@basicbenframework/core/db'
-import { Comment } from '../models/Comment'
-import { Settings } from '../models/Settings'
-import { issueUnsubscribeToken } from './comment-guard'
-import type { Comment as CommentType } from '../types'
+import { Comment } from '../models/Comment.ts'
+import { Settings } from '../models/Settings.ts'
+import { issueUnsubscribeToken } from './comment-guard.ts'
+import type { Comment as CommentType } from '../types/index.ts'
 
 const appUrl = () => process.env.APP_URL || 'http://localhost:3000'
 

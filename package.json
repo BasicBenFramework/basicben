@@ -9,6 +9,7 @@
     "build": "basicben build",
     "build:client": "vite build",
     "build:server": "vite build --ssr src/server/index.ts --outDir dist/server",
+    "build:lib": "rm -rf lib && tsc -p tsconfig.build.json && cp src/client/styles.css lib/client/styles.css",
     "start": "basicben start",
     "test": "node --test \"tests/**/*.test.js\" \"src/features/**/*.test.js\"",
     "migrate": "basicben migrate",

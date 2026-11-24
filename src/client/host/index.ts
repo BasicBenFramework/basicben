@@ -9,7 +9,7 @@
  */
 
 import { createElement, Fragment, type ComponentType, type ReactNode } from 'react'
-import { addDictionaries, type Dictionary } from '../i18n'
+import { addDictionaries, type Dictionary } from '../i18n/index.ts'
 import type { FeaturePage } from '../../host/manifest.ts'
 
 export interface AdminFeature {

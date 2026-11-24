@@ -14,7 +14,7 @@
  * members sends through its own queue again. How it works: README.md.
  */
 
-import type { Feature } from '../../host'
+import type { Feature } from '../../host/index.ts'
 import { check } from '../../helpers/health.ts'
 import { SETTINGS, isConfigured, webhookSecret } from './config.ts'
 import { mysendboxRoutes } from './routes.ts'

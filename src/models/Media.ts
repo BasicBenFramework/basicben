@@ -1,5 +1,5 @@
 import { getDb, query } from '@basicbenframework/core/db'
-import type { Media as MediaType } from '../types'
+import type { Media as MediaType } from '../types/index.ts'
 
 interface CreateMediaData {
   user_id?: number

@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { renderContentSync } from '@basicbenframework/core/content'
-import MediaPicker, { markdownFor } from './admin/MediaPicker'
-import { t, useT } from '../i18n'
+import MediaPicker, { markdownFor } from './admin/MediaPicker.tsx'
+import { t, useT } from '../i18n/index.ts'
 
 /**
  * Markdown editor with a live preview.

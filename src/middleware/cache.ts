@@ -14,7 +14,7 @@
 
 import { strongEtag, conditional } from '@basicbenframework/core/etag'
 import { credentialHeaders } from '../helpers/access.ts'
-import type { Request, Response } from '../types'
+import type { Request, Response } from '../types/index.ts'
 
 type Next = () => void
 

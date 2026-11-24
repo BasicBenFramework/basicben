@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import { useT, slots } from '../../i18n'
+import { api } from '../../../helpers/api.ts'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import { useT, slots } from '../../i18n/index.ts'
 
 type Status = 'pass' | 'warn' | 'fail'
 

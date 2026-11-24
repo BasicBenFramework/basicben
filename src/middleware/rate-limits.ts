@@ -14,7 +14,7 @@
 
 import { rateLimit, createLimiter, clientAddress, DatabaseStore } from '@basicbenframework/core/rate-limit'
 import { getDb } from '@basicbenframework/core/db'
-import type { Request } from '../types'
+import type { Request } from '../types/index.ts'
 
 /** Shared with features' limiters (`host.rateLimit` would only wrap this). */
 export const store = new DatabaseStore({ getDb })

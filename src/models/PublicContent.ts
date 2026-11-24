@@ -14,15 +14,15 @@
 
 import { getDb } from '@basicbenframework/core/db'
 import { getStorage, absoluteUrl } from '@basicbenframework/core/storage'
-import { livePost, parseStoredTimestamp } from './visibility'
-import { responsiveImage, type ResponsiveImage } from '../helpers/images'
-import { siteUrl } from '../helpers/site'
-import { publicExcerpt } from '../helpers/gating'
-import { mayRead, visibilityOf, type Viewer } from '../helpers/access'
+import { livePost, parseStoredTimestamp } from './visibility.ts'
+import { responsiveImage, type ResponsiveImage } from '../helpers/images.ts'
+import { siteUrl } from '../helpers/site.ts'
+import { publicExcerpt } from '../helpers/gating.ts'
+import { mayRead, visibilityOf, type Viewer } from '../helpers/access.ts'
 import { excerpt as plainText } from '@basicbenframework/core/content'
-import { ContentType, publicFieldValues, type ContentTypeRecord } from './ContentType'
-import { taxonomyWhere } from './Taxonomy'
-import { entryPath } from '../helpers/content-paths'
+import { ContentType, publicFieldValues, type ContentTypeRecord } from './ContentType.ts'
+import { taxonomyWhere } from './Taxonomy.ts'
+import { entryPath } from '../helpers/content-paths.ts'
 
 export type ContentFormat = 'html' | 'markdown'
 

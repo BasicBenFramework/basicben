@@ -1,8 +1,8 @@
-import { useTheme } from '../ThemeContext'
-import { NavLink } from '../NavLink'
-import { Button } from '../Button'
-import { DarkModeToggle } from './DarkModeToggle'
-import type { User } from '../../../types'
+import { useTheme } from '../ThemeContext.tsx'
+import { NavLink } from '../NavLink.tsx'
+import { Button } from '../Button.tsx'
+import { DarkModeToggle } from './DarkModeToggle.tsx'
+import type { User } from '../../../types/index.ts'
 
 interface DesktopNavProps {
   user: User | null

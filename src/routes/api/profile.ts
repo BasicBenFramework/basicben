@@ -1,6 +1,6 @@
-import { ProfileController } from '../../controllers/ProfileController'
-import { auth } from '../../middleware/auth'
-import { accountChangeLimit } from '../../middleware/rate-limits'
+import { ProfileController } from '../../controllers/ProfileController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { accountChangeLimit } from '../../middleware/rate-limits.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

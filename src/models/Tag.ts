@@ -1,6 +1,6 @@
 import { getDb, query } from '@basicbenframework/core/db'
-import type { Tag as TagType } from '../types'
-import { livePost } from './visibility'
+import type { Tag as TagType } from '../types/index.ts'
+import { livePost } from './visibility.ts'
 
 interface CreateTagData {
   name: string

@@ -1,6 +1,6 @@
 import { getDb, query } from '@basicbenframework/core/db'
-import { MAX_DEPTH, type CommentStatus } from '../helpers/comment-guard'
-import type { Comment as CommentType } from '../types'
+import { MAX_DEPTH, type CommentStatus } from '../helpers/comment-guard.ts'
+import type { Comment as CommentType } from '../types/index.ts'
 
 interface CreateCommentData {
   post_id: number

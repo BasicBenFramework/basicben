@@ -1,6 +1,6 @@
 import { useState, ReactNode } from 'react'
-import { ThemeContext } from '../components/ThemeContext'
-import { ToastProvider } from '../contexts/ToastContext'
+import { ThemeContext } from '../components/ThemeContext.tsx'
+import { ToastProvider } from '../contexts/ToastContext.tsx'
 
 interface RootLayoutProps {
   children: ReactNode

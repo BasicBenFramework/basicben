@@ -19,7 +19,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { webhookSecret, setting } from './config.ts'
 import { applyRemoteStatus } from './contacts.ts'
-import type { Request, Response } from '../../types'
+import type { Request, Response } from '../../types/index.ts'
 
 export const MAX_BODY_BYTES = 256 * 1024
 export const TOLERANCE_SECONDS = 5 * 60

@@ -1,6 +1,6 @@
-import { useTheme } from './ThemeContext'
-import { Avatar } from './Avatar'
-import type { Post } from '../../types'
+import { useTheme } from './ThemeContext.tsx'
+import { Avatar } from './Avatar.tsx'
+import type { Post } from '../../types/index.ts'
 
 interface PostCardProps {
   post: Post

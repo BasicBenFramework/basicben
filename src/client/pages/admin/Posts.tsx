@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import { Link } from '../../components/Link'
-import { Pagination, type PageMeta } from '../../components/admin/Pagination'
+import { api } from '../../../helpers/api.ts'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import { Link } from '../../components/Link.tsx'
+import { Pagination, type PageMeta } from '../../components/admin/Pagination.tsx'
 import { useNavigate, useParams } from '@basicbenframework/core/client'
-import { useContentTypes, typeFromQuery, navigateWithType } from '../../hooks/useContentTypes'
-import { t, useT } from '../../i18n'
+import { useContentTypes, typeFromQuery, navigateWithType } from '../../hooks/useContentTypes.ts'
+import { t, useT } from '../../i18n/index.ts'
 
 interface Post {
   id: number

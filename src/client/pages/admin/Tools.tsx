@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import AdminLayout from '../../layouts/AdminLayout'
-import { useT, slots } from '../../i18n'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import { useT, slots } from '../../i18n/index.ts'
 
 /**
  * Export and import.

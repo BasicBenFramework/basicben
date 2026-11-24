@@ -2,7 +2,7 @@ import { requireCapability } from '@basicbenframework/core/auth/permissions'
 import { auth } from '../../middleware/auth.ts'
 import { mysendboxWebhook } from './webhook.ts'
 import { MySendboxController } from './controller.ts'
-import type { Router } from '../../host'
+import type { Router } from '../../host/index.ts'
 
 /**
  * The webhook is public and verified by its signature. The admin routes are

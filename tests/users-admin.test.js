@@ -45,7 +45,7 @@ describe('the users API', () => {
   test('is registered with the server, since route autoloading is off', () => {
     const server = read('src/server/index.ts')
 
-    assert.match(server, /import usersRoutes from '\.\.\/routes\/api\/users'/)
+    assert.match(server, /import usersRoutes from '\.\.\/routes\/api\/users(\.ts)?'/)
     assert.match(server, /^usersRoutes\(router\)$/m)
   })
 

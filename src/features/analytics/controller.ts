@@ -8,7 +8,7 @@ import {
   parseHitBody
 } from './helpers.ts'
 import { recordHit, summary, analyticsSettings, purgeOpportunistically } from './model.ts'
-import type { Request, Response } from '../../types'
+import type { Request, Response } from '../../types/index.ts'
 
 /** The ranges the admin offers. Anything else is refused, not clamped. */
 const RANGES = [7, 30, 90]

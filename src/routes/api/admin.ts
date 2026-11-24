@@ -1,5 +1,5 @@
-import { AdminController } from '../../controllers/AdminController'
-import { auth } from '../../middleware/auth'
+import { AdminController } from '../../controllers/AdminController.ts'
+import { auth } from '../../middleware/auth.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

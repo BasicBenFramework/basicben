@@ -7,7 +7,6 @@
 import { test, describe, before, after } from 'node:test'
 import assert from 'node:assert'
 import { readFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs'
-import { registerHooks } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -16,18 +15,6 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..')
 const FEATURE = 'src/features/theme'
 const read = (path) => readFileSync(join(ROOT, path), 'utf-8')
 const load = (path) => import(pathToFileURL(join(ROOT, path)).href)
-
-// The app's own sources import siblings without an extension, which the
-// bundler resolves and Node does not.
-registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (/^\.\.?\//.test(specifier) && !/\.[a-z]+$/i.test(specifier) && context.parentURL?.endsWith('.ts')) {
-      const candidate = new URL(specifier + '.ts', context.parentURL)
-      if (existsSync(fileURLToPath(candidate))) return nextResolve(candidate.href, context)
-    }
-    return nextResolve(specifier, context)
-  }
-})
 
 const scratch = mkdtempSync(join(tmpdir(), 'basicben-theme-'))
 process.env.DATABASE_URL = join(scratch, 'test.sqlite')

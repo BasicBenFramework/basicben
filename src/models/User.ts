@@ -1,8 +1,8 @@
 import { getDb, query } from '@basicbenframework/core/db'
 import { DEFAULT_ROLE, capabilitiesFor } from '@basicbenframework/core/auth/permissions'
 import { getStorage } from '@basicbenframework/core/storage'
-import { uniqueSlug } from './derive'
-import type { AuthorProfile, User as UserType } from '../types'
+import { uniqueSlug } from './derive.ts'
+import type { AuthorProfile, User as UserType } from '../types/index.ts'
 
 interface CreateUserData {
   name: string

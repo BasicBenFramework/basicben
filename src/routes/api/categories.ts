@@ -1,5 +1,5 @@
-import { CategoryController } from '../../controllers/CategoryController'
-import { authOrToken } from '../../middleware/api-auth'
+import { CategoryController } from '../../controllers/CategoryController.ts'
+import { authOrToken } from '../../middleware/api-auth.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

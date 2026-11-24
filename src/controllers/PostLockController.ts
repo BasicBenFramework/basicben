@@ -1,7 +1,7 @@
 import { can } from '@basicbenframework/core/auth/permissions'
-import { Post } from '../models/Post'
-import { PostLock, LOCK_HEARTBEAT_MS, LOCK_TTL_MS, type PostLockState } from '../models/PostLock'
-import type { Post as PostType, Request, Response } from '../types'
+import { Post } from '../models/Post.ts'
+import { PostLock, LOCK_HEARTBEAT_MS, LOCK_TTL_MS, type PostLockState } from '../models/PostLock.ts'
+import type { Post as PostType, Request, Response } from '../types/index.ts'
 
 /**
  * The editor's lock on a post: take it, keep it, give it back.

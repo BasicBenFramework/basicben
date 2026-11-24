@@ -1,6 +1,6 @@
 import { getDb } from '@basicbenframework/core/db'
-import { exportChunks, EXPORT_FORMAT } from '../helpers/export-data'
-import type { Request, Response } from '../types'
+import { exportChunks, EXPORT_FORMAT } from '../helpers/export-data.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * The framework hands handlers Node's own response object, so `write` exists;

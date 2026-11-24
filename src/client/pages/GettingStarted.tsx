@@ -1,6 +1,6 @@
-import { useTheme } from '../components/ThemeContext'
-import { Card } from '../components/Card'
-import { PageHeader } from '../components/PageHeader'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { Card } from '../components/Card.tsx'
+import { PageHeader } from '../components/PageHeader.tsx'
 
 export function GettingStarted() {
   const { t } = useTheme()

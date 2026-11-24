@@ -6,8 +6,8 @@
  * a table of its own.
  *
  * Imports nothing and takes the database handle as an argument, for the same
- * reason as `export-data.ts`: the backup script is plain Node, which cannot
- * resolve the extensionless imports the rest of `src/` uses.
+ * reason as `export-data.ts`: the backup script loads it with plain Node, and
+ * recording a row should not load the app.
  *
  * Recording is best-effort everywhere it is called. A heartbeat is a report
  * about a job, and a job must never fail because its report could not be

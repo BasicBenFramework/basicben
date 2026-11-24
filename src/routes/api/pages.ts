@@ -1,6 +1,6 @@
-import { PageController } from '../../controllers/PageController'
-import { auth } from '../../middleware/auth'
-import { authOrToken } from '../../middleware/api-auth'
+import { PageController } from '../../controllers/PageController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { authOrToken } from '../../middleware/api-auth.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '../../helpers/api'
+import { api } from '../../helpers/api.ts'
 import { useAuth, useNavigate, usePath } from '@basicbenframework/core/client'
-import AdminIcon from '../components/admin/AdminIcons'
-import { Link } from '../components/Link'
+import AdminIcon from '../components/admin/AdminIcons.tsx'
+import { Link } from '../components/Link.tsx'
 import { can } from '@basicbenframework/core/auth/permissions'
-import { applySiteLocale, useT } from '../i18n'
-import { withFeaturePages } from '../../host/menu'
-import featureManifests from '../../features.manifest'
+import { applySiteLocale, useT } from '../i18n/index.ts'
+import { withFeaturePages } from '../../host/menu.ts'
+import featureManifests from '../../features.manifest.ts'
 
 interface MenuItem {
   path: string

@@ -8,11 +8,10 @@
  *
  * ## Why this file imports (almost) nothing
  *
- * The scripts are plain Node, and Node runs TypeScript only by stripping its
- * types — it does no extension guessing, so the extensionless relative imports
- * the rest of `src/` uses would fail to resolve there. Taking the database
- * handle as an argument, rather than calling `getDb()`, keeps this file
- * loadable from both sides and lets the tests hand it an in-memory database.
+ * The scripts are plain Node, and loading this should not load the app with
+ * it. Taking the database handle as an argument, rather than calling
+ * `getDb()`, keeps this file loadable from both sides and lets the tests hand
+ * it an in-memory database.
  *
  * ## What is left out, and why it is an allowlist
  *

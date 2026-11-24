@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { useNavigate, usePath } from '@basicbenframework/core/client'
-import { useTheme } from '../components/ThemeContext'
-import { AppLayout } from './AppLayout'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { AppLayout } from './AppLayout.tsx'
 
 interface SidebarLinkProps {
   href: string

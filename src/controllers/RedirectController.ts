@@ -1,7 +1,7 @@
-import { Redirect, validateRedirect } from '../models/Redirect'
-import { paginationFrom, meta } from '../models/pagination'
-import { normalizeRedirectSource } from '../helpers/content-paths'
-import type { Request, Response } from '../types'
+import { Redirect, validateRedirect } from '../models/Redirect.ts'
+import { paginationFrom, meta } from '../models/pagination.ts'
+import { normalizeRedirectSource } from '../helpers/content-paths.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * Redirect management for the admin, and the public lookup for front ends.

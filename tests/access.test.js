@@ -14,26 +14,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { registerHooks } from 'node:module'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const load = (path) => import(pathToFileURL(join(ROOT, path)).href)
-
-// The models and controllers import siblings without an extension, which Vite
-// resolves and plain Node does not.
-registerHooks({
-  resolve(specifier, context, nextResolve) {
-    try {
-      return nextResolve(specifier, context)
-    } catch (err) {
-      if (specifier.startsWith('.') && !/\.[cm]?[jt]sx?$/.test(specifier)) {
-        try { return nextResolve(`${specifier}.ts`, context) } catch {}
-        return nextResolve(`${specifier}/index.ts`, context)
-      }
-      throw err
-    }
-  }
-})
 
 const scratch = mkdtempSync(join(tmpdir(), 'basicben-access-'))
 process.env.DATABASE_URL = join(scratch, 'test.sqlite')

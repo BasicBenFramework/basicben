@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { t } from '../i18n'
+import { t } from '../i18n/index.ts'
 
 /**
  * The editor's side of the post edit lock (see src/models/PostLock.ts).

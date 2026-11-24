@@ -1,7 +1,7 @@
 import { getDb } from '@basicbenframework/core/db'
 import { isConfigured, webhookSecret, setting, client } from './config.ts'
 import { backfill, contactCounts } from './contacts.ts'
-import type { Request, Response } from '../../types'
+import type { Request, Response } from '../../types/index.ts'
 
 export const MySendboxController = {
   /**

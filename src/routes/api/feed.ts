@@ -1,4 +1,4 @@
-import { FeedController } from '../../controllers/FeedController'
+import { FeedController } from '../../controllers/FeedController.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

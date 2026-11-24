@@ -21,7 +21,7 @@ import { hasScope, isApiToken, verifyApiToken } from '@basicbenframework/core/au
 import { Settings } from '../models/Settings.ts'
 import { resolveSession, accountForToken } from './auth.ts'
 import { tokenWriteLimiter } from './rate-limits.ts'
-import type { Request, Response } from '../types'
+import type { Request, Response } from '../types/index.ts'
 
 type Next = () => void
 

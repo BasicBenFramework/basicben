@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '@basicbenframework/core/client'
 import { can } from '@basicbenframework/core/auth/permissions'
-import { api } from '../../helpers/api'
-import AdminLayout from '../../client/layouts/AdminLayout'
-import { useT, currentLocale, slots } from '../../client/i18n'
+import { api } from '../../helpers/api.ts'
+import AdminLayout from '../../client/layouts/AdminLayout.tsx'
+import { useT, currentLocale, slots } from '../../client/i18n/index.ts'
 
 interface Day {
   day: string

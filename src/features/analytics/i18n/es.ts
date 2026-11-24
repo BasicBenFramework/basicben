@@ -1,4 +1,4 @@
-import type { Dictionary } from '../../../client/i18n'
+import type { Dictionary } from '../../../client/i18n/index.ts'
 
 /** Spanish for the analytics feature. Merged over the admin's own dictionary. */
 const strings: Dictionary = {

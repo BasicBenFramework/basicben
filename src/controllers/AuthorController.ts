@@ -12,8 +12,8 @@
  * which `PostController` enforces on the write.
  */
 
-import { User } from '../models/User'
-import type { Request, Response } from '../types'
+import { User } from '../models/User.ts'
+import type { Request, Response } from '../types/index.ts'
 
 export const AuthorController = {
   async index(_req: Request, res: Response) {

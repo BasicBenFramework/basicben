@@ -1,7 +1,7 @@
-import { Settings } from '../models/Settings'
-import { validateSettings, isKnownSetting } from '../helpers/site-settings'
-import { siteUrl } from '../helpers/site'
-import type { Request, Response } from '../types'
+import { Settings } from '../models/Settings.ts'
+import { validateSettings, isKnownSetting } from '../helpers/site-settings.ts'
+import { siteUrl } from '../helpers/site.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * Site settings.

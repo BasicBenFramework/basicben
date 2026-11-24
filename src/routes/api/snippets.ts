@@ -1,5 +1,5 @@
-import { SnippetController } from '../../controllers/SnippetController'
-import { auth } from '../../middleware/auth'
+import { SnippetController } from '../../controllers/SnippetController.ts'
+import { auth } from '../../middleware/auth.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

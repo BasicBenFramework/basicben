@@ -1,8 +1,8 @@
 /**
  * The static half of a feature: facts code can read without booting the
  * server. A feature's `manifest.ts` must import nothing at runtime (type
- * imports are fine), because the export and backup scripts load it with plain
- * Node, which resolves no extensionless imports.
+ * imports are fine): the export and backup scripts and the site config read
+ * it with plain Node, and reading a feature's facts must not load the feature.
  */
 
 export interface FeaturePage {

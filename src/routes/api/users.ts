@@ -1,6 +1,6 @@
-import { UserController, InvitationController } from '../../controllers/UserController'
-import { auth } from '../../middleware/auth'
-import { invitationLimit, tokenRedeemLimit } from '../../middleware/rate-limits'
+import { UserController, InvitationController } from '../../controllers/UserController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { invitationLimit, tokenRedeemLimit } from '../../middleware/rate-limits.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

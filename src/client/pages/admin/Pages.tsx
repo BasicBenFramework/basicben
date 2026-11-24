@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import { Link } from '../../components/Link'
-import { Pagination, type PageMeta } from '../../components/admin/Pagination'
-import { useT } from '../../i18n'
+import { api } from '../../../helpers/api.ts'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import { Link } from '../../components/Link.tsx'
+import { Pagination, type PageMeta } from '../../components/admin/Pagination.tsx'
+import { useT } from '../../i18n/index.ts'
 
 interface Page {
   id: number

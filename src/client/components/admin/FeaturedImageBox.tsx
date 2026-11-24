@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import MediaPicker from './MediaPicker'
-import { MediaItem, isImage, mediaUrl } from '../../hooks/useMediaLibrary'
-import { useT } from '../../i18n'
+import MediaPicker from './MediaPicker.tsx'
+import { MediaItem, isImage, mediaUrl } from '../../hooks/useMediaLibrary.ts'
+import { useT } from '../../i18n/index.ts'
 
 /**
  * The featured image panel, for posts and for pages.

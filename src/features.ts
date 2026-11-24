@@ -6,7 +6,7 @@
  *
  * Keep in step with src/client/features.ts and src/features.manifest.ts.
  */
-import type { Feature } from './host'
+import type { Feature } from './host/index.ts'
 import analytics from './features/analytics/index.ts'
 import members from './features/members/index.ts'
 import mysendbox from './features/mysendbox/index.ts'

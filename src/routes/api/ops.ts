@@ -1,7 +1,7 @@
-import { HealthController } from '../../controllers/HealthController'
-import { auth } from '../../middleware/auth'
-import { requireSession } from '../../middleware/api-auth'
-import { healthActionLimit } from '../../middleware/rate-limits'
+import { HealthController } from '../../controllers/HealthController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { requireSession } from '../../middleware/api-auth.ts'
+import { healthActionLimit } from '../../middleware/rate-limits.ts'
 import { requireRole, ROLES } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

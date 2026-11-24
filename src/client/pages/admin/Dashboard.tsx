@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import type { Post, Page } from '../../../types'
-import { Link } from '../../components/Link'
-import { useT } from '../../i18n'
+import { api } from '../../../helpers/api.ts'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import type { Post, Page } from '../../../types/index.ts'
+import { Link } from '../../components/Link.tsx'
+import { useT } from '../../i18n/index.ts'
 
 /**
  * A count the signed-in account is allowed to see, or `null` because it is not.

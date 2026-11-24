@@ -1,6 +1,6 @@
-import { TwoFactorController } from '../../controllers/TwoFactorController'
-import { auth } from '../../middleware/auth'
-import { twoFactorLimit } from '../../middleware/rate-limits'
+import { TwoFactorController } from '../../controllers/TwoFactorController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { twoFactorLimit } from '../../middleware/rate-limits.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

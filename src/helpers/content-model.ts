@@ -8,9 +8,9 @@
  * any importer agree on them.
  */
 
-import { ContentType, validateFieldValues, parseStoredFields, type ContentTypeRecord } from '../models/ContentType'
-import { Taxonomy } from '../models/Taxonomy'
-import { entryPath } from './content-paths'
+import { ContentType, validateFieldValues, parseStoredFields, type ContentTypeRecord } from '../models/ContentType.ts'
+import { Taxonomy } from '../models/Taxonomy.ts'
+import { entryPath } from './content-paths.ts'
 
 interface Existing {
   id: number

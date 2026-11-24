@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { useT } from '../../i18n'
+import { useT } from '../../i18n/index.ts'
 
 export interface Term {
   id: number

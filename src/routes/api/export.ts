@@ -1,6 +1,6 @@
-import { ExportController } from '../../controllers/ExportController'
-import { auth } from '../../middleware/auth'
-import { requireSession } from '../../middleware/api-auth'
+import { ExportController } from '../../controllers/ExportController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { requireSession } from '../../middleware/api-auth.ts'
 import { requireRole, ROLES } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

@@ -1,6 +1,6 @@
 import { getDb, query } from '@basicbenframework/core/db'
-import type { Category as CategoryType } from '../types'
-import { livePost } from './visibility'
+import type { Category as CategoryType } from '../types/index.ts'
+import { livePost } from './visibility.ts'
 
 interface CreateCategoryData {
   name: string

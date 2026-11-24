@@ -1,10 +1,10 @@
 import { useState, FormEvent, ChangeEvent } from 'react'
 import { useNavigate } from '@basicbenframework/core/client'
-import { useTheme } from '../components/ThemeContext'
-import { Input } from '../components/Input'
-import { Button } from '../components/Button'
-import { api } from '../../helpers/api'
-import { useToast } from '../contexts/ToastContext'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { Input } from '../components/Input.tsx'
+import { Button } from '../components/Button.tsx'
+import { api } from '../../helpers/api.ts'
+import { useToast } from '../contexts/ToastContext.tsx'
 
 /**
  * Ask for a password reset link.

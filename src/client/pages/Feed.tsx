@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from '@basicbenframework/core/client'
-import { PageHeader } from '../components/PageHeader'
-import { PostCard } from '../components/PostCard'
-import { Loading } from '../components/Loading'
-import { Empty } from '../components/Empty'
-import { api } from '../../helpers/api'
-import type { Post } from '../../types'
+import { PageHeader } from '../components/PageHeader.tsx'
+import { PostCard } from '../components/PostCard.tsx'
+import { Loading } from '../components/Loading.tsx'
+import { Empty } from '../components/Empty.tsx'
+import { api } from '../../helpers/api.ts'
+import type { Post } from '../../types/index.ts'
 
 interface FeedResponse {
   posts: Post[]

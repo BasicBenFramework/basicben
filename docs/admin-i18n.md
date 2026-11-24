@@ -23,7 +23,7 @@ are in English for now.
 Strings are keyed on their English text:
 
 ```tsx
-import { useT, slots } from '../../i18n'
+import { useT, slots } from '../../i18n/index.ts'
 
 const { t, tn, locale } = useT()
 

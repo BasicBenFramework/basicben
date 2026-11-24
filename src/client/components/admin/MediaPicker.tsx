@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react'
-import { MediaItem, isImage, mediaUrl, useMediaLibrary } from '../../hooks/useMediaLibrary'
-import MediaGrid from './MediaGrid'
-import { useT } from '../../i18n'
+import { MediaItem, isImage, mediaUrl, useMediaLibrary } from '../../hooks/useMediaLibrary.ts'
+import MediaGrid from './MediaGrid.tsx'
+import { useT } from '../../i18n/index.ts'
 
 /**
  * Choose a file, or upload one, without leaving the editor.

@@ -1,5 +1,5 @@
 import { ButtonHTMLAttributes, ReactNode } from 'react'
-import { useTheme } from './ThemeContext'
+import { useTheme } from './ThemeContext.tsx'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'

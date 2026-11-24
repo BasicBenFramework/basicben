@@ -25,7 +25,7 @@
 
 import { readMemberSession, MEMBER_HEADER } from './session.ts'
 import { Member, type MemberRow } from './Member.ts'
-import type { Request, Response } from '../../types'
+import type { Request, Response } from '../../types/index.ts'
 
 type Next = () => void
 

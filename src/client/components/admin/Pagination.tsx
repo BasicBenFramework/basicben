@@ -1,4 +1,4 @@
-import { useT } from '../../i18n'
+import { useT } from '../../i18n/index.ts'
 
 export interface PageMeta {
   page: number

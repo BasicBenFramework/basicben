@@ -1,8 +1,8 @@
-import { auth } from '../../middleware/auth'
-import { AuthController } from '../../controllers/AuthController'
-import { loginByAddress, loginByAccount, registerLimit } from '../../middleware/rate-limits'
-import { PasswordResetController } from '../../controllers/PasswordResetController'
-import { passwordResetLimit, tokenRedeemLimit } from '../../middleware/rate-limits'
+import { auth } from '../../middleware/auth.ts'
+import { AuthController } from '../../controllers/AuthController.ts'
+import { loginByAddress, loginByAccount, registerLimit } from '../../middleware/rate-limits.ts'
+import { PasswordResetController } from '../../controllers/PasswordResetController.ts'
+import { passwordResetLimit, tokenRedeemLimit } from '../../middleware/rate-limits.ts'
 
 interface Router {
   post: (path: string, ...handlers: Function[]) => void

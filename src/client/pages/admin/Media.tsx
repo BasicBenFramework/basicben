@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
-import AdminLayout from '../../layouts/AdminLayout'
-import MediaGrid from '../../components/admin/MediaGrid'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import MediaGrid from '../../components/admin/MediaGrid.tsx'
 import {
   MediaItem,
   isImage,
   mediaUrl,
   useMediaLibrary
-} from '../../hooks/useMediaLibrary'
-import { useT } from '../../i18n'
+} from '../../hooks/useMediaLibrary.ts'
+import { useT } from '../../i18n/index.ts'
 
 export default function AdminMedia() {
   const { t, tn } = useT()

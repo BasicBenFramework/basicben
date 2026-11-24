@@ -1,12 +1,12 @@
 import { getDb } from '@basicbenframework/core/db'
-import { Settings } from '../models/Settings'
-import { livePost } from '../models/visibility'
-import { siteUrl } from '../helpers/site'
-import { isGated, gatedFeedHtml, publicExcerpt } from '../helpers/gating'
+import { Settings } from '../models/Settings.ts'
+import { livePost } from '../models/visibility.ts'
+import { siteUrl } from '../helpers/site.ts'
+import { isGated, gatedFeedHtml, publicExcerpt } from '../helpers/gating.ts'
 import { excerpt as plainText } from '@basicbenframework/core/content'
-import { ContentType } from '../models/ContentType'
-import { entryPath } from '../helpers/content-paths'
-import type { Request, Response } from '../types'
+import { ContentType } from '../models/ContentType.ts'
+import { entryPath } from '../helpers/content-paths.ts'
+import type { Request, Response } from '../types/index.ts'
 
 interface FeedPost {
   id: number

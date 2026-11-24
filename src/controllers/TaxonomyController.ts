@@ -1,5 +1,5 @@
-import { Taxonomy, validateTaxonomy, validateTerm, type TaxonomyRecord } from '../models/Taxonomy'
-import type { Request, Response } from '../types'
+import { Taxonomy, validateTaxonomy, validateTerm, type TaxonomyRecord } from '../models/Taxonomy.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * Custom taxonomies and their terms: admin CRUD and the public reads.

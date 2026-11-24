@@ -26,7 +26,7 @@ import {
   MAGIC_LINK_TTL_MS
 } from './session.ts'
 import { emailSendLimiter } from '../../middleware/rate-limits.ts'
-import type { Request, Response } from '../../types'
+import type { Request, Response } from '../../types/index.ts'
 
 /** The one answer the magic-link endpoint gives, whoever asks. */
 export const MAGIC_LINK_SENT = 'If that address can sign in, a link is on its way. It works once, for an hour.'

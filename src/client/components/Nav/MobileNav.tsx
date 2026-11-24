@@ -1,6 +1,6 @@
-import { useTheme } from '../ThemeContext'
-import { Logo } from '../Logo'
-import type { User } from '../../../types'
+import { useTheme } from '../ThemeContext.tsx'
+import { Logo } from '../Logo.tsx'
+import type { User } from '../../../types/index.ts'
 
 interface MobileNavProps {
   user: User | null

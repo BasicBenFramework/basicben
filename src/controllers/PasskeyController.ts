@@ -6,9 +6,9 @@ import {
   verifyRegistration,
   verifyAuthentication
 } from '@basicbenframework/core/auth/webauthn'
-import { User } from '../models/User'
-import { Credential } from '../models/Credential'
-import type { Request, Response } from '../types'
+import { User } from '../models/User.ts'
+import { Credential } from '../models/Credential.ts'
+import type { Request, Response } from '../types/index.ts'
 
 const CHALLENGE_TTL = 5 * 60 * 1000
 

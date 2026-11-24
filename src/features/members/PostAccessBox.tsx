@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api } from '../../helpers/api'
-import { useT } from '../../client/i18n'
-import type { PostEditorSidebarProps } from '../../client/host'
+import { api } from '../../helpers/api.ts'
+import { useT } from '../../client/i18n/index.ts'
+import type { PostEditorSidebarProps } from '../../client/host/index.ts'
 
 /**
  * Who may read a post, and whether it is emailed to members.

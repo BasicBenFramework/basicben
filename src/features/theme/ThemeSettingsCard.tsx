@@ -1,5 +1,5 @@
-import { useT } from '../../client/i18n'
-import type { SettingsSectionProps } from '../../client/host'
+import { useT } from '../../client/i18n/index.ts'
+import type { SettingsSectionProps } from '../../client/host/index.ts'
 
 const hint = { color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }
 

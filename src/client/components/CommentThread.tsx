@@ -1,13 +1,13 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { useAuth } from '@basicbenframework/core/client'
-import { useTheme } from './ThemeContext'
-import { Card } from './Card'
-import { Avatar } from './Avatar'
-import { Button } from './Button'
-import { Input } from './Input'
-import { Textarea } from './Textarea'
-import { Alert } from './Alert'
-import { api } from '../../helpers/api'
+import { useTheme } from './ThemeContext.tsx'
+import { Card } from './Card.tsx'
+import { Avatar } from './Avatar.tsx'
+import { Button } from './Button.tsx'
+import { Input } from './Input.tsx'
+import { Textarea } from './Textarea.tsx'
+import { Alert } from './Alert.tsx'
+import { api } from '../../helpers/api.ts'
 
 /** A comment as the public list returns it: no addresses, ever. */
 interface PublicComment {

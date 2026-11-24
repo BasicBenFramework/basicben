@@ -4,7 +4,7 @@
  * Handles basic application endpoints.
  */
 
-import type { Request, Response } from '../types'
+import type { Request, Response } from '../types/index.ts'
 
 export const HomeController = {
   /**

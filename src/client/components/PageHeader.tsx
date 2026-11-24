@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { useTheme } from './ThemeContext'
+import { useTheme } from './ThemeContext.tsx'
 
 interface PageHeaderProps {
   title: string

@@ -1,5 +1,5 @@
-import { SettingsController } from '../../controllers/SettingsController'
-import { auth } from '../../middleware/auth'
+import { SettingsController } from '../../controllers/SettingsController.ts'
+import { auth } from '../../middleware/auth.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

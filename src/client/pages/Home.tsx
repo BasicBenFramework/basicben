@@ -1,10 +1,10 @@
 import { useState, useEffect, ReactNode } from 'react'
 import { useAuth, useNavigate } from '@basicbenframework/core/client'
-import { useTheme } from '../components/ThemeContext'
-import { Card } from '../components/Card'
-import { Button } from '../components/Button'
-import { Avatar } from '../components/Avatar'
-import { Logo } from '../components/Logo'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { Card } from '../components/Card.tsx'
+import { Button } from '../components/Button.tsx'
+import { Avatar } from '../components/Avatar.tsx'
+import { Logo } from '../components/Logo.tsx'
 
 interface Feature {
   icon: ReactNode

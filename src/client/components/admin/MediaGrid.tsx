@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
-import { MediaItem, isImage, mediaUrl } from '../../hooks/useMediaLibrary'
-import { useT } from '../../i18n'
+import { MediaItem, isImage, mediaUrl } from '../../hooks/useMediaLibrary.ts'
+import { useT } from '../../i18n/index.ts'
 
 /**
  * A scrollable grid of media that fetches the next page as it nears the bottom.

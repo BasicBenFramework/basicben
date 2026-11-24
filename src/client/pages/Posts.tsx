@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from '@basicbenframework/core/client'
-import { useTheme } from '../components/ThemeContext'
-import { PageHeader } from '../components/PageHeader'
-import { Card } from '../components/Card'
-import { Button } from '../components/Button'
-import { Loading } from '../components/Loading'
-import { Empty } from '../components/Empty'
-import { api } from '../../helpers/api'
-import { useToast } from '../contexts/ToastContext'
-import type { Post } from '../../types'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { PageHeader } from '../components/PageHeader.tsx'
+import { Card } from '../components/Card.tsx'
+import { Button } from '../components/Button.tsx'
+import { Loading } from '../components/Loading.tsx'
+import { Empty } from '../components/Empty.tsx'
+import { api } from '../../helpers/api.ts'
+import { useToast } from '../contexts/ToastContext.tsx'
+import type { Post } from '../../types/index.ts'
 
 interface PostsResponse {
   posts: Post[]

@@ -1,5 +1,5 @@
 import { TextareaHTMLAttributes } from 'react'
-import { useTheme } from './ThemeContext'
+import { useTheme } from './ThemeContext.tsx'
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   rows?: number

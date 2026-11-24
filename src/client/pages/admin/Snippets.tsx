@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import MarkdownEditor from '../../components/MarkdownEditor'
-import type { SnippetItem } from '../../components/admin/SnippetPicker'
-import { useT } from '../../i18n'
+import { api } from '../../../helpers/api.ts'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import MarkdownEditor from '../../components/MarkdownEditor.tsx'
+import type { SnippetItem } from '../../components/admin/SnippetPicker.tsx'
+import { useT } from '../../i18n/index.ts'
 
 interface Draft {
   id: number | null

@@ -2,9 +2,9 @@ import { getDb, query } from '@basicbenframework/core/db'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent } from '@basicbenframework/core/content'
 import { getStorage } from '@basicbenframework/core/storage'
-import { derivedFields } from './derive'
-import type { Post as PostType } from '../types'
-import { livePost } from './visibility'
+import { derivedFields } from './derive.ts'
+import type { Post as PostType } from '../types/index.ts'
+import { livePost } from './visibility.ts'
 
 interface CreatePostData {
   user_id: number

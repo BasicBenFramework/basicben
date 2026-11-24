@@ -2,10 +2,10 @@ import {
   PublicContent,
   paging,
   contentFormat
-} from '../models/PublicContent'
-import { taxonomyFilters } from '../models/Taxonomy'
-import { viewerOf } from '../helpers/access'
-import type { Request, Response } from '../types'
+} from '../models/PublicContent.ts'
+import { taxonomyFilters } from '../models/Taxonomy.ts'
+import { viewerOf } from '../helpers/access.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * The read-only content API, mounted at /api/v1.

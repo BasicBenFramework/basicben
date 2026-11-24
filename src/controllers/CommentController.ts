@@ -1,21 +1,21 @@
 import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
-import { Comment } from '../models/Comment'
-import { Settings } from '../models/Settings'
-import { Post } from '../models/Post'
+import { Comment } from '../models/Comment.ts'
+import { Settings } from '../models/Settings.ts'
+import { Post } from '../models/Post.ts'
 import { can } from '@basicbenframework/core/auth/permissions'
-import { paginationFrom, meta } from '../models/pagination'
-import { clientIp } from '../middleware/rate-limits'
-import { guardWrite } from '../helpers/write-hooks'
+import { paginationFrom, meta } from '../models/pagination.ts'
+import { clientIp } from '../middleware/rate-limits.ts'
+import { guardWrite } from '../helpers/write-hooks.ts'
 import {
   MAX_DEPTH, HONEYPOT_FIELD, DEFAULT_MAX_LINKS, COMMENT_STATUSES,
   isCommentStatus, issueFormToken, readUnsubscribeToken, parseBlocklist, assess,
   type CommentStatus
-} from '../helpers/comment-guard'
+} from '../helpers/comment-guard.ts'
 import {
   inBackground, notifyAwaitingModeration, notifyParentOfReply, notifyAudience, NOTIFY_AUDIENCES
-} from '../helpers/comment-mail'
-import type { Request, Response, Comment as CommentType } from '../types'
+} from '../helpers/comment-mail.ts'
+import type { Request, Response, Comment as CommentType } from '../types/index.ts'
 
 /** The most comments one bulk action may touch: a page and then some. */
 const MAX_BULK = 200

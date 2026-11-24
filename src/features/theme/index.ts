@@ -8,7 +8,7 @@
  */
 
 import { checks } from '../../helpers/site-settings.ts'
-import type { Feature } from '../../host'
+import type { Feature } from '../../host/index.ts'
 import { themeRoutes } from './routes.ts'
 
 const theme: Feature = {

@@ -1,6 +1,6 @@
 import { validate, rules } from '@basicbenframework/core/validation'
-import { Tag } from '../models/Tag'
-import type { Request, Response } from '../types'
+import { Tag } from '../models/Tag.ts'
+import type { Request, Response } from '../types/index.ts'
 
 export const TagController = {
   async index(req: Request, res: Response) {

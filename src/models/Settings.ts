@@ -1,6 +1,6 @@
 import { getDb } from '@basicbenframework/core/db'
 import { absoluteUrl } from '@basicbenframework/core/storage'
-import type { Settings as SettingsType } from '../types'
+import type { Settings as SettingsType } from '../types/index.ts'
 import { SITE_DEFAULTS } from '../helpers/site-settings.ts'
 import { siteUrl } from '../helpers/site.ts'
 

@@ -1,0 +1,15 @@
+{
+  // Compiles src/ to lib/ as plain ESM with declarations, for Node and for a
+  // site's Vite to consume once the CMS is a package (phase 4b). tsconfig.json
+  // stays the type-checking config with noEmit.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "lib",
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["src", "vite-env.d.ts"],
+  "exclude": ["src/**/*.test.js", "src/**/*.test.ts"]
+}

@@ -2,7 +2,7 @@ import { can } from '@basicbenframework/core/auth/permissions'
 // Extensions on these imports so the controller loads under plain Node too,
 // which is how tests/phase2-api-editing.test.js exercises it.
 import { Snippet, type SnippetRow } from '../models/Snippet.ts'
-import type { Request, Response } from '../types'
+import type { Request, Response } from '../types/index.ts'
 
 const NAME_MAX = 100
 const CONTENT_MAX = 20_000

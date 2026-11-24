@@ -11,8 +11,8 @@
 
 import './request.ts'
 import { HOOKS } from '@basicbenframework/core/hooks'
-import type { Feature } from '../../host'
-import type { Request } from '../../types'
+import type { Feature } from '../../host/index.ts'
+import type { Request } from '../../types/index.ts'
 import { MEMBER_SETTINGS } from './settings.ts'
 import { memberRoutes } from './routes.ts'
 import { memberFromRequest } from './middleware.ts'

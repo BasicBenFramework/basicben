@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { api } from '../../../helpers/api'
-import { useT } from '../../i18n'
+import { api } from '../../../helpers/api.ts'
+import { useT } from '../../i18n/index.ts'
 
 export interface SnippetItem {
   id: number

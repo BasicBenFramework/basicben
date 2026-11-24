@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { api } from '../../../helpers/api'
-import TermPicker from './TermPicker'
-import { useT } from '../../i18n'
-import type { AdminContentType } from '../../hooks/useContentTypes'
+import { api } from '../../../helpers/api.ts'
+import TermPicker from './TermPicker.tsx'
+import { useT } from '../../i18n/index.ts'
+import type { AdminContentType } from '../../hooks/useContentTypes.ts'
 
 /**
  * The editor's content-type panels: a type's custom fields, and the pickers

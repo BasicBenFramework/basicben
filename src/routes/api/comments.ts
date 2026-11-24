@@ -1,6 +1,6 @@
-import { CommentController } from '../../controllers/CommentController'
-import { auth, optionalAuth } from '../../middleware/auth'
-import { commentLimit, unsubscribeLimit } from '../../middleware/rate-limits'
+import { CommentController } from '../../controllers/CommentController.ts'
+import { auth, optionalAuth } from '../../middleware/auth.ts'
+import { commentLimit, unsubscribeLimit } from '../../middleware/rate-limits.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

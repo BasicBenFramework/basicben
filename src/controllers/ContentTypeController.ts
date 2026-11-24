@@ -1,5 +1,5 @@
-import { ContentType, validateContentType, type ContentTypeRecord } from '../models/ContentType'
-import type { Request, Response } from '../types'
+import { ContentType, validateContentType, type ContentTypeRecord } from '../models/ContentType.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * Content types: the admin's CRUD, and the public list at `/api/v1/types`.

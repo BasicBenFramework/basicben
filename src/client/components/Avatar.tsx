@@ -1,4 +1,4 @@
-import { useTheme } from './ThemeContext'
+import { useTheme } from './ThemeContext.tsx'
 
 /**
  * An author's face, or their initial when they have not uploaded one.

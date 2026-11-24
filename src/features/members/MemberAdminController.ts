@@ -18,7 +18,7 @@ import { newsletterFor, sendTestNewsletter, kickNewsletterQueue } from './newsle
 import { emailSendLimiter } from '../../middleware/rate-limits.ts'
 import { hooks } from '@basicbenframework/core/hooks'
 import { NEWSLETTER_HOOKS } from './events.ts'
-import type { Request, Response } from '../../types'
+import type { Request, Response } from '../../types/index.ts'
 
 /** Rows one import request may carry. Sequential inserts on a remote database are not free. */
 export const MAX_IMPORT_ROWS = 5000

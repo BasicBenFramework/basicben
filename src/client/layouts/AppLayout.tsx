@@ -1,11 +1,11 @@
 import { useState, ReactNode } from 'react'
 import { useAuth, useNavigate } from '@basicbenframework/core/client'
-import { useTheme } from '../components/ThemeContext'
-import { RootLayout } from './RootLayout'
-import { DesktopNav } from '../components/Nav/DesktopNav'
-import { MobileNav } from '../components/Nav/MobileNav'
-import { DarkModeToggle } from '../components/Nav/DarkModeToggle'
-import { Logo } from '../components/Logo'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { RootLayout } from './RootLayout.tsx'
+import { DesktopNav } from '../components/Nav/DesktopNav.tsx'
+import { MobileNav } from '../components/Nav/MobileNav.tsx'
+import { DarkModeToggle } from '../components/Nav/DarkModeToggle.tsx'
+import { Logo } from '../components/Logo.tsx'
 
 interface AppLayoutInnerProps {
   children: ReactNode

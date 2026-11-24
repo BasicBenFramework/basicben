@@ -1,14 +1,14 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react'
 import { useNavigate, useParams } from '@basicbenframework/core/client'
-import { PageHeader } from '../components/PageHeader'
-import { BackLink } from '../components/BackLink'
-import { Input } from '../components/Input'
-import { Textarea } from '../components/Textarea'
-import { Button } from '../components/Button'
-import { Loading } from '../components/Loading'
-import { api } from '../../helpers/api'
-import { useToast } from '../contexts/ToastContext'
-import type { Post } from '../../types'
+import { PageHeader } from '../components/PageHeader.tsx'
+import { BackLink } from '../components/BackLink.tsx'
+import { Input } from '../components/Input.tsx'
+import { Textarea } from '../components/Textarea.tsx'
+import { Button } from '../components/Button.tsx'
+import { Loading } from '../components/Loading.tsx'
+import { api } from '../../helpers/api.ts'
+import { useToast } from '../contexts/ToastContext.tsx'
+import type { Post } from '../../types/index.ts'
 
 interface PostResponse {
   post: Post

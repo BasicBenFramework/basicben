@@ -1,5 +1,5 @@
 import { getDb, query } from '@basicbenframework/core/db'
-import { parseStoredTimestamp } from './visibility'
+import { parseStoredTimestamp } from './visibility.ts'
 
 export interface PostRevision {
   id: number

@@ -1,5 +1,5 @@
-import { RedirectController } from '../../controllers/RedirectController'
-import { auth } from '../../middleware/auth'
+import { RedirectController } from '../../controllers/RedirectController.ts'
+import { auth } from '../../middleware/auth.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

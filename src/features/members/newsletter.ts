@@ -44,7 +44,7 @@ import { issueMemberUnsubscribeToken, pruneMagicLinks } from './session.ts'
 import { NEWSLETTER_HOOKS } from './events.ts'
 import { hooks } from '@basicbenframework/core/hooks'
 import { guardWrite } from '../../helpers/write-hooks.ts'
-import type { Request, Response } from '../../types'
+import type { Request, Response } from '../../types/index.ts'
 
 /** Tries per recipient before a provider error is final. */
 export const MAX_ATTEMPTS = 3

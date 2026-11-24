@@ -1,7 +1,7 @@
-import { PostController } from '../../controllers/PostController'
-import { PostLockController } from '../../controllers/PostLockController'
-import { auth } from '../../middleware/auth'
-import { authOrToken, requireSession } from '../../middleware/api-auth'
+import { PostController } from '../../controllers/PostController.ts'
+import { PostLockController } from '../../controllers/PostLockController.ts'
+import { auth } from '../../middleware/auth.ts'
+import { authOrToken, requireSession } from '../../middleware/api-auth.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

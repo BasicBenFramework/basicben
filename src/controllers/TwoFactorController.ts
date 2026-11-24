@@ -1,5 +1,5 @@
 import { verifyPassword } from '@basicbenframework/core/auth'
-import { issueSessionToken } from '../helpers/session'
+import { issueSessionToken } from '../helpers/session.ts'
 import { DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
 import { issueToken, redeemToken, TOKEN_KINDS } from '@basicbenframework/core/auth/tokens'
 import {
@@ -16,10 +16,10 @@ import {
   lockoutState,
   registerFailure
 } from '@basicbenframework/core/auth/two-factor'
-import { User } from '../models/User'
-import { verifyPasskeyAssertion } from './PasskeyController'
-import { TwoFactor } from '../models/TwoFactor'
-import type { Request, Response } from '../types'
+import { User } from '../models/User.ts'
+import { verifyPasskeyAssertion } from './PasskeyController.ts'
+import { TwoFactor } from '../models/TwoFactor.ts'
+import type { Request, Response } from '../types/index.ts'
 
 // A challenge is the only thing standing between a correct password and a
 // session, so it is short-lived and single use.

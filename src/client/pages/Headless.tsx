@@ -1,11 +1,11 @@
 import { ReactNode } from 'react'
-import { useTheme } from '../components/ThemeContext'
-import { Card } from '../components/Card'
-import { PageHeader } from '../components/PageHeader'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { Card } from '../components/Card.tsx'
+import { PageHeader } from '../components/PageHeader.tsx'
 // Generated from the interfaces in src/models/PublicContent.ts and the routes
 // in src/routes/api/v1.ts. Editing the tables below by hand would put the
 // response shape in two places, and the second one drifts.
-import { ENDPOINTS, QUERY_PARAMS, SHAPES, ENVELOPE } from './api-reference'
+import { ENDPOINTS, QUERY_PARAMS, SHAPES, ENVELOPE } from './api-reference.ts'
 
 interface CodeBlockProps {
   children: string

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import { Pagination, type PageMeta } from '../../components/admin/Pagination'
-import { useT, slots } from '../../i18n'
+import { api } from '../../../helpers/api.ts'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import { Pagination, type PageMeta } from '../../components/admin/Pagination.tsx'
+import { useT, slots } from '../../i18n/index.ts'
 
 interface Redirect {
   id: number

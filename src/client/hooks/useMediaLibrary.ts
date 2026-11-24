@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api } from '../../helpers/api'
-import { t } from '../i18n'
+import { api } from '../../helpers/api.ts'
+import { t } from '../i18n/index.ts'
 
 /**
  * The media library, shared by the admin page and the editor's picker.

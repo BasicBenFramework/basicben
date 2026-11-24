@@ -1,6 +1,6 @@
 import { validate, rules } from '@basicbenframework/core/validation'
-import { Category } from '../models/Category'
-import type { Request, Response } from '../types'
+import { Category } from '../models/Category.ts'
+import type { Request, Response } from '../types/index.ts'
 
 export const CategoryController = {
   async index(req: Request, res: Response) {

@@ -6,8 +6,8 @@ import { requireMember } from './middleware.ts'
 import { memberMagicLinkLimit, memberVerifyLimit, memberAccountLimit, memberUnsubscribeLimit } from './rate-limits.ts'
 import { newslettersCronEndpoint } from './newsletter.ts'
 import { Post } from '../../models/Post.ts'
-import type { Router } from '../../host'
-import type { Request } from '../../types'
+import type { Router } from '../../host/index.ts'
+import type { Request } from '../../types/index.ts'
 
 /**
  * Members, newsletters, and their admin.

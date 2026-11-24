@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from '@basicbenframework/core/client'
-import { useTheme } from '../components/ThemeContext'
-import { Card } from '../components/Card'
-import { Avatar } from '../components/Avatar'
-import { BackLink } from '../components/BackLink'
-import { Link } from '../components/Link'
-import { Loading } from '../components/Loading'
-import { CommentThread } from '../components/CommentThread'
-import { api } from '../../helpers/api'
-import type { Post } from '../../types'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { Card } from '../components/Card.tsx'
+import { Avatar } from '../components/Avatar.tsx'
+import { BackLink } from '../components/BackLink.tsx'
+import { Link } from '../components/Link.tsx'
+import { Loading } from '../components/Loading.tsx'
+import { CommentThread } from '../components/CommentThread.tsx'
+import { api } from '../../helpers/api.ts'
+import type { Post } from '../../types/index.ts'
 
 interface FeedPostResponse {
   post: Post

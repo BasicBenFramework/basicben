@@ -6,9 +6,9 @@
  * redirect, and what path each kind lives at — is written once.
  */
 
-import { Redirect } from '../models/Redirect'
-import { entryPath, pagePath } from './content-paths'
-import { routeBaseFor } from '../models/ContentType'
+import { Redirect } from '../models/Redirect.ts'
+import { entryPath, pagePath } from './content-paths.ts'
+import { routeBaseFor } from '../models/ContentType.ts'
 
 /**
  * Record that `kind` content moved from `oldPath` to `newPath`: a 301 from the

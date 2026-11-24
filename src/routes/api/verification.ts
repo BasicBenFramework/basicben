@@ -1,5 +1,5 @@
-import { EmailVerificationController } from '../../controllers/EmailVerificationController'
-import { auth } from '../../middleware/auth'
+import { EmailVerificationController } from '../../controllers/EmailVerificationController.ts'
+import { auth } from '../../middleware/auth.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

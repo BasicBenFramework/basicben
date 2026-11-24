@@ -39,8 +39,10 @@ export const ADMIN_LOCALES: Array<{ code: string; name: string }> = [
 
 const OVERRIDE_KEY = 'basicben.admin_locale'
 
-// Vite turns this into one lazily loaded chunk per locale.
-const loaders = import.meta.glob<{ default: Dictionary }>('./locales/*/index.ts')
+// Vite turns this into one lazily loaded chunk per locale. `.ts` matches the
+// source here; `.js` matches the compiled copy in lib/, which tsc does not
+// rewrite inside a string. `index.d.ts` matches neither.
+const loaders = import.meta.glob<{ default: Dictionary }>('./locales/*/index.{ts,js}')
 
 // Features' dictionaries (src/client/host), per locale, merged over core's.
 const featureLoaders: Record<string, Array<() => Promise<{ default: Dictionary }>>> = {}
@@ -81,7 +83,7 @@ export async function setLocale(requested: string | null | undefined): Promise<v
   if (next === 'en') {
     dictionary = {}
   } else {
-    const load = loaders[`./locales/${next}/index.ts`]
+    const load = loaders[`./locales/${next}/index.ts`] ?? loaders[`./locales/${next}/index.js`]
     if (!load) return
     try {
       const core = await load()

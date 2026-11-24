@@ -17,10 +17,10 @@
 
 import { html, raw, jsonForScript, safeHref, type SafeHtml } from './html.ts'
 import { entryPath, pagePath, categoryPath, tagPath, authorPath, termPath } from '../../helpers/content-paths.ts'
-import type { PublicPost, PublicPage, PublicAuthor } from '../../models/PublicContent'
-import type { PublicSiteInfo } from '../../models/Settings'
-import type { ContentTypeRecord, FieldDefinition } from '../../models/ContentType'
-import type { ResponsiveImage } from '../../helpers/images'
+import type { PublicPost, PublicPage, PublicAuthor } from '../../models/PublicContent.ts'
+import type { PublicSiteInfo } from '../../models/Settings.ts'
+import type { ContentTypeRecord, FieldDefinition } from '../../models/ContentType.ts'
+import type { ResponsiveImage } from '../../helpers/images.ts'
 
 /** A menu item as Menu.publicNavigation returns it. */
 export interface ThemeMenuItem {

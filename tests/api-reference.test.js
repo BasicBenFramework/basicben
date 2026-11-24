@@ -51,7 +51,7 @@ describe('the generated API reference', () => {
     // table sitting next to it is the drift this whole approach avoids.
     const page = readFileSync(DOCS, 'utf-8')
 
-    assert.match(page, /from '\.\/api-reference'/, 'the Headless page does not import the reference')
+    assert.match(page, /from '\.\/api-reference(\.ts)?'/, 'the Headless page does not import the reference')
     assert.match(page, /SHAPES\.map/, 'the Headless page does not render the shapes')
     assert.match(page, /ENDPOINTS\.map/, 'the Headless page does not render the endpoints')
   })

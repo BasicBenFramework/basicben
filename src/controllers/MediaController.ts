@@ -1,5 +1,5 @@
 import { can } from '@basicbenframework/core/auth/permissions'
-import { imageSize } from '../helpers/image-size'
+import { imageSize } from '../helpers/image-size.ts'
 /**
  * Media library.
  *
@@ -20,9 +20,9 @@ import { imageSize } from '../helpers/image-size'
 
 import { signUpload, confirmUpload, deleteUpload } from '@basicbenframework/core/storage/uploads'
 import { getStorage } from '@basicbenframework/core/storage'
-import { Media } from '../models/Media'
-import { guardWrite, MEDIA_HOOKS } from '../helpers/write-hooks'
-import type { Request, Response } from '../types'
+import { Media } from '../models/Media.ts'
+import { guardWrite, MEDIA_HOOKS } from '../helpers/write-hooks.ts'
+import type { Request, Response } from '../types/index.ts'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 

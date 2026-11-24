@@ -5,8 +5,8 @@ import {
   LOCATION_PATTERN,
   BUILT_IN_LOCATIONS,
   type MenuItemRow
-} from '../models/Menu'
-import type { Request, Response } from '../types'
+} from '../models/Menu.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * Navigation menus: admin management and the public read.

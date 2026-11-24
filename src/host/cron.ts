@@ -16,7 +16,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { getDb } from '@basicbenframework/core/db'
 import { recordHeartbeat, readHeartbeats } from '../helpers/heartbeat.ts'
 import { cronTaskList, type CronTask } from './index.ts'
-import type { Request, Response } from '../types'
+import type { Request, Response } from '../types/index.ts'
 
 export interface TickResult {
   ran: Record<string, unknown>

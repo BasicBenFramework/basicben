@@ -1,5 +1,5 @@
-import { publishDueEndpoint } from '../../helpers/publish-due'
-import { cronTickEndpoint } from '../../host/cron'
+import { publishDueEndpoint } from '../../helpers/publish-due.ts'
+import { cronTickEndpoint } from '../../host/cron.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

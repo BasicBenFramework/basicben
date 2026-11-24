@@ -5,7 +5,7 @@
 
 import { rateLimit } from '@basicbenframework/core/rate-limit'
 import { store, addressIn } from '../../middleware/rate-limits.ts'
-import type { Request } from '../../types'
+import type { Request } from '../../types/index.ts'
 
 /**
  * Asking for a member magic link, from one address.

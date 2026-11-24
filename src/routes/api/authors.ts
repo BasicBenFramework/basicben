@@ -1,5 +1,5 @@
-import { AuthorController } from '../../controllers/AuthorController'
-import { auth } from '../../middleware/auth'
+import { AuthorController } from '../../controllers/AuthorController.ts'
+import { auth } from '../../middleware/auth.ts'
 import { requireCapability } from '@basicbenframework/core/auth/permissions'
 
 interface Router {

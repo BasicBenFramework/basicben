@@ -11,7 +11,7 @@
  */
 
 import { viewerOf } from '../helpers/access.ts'
-import type { Request, Response } from '../types'
+import type { Request, Response } from '../types/index.ts'
 
 export const identifyViewer = async (req: Request, _res: Response, next: () => void) => {
   await viewerOf(req)

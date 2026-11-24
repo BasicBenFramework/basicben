@@ -15,14 +15,14 @@
 
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { can } from '@basicbenframework/core/auth/permissions'
-import { Post } from '../models/Post'
-import { Page } from '../models/Page'
-import { Comment } from '../models/Comment'
-import { Media } from '../models/Media'
-import { Settings } from '../models/Settings'
-import { withFeaturePages } from '../host/menu'
-import featureManifests from '../features.manifest'
-import type { Request, Response } from '../types'
+import { Post } from '../models/Post.ts'
+import { Page } from '../models/Page.ts'
+import { Comment } from '../models/Comment.ts'
+import { Media } from '../models/Media.ts'
+import { Settings } from '../models/Settings.ts'
+import { withFeaturePages } from '../host/menu.ts'
+import featureManifests from '../features.manifest.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * The menu the admin ships with. Listeners filter it, they do not replace it.

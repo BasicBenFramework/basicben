@@ -1,9 +1,9 @@
 import { ReactNode } from 'react'
 import { useNavigate } from '@basicbenframework/core/client'
-import { useTheme } from '../components/ThemeContext'
-import { RootLayout } from './RootLayout'
-import { DarkModeToggle } from '../components/Nav/DarkModeToggle'
-import { Logo } from '../components/Logo'
+import { useTheme } from '../components/ThemeContext.tsx'
+import { RootLayout } from './RootLayout.tsx'
+import { DarkModeToggle } from '../components/Nav/DarkModeToggle.tsx'
+import { Logo } from '../components/Logo.tsx'
 
 interface AuthLayoutInnerProps {
   children: ReactNode

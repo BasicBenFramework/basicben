@@ -5,7 +5,7 @@ import {
   SCOPES
 } from '@basicbenframework/core/auth/api-tokens'
 import { validate, rules } from '@basicbenframework/core/validation'
-import type { Request, Response } from '../types'
+import type { Request, Response } from '../types/index.ts'
 
 const ALL_SCOPES = Object.values(SCOPES)
 

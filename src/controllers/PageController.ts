@@ -1,12 +1,12 @@
 import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
-import { Page } from '../models/Page'
-import { seoFields } from '../helpers/seo-fields'
-import { redirectIfSlugChanged, releasePath } from '../helpers/redirects'
-import { pagePath } from '../helpers/content-paths'
-import type { Request, Response } from '../types'
-import { paginationFrom, meta } from '../models/pagination'
-import { guardWrite } from '../helpers/write-hooks'
+import { Page } from '../models/Page.ts'
+import { seoFields } from '../helpers/seo-fields.ts'
+import { redirectIfSlugChanged, releasePath } from '../helpers/redirects.ts'
+import { pagePath } from '../helpers/content-paths.ts'
+import type { Request, Response } from '../types/index.ts'
+import { paginationFrom, meta } from '../models/pagination.ts'
+import { guardWrite } from '../helpers/write-hooks.ts'
 
 export const PageController = {
   async index(req: Request, res: Response) {

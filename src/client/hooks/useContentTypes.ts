@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../../helpers/api'
+import { api } from '../../helpers/api.ts'
 
 /** A content type as the admin API returns it — the parts the editor reads. */
 export interface AdminContentType {

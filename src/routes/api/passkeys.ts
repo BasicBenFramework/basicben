@@ -1,5 +1,5 @@
-import { PasskeyController } from '../../controllers/PasskeyController'
-import { auth } from '../../middleware/auth'
+import { PasskeyController } from '../../controllers/PasskeyController.ts'
+import { auth } from '../../middleware/auth.ts'
 
 interface Router {
   get: (path: string, ...handlers: Function[]) => void

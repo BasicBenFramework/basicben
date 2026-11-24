@@ -1,9 +1,9 @@
 import { timingSafeEqual } from 'node:crypto'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { getDb } from '@basicbenframework/core/db'
-import { Post } from '../models/Post'
-import { recordHeartbeat, HEARTBEATS } from './heartbeat'
-import type { Request, Response } from '../types'
+import { Post } from '../models/Post.ts'
+import { recordHeartbeat, HEARTBEATS } from './heartbeat.ts'
+import type { Request, Response } from '../types/index.ts'
 
 /**
  * Tell listeners about scheduled posts whose time has come.

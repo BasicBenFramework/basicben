@@ -1,10 +1,10 @@
-import { SEO_COLUMNS } from '../helpers/seo-fields'
+import { SEO_COLUMNS } from '../helpers/seo-fields.ts'
 import { getDb, query } from '@basicbenframework/core/db'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent } from '@basicbenframework/core/content'
 import { getStorage } from '@basicbenframework/core/storage'
-import { uniqueSlug } from './derive'
-import type { Page as PageType } from '../types'
+import { uniqueSlug } from './derive.ts'
+import type { Page as PageType } from '../types/index.ts'
 
 interface CreatePageData {
   title: string

@@ -1,9 +1,9 @@
 import { sendMail, renderMail } from '@basicbenframework/core/mail'
 import { issueToken, redeemToken, revokeTokens, TOKEN_KINDS } from '@basicbenframework/core/auth/tokens'
-import { emailSendLimiter } from '../middleware/rate-limits'
+import { emailSendLimiter } from '../middleware/rate-limits.ts'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
-import { User } from '../models/User'
-import type { Request, Response } from '../types'
+import { User } from '../models/User.ts'
+import type { Request, Response } from '../types/index.ts'
 
 const appUrl = () => process.env.APP_URL || 'http://localhost:3000'
 

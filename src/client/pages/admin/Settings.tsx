@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { api } from '../../../helpers/api'
-import AdminLayout from '../../layouts/AdminLayout'
-import { useT, ADMIN_LOCALES, applySiteLocale, slots } from '../../i18n'
-import { Slot } from '../../host'
+import { api } from '../../../helpers/api.ts'
+import AdminLayout from '../../layouts/AdminLayout.tsx'
+import { useT, ADMIN_LOCALES, applySiteLocale, slots } from '../../i18n/index.ts'
+import { Slot } from '../../host/index.ts'
 
 interface SiteSettings {
   site_name: string
