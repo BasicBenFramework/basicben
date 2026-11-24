@@ -43,18 +43,23 @@ unknown, expired or revoked token, or one whose owner is disabled, gets **401**.
 |--------|-------------------|-------|
 | GET    | `/api/posts`      | Listing as the owner sees it in the admin (drafts included). `?status=`, `?search=`, `?page=`, `?per_page=` |
 | GET    | `/api/posts/:id`  | One post, with `category_ids` and `tag_ids` |
-| POST   | `/api/posts`      | Needs `post.create`. Body: `title`, `content` (Markdown), optional `slug`, `excerpt`, `status` (`draft`/`pending`/`published`), `publish_at`, `category_ids`, `tag_ids`, `featured_image`, SEO fields, `user_id` (honoured only for editors) |
+| POST   | `/api/posts`      | Needs `post.create`. Body: `title`, `content` (Markdown), optional `slug`, `excerpt`, `status` (`draft`/`pending`/`published`), `publish_at`, `category_ids`, `tag_ids`, `featured_image`, SEO fields, `is_private`, `user_id` (honoured only for editors) |
 | PUT    | `/api/posts/:id`  | Same body. `title` and `content` are required on every update; other absent keys are left alone. Refused with **409** while a person holds the post's edit lock (below) |
 | DELETE | `/api/posts/:id`  | Moves the post to the trash. Deleting a post that is already in the trash (permanently) is **403** with a token: emptying the trash needs a session |
 
 Bulk actions, revisions, restore-from-trash, autosave and the edit lock are
 admin-only and refuse tokens.
 
+`is_private` (`true`/`false`) makes a post or page private, WordPress-style:
+it can be published, but only people who can edit it see it, in the admin.
+Nothing public shows it: not `/api/v1`, the theme, the feeds, the sitemap,
+oEmbed, search, menus or comments. Absent leaves it as it is.
+
 ### Pages (`content:write`)
 
 | Method | Path | Notes |
 |--------|------|-------|
-| POST   | `/api/pages`     | Needs `page.create` (editor or admin). Body: `title`, `content`, optional `slug`, `parent_id`, `menu_order`, `template`, `published`, SEO fields |
+| POST   | `/api/pages`     | Needs `page.create` (editor or admin). Body: `title`, `content`, optional `slug`, `parent_id`, `menu_order`, `template`, `published`, `is_private`, SEO fields |
 | PUT    | `/api/pages/:id` | Needs `page.edit`. Changing a published page's slug records a 301 from the old path |
 
 Page delete is permanent, so it needs a session.
@@ -76,7 +81,7 @@ Reading them needs no credential: `GET /api/tags`, `GET /api/categories`.
 
 | Method | Path                  | Notes |
 |--------|-----------------------|-------|
-| GET    | `/api/media`          | Needs `media.upload` |
+| GET    | `/api/media`          | Needs `media.upload`. `?search=`, `?type=`, and `?url=` to find the item a URL serves |
 | GET    | `/api/media/:id`      | |
 | POST   | `/api/media/sign`     | Step 1: `{ filename, contentType, size }` → `{ uploadUrl, key, ticket, headers }` |
 | PUT    | *uploadUrl*           | Step 2: send the bytes straight to storage with the returned headers |

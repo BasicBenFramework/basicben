@@ -1,7 +1,7 @@
 import { validate, rules } from '@basicbenframework/core/validation'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { Page } from '../models/Page.ts'
-import { seoFields } from '../helpers/seo-fields.ts'
+import { seoFields, privateFlag } from '../helpers/seo-fields.ts'
 import { redirectIfSlugChanged, releasePath } from '../helpers/redirects.ts'
 import { pagePath } from '../helpers/content-paths.ts'
 import type { Request, Response } from '../types/index.ts'
@@ -104,6 +104,9 @@ export const PageController = {
       featured_image: mediaId(featured_image),
       template,
       published,
+      // Published for the people who can edit pages, hidden from every public
+      // surface. See migration 043 and `livePage`.
+      ...('is_private' in req.body ? { is_private: privateFlag(req.body.is_private) } : {}),
       parent_id,
       menu_order,
       meta_title,
@@ -188,6 +191,7 @@ export const PageController = {
       ...('featured_image' in req.body ? { featured_image: mediaId(featured_image) } : {}),
       template,
       published,
+      ...('is_private' in req.body ? { is_private: privateFlag(req.body.is_private) } : {}),
       parent_id,
       menu_order,
       meta_title,

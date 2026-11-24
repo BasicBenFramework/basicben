@@ -5,6 +5,7 @@ import AdminLayout from '../../layouts/AdminLayout.tsx'
 import MarkdownEditor from '../../components/MarkdownEditor.tsx'
 import { excerpt, slugify } from '@basicbenframework/core/content'
 import FeaturedImageBox from '../../components/admin/FeaturedImageBox.tsx'
+import SocialImageField from '../../components/admin/SocialImageField.tsx'
 import { Slot, hasFills } from '../../host/index.ts'
 import TermPicker from '../../components/admin/TermPicker.tsx'
 import SnippetPicker from '../../components/admin/SnippetPicker.tsx'
@@ -37,6 +38,13 @@ interface Autosave {
 
 /** How often an unsaved change is autosaved, in milliseconds. */
 const AUTOSAVE_EVERY = 30_000
+
+/**
+ * How long after the first words of a new post it is saved as a draft. Short,
+ * because until then a closed tab loses it; not instant, so the draft starts
+ * with more than its first letter.
+ */
+const FIRST_AUTOSAVE_AFTER = 3_000
 
 /** A stored UTC timestamp as the value a datetime-local input wants. */
 function toLocalInput(value: string | null | undefined): string {
@@ -149,12 +157,16 @@ export default function AdminPostEditor() {
     publish_at: '',
     og_title: '',
     og_description: '',
+    // Media ids, like the featured image; SocialImageField shows them.
     og_image: null as number | null,
-    og_image_url: null as string | null,
     twitter_title: '',
     twitter_description: '',
+    twitter_image: null as number | null,
     canonical_url: '',
     noindex: false,
+    // Private: published, but only for people who can edit it, in the admin.
+    // Posts and pages both; the server leaves it out of every public read.
+    is_private: false,
     // Posts only: who may read the body. The levels beyond public, and what
     // they mean, belong to a feature (see the post.editor.sidebar slot below).
     visibility: 'public',
@@ -185,12 +197,74 @@ export default function AdminPostEditor() {
   const [loaded, setLoaded] = useState<Record<string, unknown> | null>(null)
   const [extra, setExtra] = useState<Record<string, unknown>>({})
 
+  // The latest form, for timers that outlive the render that set them.
+  const latest = useRef(formData)
+  latest.current = formData
+
+  // The draft this editor created for a new post (see createDraft). Its id is
+  // in the URL now, but what is on screen is newer than what was saved, so it
+  // is not loaded back over the top of the typing.
+  const adopted = useRef<number | null>(null)
+  const creatingDraft = useRef<Promise<number | null> | null>(null)
+
   useEffect(() => {
+    if (postId && postId === adopted.current) return
     loadData()
   }, [postId])
 
-  // Autosave an existing post while it is being edited. A new post has no id
-  // to autosave against until its first save.
+  /**
+   * Save a new post as a draft, so autosave has something to save against.
+   *
+   * Once, on the first title or body: an untouched New post screen creates
+   * nothing. The editor then becomes the editor for that post — the URL is
+   * replaced with its edit URL in place, the way WordPress does it, so the
+   * component, the focus and whatever is being typed stay exactly where they
+   * are. Saving waits for this if it is still in flight, so a quick Save does
+   * not create the post twice.
+   */
+  const createDraft = (): Promise<number | null> => {
+    if (creatingDraft.current) return creatingDraft.current
+
+    const sent = { title: latest.current.title, content: latest.current.content, excerpt: latest.current.excerpt }
+    creatingDraft.current = api
+      .post<{ post: { id: number } }>('/api/posts/autosave', { ...sent, post_type: postType })
+      .then(res => {
+        const id = res?.post?.id
+        if (!id) throw new Error('No id')
+
+        adopted.current = id
+        setLastAutosaved(new Date().toISOString())
+        // Only typing since the request left needs the next autosave.
+        const now = latest.current
+        dirty.current = now.title !== sent.title || now.content !== sent.content || now.excerpt !== sent.excerpt
+
+        // navigate() scrolls to the top, which is not where the writer is.
+        const scrolled = window.scrollY
+        navigateWithType(to => navigate(to, { replace: true }), `/admin/posts/${id}/edit`, postType)
+        window.scrollTo(0, scrolled)
+        return id
+      })
+      .catch(error => {
+        console.error('Failed to autosave the new post:', error)
+        // Try again on the next edit rather than never.
+        creatingDraft.current = null
+        return null
+      })
+
+    return creatingDraft.current
+  }
+
+  // A new post's first autosave: a few seconds after there is a title or a
+  // body, timed from that first edit rather than reset by every keystroke.
+  const hasText = Boolean(formData.title.trim() || formData.content.trim())
+  useEffect(() => {
+    if (isPage || postId || !hasText) return
+    const timer = setTimeout(() => void createDraft(), FIRST_AUTOSAVE_AFTER)
+    return () => clearTimeout(timer)
+  }, [isPage, postId, hasText])
+
+  // Autosave an existing post while it is being edited — including a new one
+  // once createDraft has given it an id.
   useEffect(() => {
     if (isPage || !postId) return
 
@@ -281,11 +355,12 @@ export default function AdminPostEditor() {
             og_title: record.og_title || '',
             og_description: record.og_description || '',
             og_image: record.og_image ?? null,
-            og_image_url: null,
             twitter_title: record.twitter_title || '',
             twitter_description: record.twitter_description || '',
+            twitter_image: record.twitter_image ?? null,
             canonical_url: record.canonical_url || '',
             noindex: Boolean(Number(record.noindex ?? 0)),
+            is_private: Boolean(Number(record.is_private ?? 0)),
             visibility: String(record.visibility || 'public'),
             featured_image: record.featured_image ?? null,
             featured_image_url: record.featured_image_url ?? null,
@@ -375,7 +450,7 @@ export default function AdminPostEditor() {
       // sending it back would be asking the API to store a URL in a column that
       // holds a media id.
       const {
-        featured_image_url, og_image_url, user_id, category_ids, tags, excerpt,
+        featured_image_url, user_id, category_ids, tags, excerpt,
         status, publish_at, published, ...common
       } = formData
 
@@ -412,8 +487,11 @@ export default function AdminPostEditor() {
             ...(termsReady ? { term_ids: termIds } : {})
           }
 
-      if (isEditing) {
-        await api.put(`/api/${resource}/${postId}`, payload)
+      // A new post whose first autosave is on its way is that post now.
+      const id = postId ?? (creatingDraft.current ? await creatingDraft.current : null)
+
+      if (id) {
+        await api.put(`/api/${resource}/${id}`, payload)
       } else {
         await api.post(`/api/${resource}`, payload)
       }
@@ -443,6 +521,12 @@ export default function AdminPostEditor() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }))
+  }
+
+  const setImage = (key: 'og_image' | 'twitter_image', id: number | null) => {
+    if (lockedOut) return
+    dirty.current = true
+    setFormData(prev => ({ ...prev, [key]: id }))
   }
 
   // What the main button will do, so its label can say so.
@@ -750,6 +834,14 @@ export default function AdminPostEditor() {
                 <label className="admin-label">{t('Open Graph description')}</label>
                 <textarea name="og_description" value={formData.og_description} onChange={handleChange} className="admin-textarea" style={{ minHeight: '60px' }} placeholder={formData.meta_description || t('Falls back to the SEO description')} />
               </div>
+              <SocialImageField
+                id="og_image"
+                label={t('Open Graph image')}
+                fallback={t('Falls back to the featured image.')}
+                value={formData.og_image}
+                disabled={lockedOut}
+                onChange={id => setImage('og_image', id)}
+              />
               <div className="admin-form-group">
                 <label className="admin-label">{t('Twitter / X title')}</label>
                 <input type="text" name="twitter_title" value={formData.twitter_title} onChange={handleChange} className="admin-input" placeholder={t('Falls back to the Open Graph title')} />
@@ -758,6 +850,14 @@ export default function AdminPostEditor() {
                 <label className="admin-label">{t('Twitter / X description')}</label>
                 <textarea name="twitter_description" value={formData.twitter_description} onChange={handleChange} className="admin-textarea" style={{ minHeight: '60px' }} placeholder={t('Falls back to the Open Graph description')} />
               </div>
+              <SocialImageField
+                id="twitter_image"
+                label={t('Twitter / X image')}
+                fallback={t('Falls back to the Open Graph image.')}
+                value={formData.twitter_image}
+                disabled={lockedOut}
+                onChange={id => setImage('twitter_image', id)}
+              />
             </div>
 
             {!isPage && isEditing && revisions.length > 0 && (
@@ -843,6 +943,35 @@ export default function AdminPostEditor() {
                   )}
                 </>
               )}
+
+              {/* WordPress's visibility: public, or private — published for the
+                  people who can edit it and nobody else. The members feature's
+                  "who can read it" is a different question (the body of a
+                  post that is still listed) and keeps its own box. */}
+              <div className="admin-form-group">
+                <label className="admin-label" htmlFor="is_private">{t('Visibility')}</label>
+                <select
+                  id="is_private"
+                  value={formData.is_private ? 'private' : 'public'}
+                  onChange={event => {
+                    if (lockedOut) return
+                    dirty.current = true
+                    const isPrivate = event.target.value === 'private'
+                    setFormData(prev => ({ ...prev, is_private: isPrivate }))
+                  }}
+                  className="admin-input"
+                >
+                  <option value="public">{t('Public')}</option>
+                  <option value="private">{t('Private')}</option>
+                </select>
+                {formData.is_private && (
+                  <small style={{ color: 'var(--fg-muted)' }}>
+                    {isPage
+                      ? t('Only people who can edit pages see it, here in the admin. It is left out of the site, the API, feeds, the sitemap and search.')
+                      : t('Only its author, editors and admins see it, here in the admin. It is left out of the site, the API, feeds, the sitemap and search.')}
+                  </small>
+                )}
+              </div>
 
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button

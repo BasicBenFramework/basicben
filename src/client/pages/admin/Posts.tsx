@@ -14,6 +14,8 @@ interface Post {
   status?: 'draft' | 'pending' | 'published'
   publish_at?: string | null
   deleted_at?: string | null
+  /** 1 when private: on the site for nobody, in the admin for its editors. */
+  is_private?: boolean | number
   created_at: string
   /** Joined by the listing. An editor sees everyone's posts, so it matters. */
   author_name?: string
@@ -276,10 +278,10 @@ export default function AdminPosts() {
                     </td>
                     <td>
                       {inTrash ? (
-                        <span style={{ fontWeight: 500 }}>{post.title}</span>
+                        <span style={{ fontWeight: 500 }}>{post.title || t('(no title)')}</span>
                       ) : (
                         <Link href={`/admin/posts/${post.id}/edit`} style={{ color: 'var(--accent)', fontWeight: 500 }}>
-                          {post.title}
+                          {post.title || t('(no title)')}
                         </Link>
                       )}
                     </td>
@@ -291,6 +293,12 @@ export default function AdminPosts() {
                     </td>
                     <td>
                       <span className={`admin-badge ${badge.tone}`}>{badge.label}</span>
+                      {Number(post.is_private) ? (
+                        <>
+                          {' '}
+                          <span className="admin-badge admin-badge-info" title={t('Only people who can edit it can see it')}>{t('Private')}</span>
+                        </>
+                      ) : null}
                     </td>
                     <td>{date ? date.toLocaleDateString() : '—'}</td>
                     <td>

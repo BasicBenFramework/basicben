@@ -77,7 +77,9 @@ export default function SnippetPicker({ onInsert, disabled }: SnippetPickerProps
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 50,
+            // Above the admin sidebar (z-index 100), which is fixed at every width
+            // and otherwise covers the left of the dialog — and takes its clicks.
+            zIndex: 200,
             padding: '1rem'
           }}
         >

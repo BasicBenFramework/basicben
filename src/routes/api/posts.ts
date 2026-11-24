@@ -31,6 +31,9 @@ export default (router: Router) => {
   router.post('/api/posts', contentWrite, requireCapability('post.create'), PostController.store)
   // Before the /:id routes, which would otherwise read `bulk` as an id.
   router.post('/api/posts/bulk', auth, PostController.bulk)
+  // The editor's first autosave of a post that has never been saved: a draft,
+  // from whatever has been typed so far. A person's, like autosave itself.
+  router.post('/api/posts/autosave', auth, requireCapability('post.create'), PostController.autosaveNew)
   router.get('/api/posts/:id', contentWrite, PostController.show)
   router.post('/api/posts/:id/restore', auth, PostController.restore)
   router.put('/api/posts/:id/autosave', auth, PostController.autosave)

@@ -5,7 +5,7 @@ import { Post } from '../models/Post.ts'
 import type { Post as PostType, Request, Response } from '../types/index.ts'
 import { paginationFrom, meta } from '../models/pagination.ts'
 import { PostRevision } from '../models/PostRevision.ts'
-import { seoFields } from '../helpers/seo-fields.ts'
+import { seoFields, privateFlag } from '../helpers/seo-fields.ts'
 import { LISTING_FILTERS, type ListingFilter } from '../models/Post.ts'
 import { POST_STATUSES, toStoredTimestamp, type PostStatus } from '../models/visibility.ts'
 import { lockConflict } from './PostLockController.ts'
@@ -379,6 +379,66 @@ export const PostController = {
     res.json({ autosave: { id: saved?.id, created_at: saved?.created_at } })
   },
 
+  /**
+   * The first autosave of a post that has never been saved.
+   *
+   * Autosave needs a post to hang its copy on, so a new post had none: a tab
+   * closed before the first Save lost everything typed into it. The editor
+   * calls this once, on the first title or body worth keeping, and gets a
+   * draft back; from then on it autosaves against that id like any other post.
+   *
+   * Always a draft, whatever is sent — this never publishes, schedules or makes
+   * anything public — and only the text is taken. The rules a real save
+   * enforces on a title and body (three and ten characters) wait for that
+   * save: a draft is allowed to be the first few words of itself.
+   */
+  async autosaveNew(req: Request, res: Response) {
+    const { title, content, excerpt, post_type } = (req.body ?? {}) as Record<string, unknown>
+    if (typeof title !== 'string' || typeof content !== 'string') {
+      return res.json({ error: 'title and content are required' }, 422)
+    }
+    if (!title.trim() && !content.trim()) {
+      return res.json({ error: 'Nothing to save yet' }, 422)
+    }
+
+    const typed = await typeAndFields(post_type === undefined ? {} : { post_type }, null)
+    if ('errors' in typed) return res.json({ errors: typed.errors }, 422)
+
+    const creating = await guardWrite<any>(HOOKS.POST_CREATING, {
+      user_id: req.userId!,
+      title: title.slice(0, 200),
+      content,
+      ...(typeof excerpt === 'string' ? { excerpt } : {}),
+      ...typed.values,
+      status: 'draft',
+      published: 0
+    }, { req }, { refused: 'Post rejected.' })
+
+    if (!creating.ok) return res.json({ error: creating.error }, creating.status)
+
+    // A listener may adjust the text, not the state: what comes out of here is
+    // a draft of the signed-in user's, whatever the filter returned.
+    const value = creating.value as Record<string, unknown>
+    const post = await Post.create({
+      title: String(value.title ?? ''),
+      content: String(value.content ?? ''),
+      ...(typeof value.excerpt === 'string' ? { excerpt: value.excerpt } : {}),
+      ...(typeof value.post_type === 'string' ? { post_type: value.post_type } : {}),
+      user_id: req.userId!,
+      status: 'draft',
+      published: false
+    })
+
+    // Its address is chosen on the first real save, from the title it has by
+    // then, not from the first few letters typed.
+    await Post.forgetSlug(post.id)
+    post.slug = null as unknown as string
+
+    await hooks.fire(HOOKS.POST_CREATED, { post, userId: req.userId })
+
+    res.json({ post }, 201)
+  },
+
   async feed(req: Request, res: Response) {
     // The built-in blog's feed. Restricted bodies are withheld unless the
     // access policy lets this reader have them — see helpers/gating.ts.
@@ -459,6 +519,10 @@ function editableFields(body: unknown, existing: { visibility?: unknown } | null
   const seo = seoFields(payload)
   if ('errors' in seo) Object.assign(errors, seo.errors)
   else Object.assign(fields, seo.values)
+
+  // Private: published for the people who can edit it, hidden from every
+  // public surface. See migration 043 and `livePost`.
+  if ('is_private' in payload) fields.is_private = privateFlag(payload.is_private)
 
   // Who may read the body: `public` or a level the access policy offers. The
   // level the post already has is always accepted, so a post saved under a

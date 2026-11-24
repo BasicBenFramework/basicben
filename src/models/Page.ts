@@ -4,6 +4,7 @@ import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent } from '@basicbenframework/core/content'
 import { getStorage } from '@basicbenframework/core/storage'
 import { uniqueSlug } from './derive.ts'
+import { livePage } from './visibility.ts'
 import type { Page as PageType } from '../types/index.ts'
 
 interface CreatePageData {
@@ -13,6 +14,7 @@ interface CreatePageData {
   featured_image?: number | null
   template?: string
   published?: boolean
+  is_private?: number
   parent_id?: number
   menu_order?: number
   meta_title?: string
@@ -26,6 +28,7 @@ interface UpdatePageData {
   featured_image?: number | null
   template?: string
   published?: boolean
+  is_private?: number
   parent_id?: number
   menu_order?: number
   meta_title?: string
@@ -40,7 +43,7 @@ interface UpdatePageData {
  */
 const UPDATABLE = [
   'title', 'slug', 'content', 'content_html', 'featured_image', 'template',
-  'published', 'parent_id', 'menu_order', 'meta_title', 'meta_description',
+  'published', 'is_private', 'parent_id', 'menu_order', 'meta_title', 'meta_description',
   'updated_at', ...SEO_COLUMNS
 ]
 
@@ -94,7 +97,7 @@ export const Page = {
     return withFeaturedImages(
       await db.all(`
         ${SELECT_PAGE}
-        WHERE pages.published = 1
+        WHERE ${livePage('pages')}
         ORDER BY pages.menu_order ASC, pages.title ASC
       `)
     )
@@ -103,7 +106,7 @@ export const Page = {
   async findPublishedBySlug(slug: string): Promise<PageType | undefined> {
     const db = await getDb()
     return first(
-      await db.get(`${SELECT_PAGE} WHERE pages.slug = ? AND pages.published = 1`, [slug])
+      await db.get(`${SELECT_PAGE} WHERE pages.slug = ? AND ${livePage('pages')}`, [slug])
     )
   },
 
@@ -141,6 +144,7 @@ export const Page = {
       featured_image: data.featured_image ?? null,
       template: data.template || 'default',
       published: data.published ? 1 : 0,
+      is_private: data.is_private ? 1 : 0,
       parent_id: data.parent_id || null,
       menu_order: data.menu_order || 0,
       meta_title: data.meta_title || null,
@@ -162,6 +166,7 @@ export const Page = {
       featured_image: data.featured_image ?? null,
       template: data.template || 'default',
       published: data.published || false,
+      is_private: data.is_private ? 1 : 0,
       parent_id: data.parent_id,
       menu_order: data.menu_order || 0,
       meta_title: data.meta_title,

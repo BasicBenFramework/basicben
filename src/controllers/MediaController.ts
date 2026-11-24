@@ -34,7 +34,8 @@ export const MediaController = {
     const perPage = Math.min(100, Math.max(1, parseInt(req.query.per_page as string) || 20))
     const search = (req.query.search as string) || undefined
     const type = (req.query.type as string) || undefined
-    const { items, total } = await Media.all(page, perPage, { search, type })
+    const servedAt = servedPath(req.query.url)
+    const { items, total } = await Media.all(page, perPage, { search, type, servedAt })
 
     res.json({
       media: await withUrls(items),
@@ -232,4 +233,19 @@ async function withUrls<T extends { path: string }>(items: T[]) {
     ...item,
     url: storage.publicUrl(item.path)
   }))
+}
+
+/**
+ * The path part of a pasted URL, for `?url=`: the editor's "paste a URL" box
+ * finds the library item a URL serves. Absolute or root-relative; anything
+ * that is not a URL at all matches nothing.
+ */
+function servedPath(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  try {
+    const path = decodeURIComponent(new URL(value.trim(), 'http://localhost').pathname).replace(/^\/+/, '')
+    return path ? path.slice(0, 1024) : undefined
+  } catch {
+    return undefined
+  }
 }

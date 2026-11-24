@@ -14,7 +14,7 @@
 
 import { getDb } from '@basicbenframework/core/db'
 import { getStorage, absoluteUrl } from '@basicbenframework/core/storage'
-import { livePost, parseStoredTimestamp } from './visibility.ts'
+import { livePost, livePage, parseStoredTimestamp } from './visibility.ts'
 import { responsiveImage, type ResponsiveImage } from '../helpers/images.ts'
 import { siteUrl } from '../helpers/site.ts'
 import { publicExcerpt } from '../helpers/gating.ts'
@@ -364,12 +364,12 @@ export const PublicContent = {
     const { perPage = 10, offset = 0, format = 'html' } = options
 
     const counted = (await db.get(
-      'SELECT COUNT(*) AS total FROM pages WHERE published = 1'
+      `SELECT COUNT(*) AS total FROM pages WHERE ${livePage('pages')}`
     )) as { total: number } | undefined
 
     const rows = (await db.all(
       `SELECT ${PAGE_COLUMNS} ${PAGE_JOINS}
-       WHERE pages.published = 1
+       WHERE ${livePage('pages')}
        ORDER BY pages.created_at DESC
        LIMIT ? OFFSET ?`,
       [perPage, offset]
@@ -384,7 +384,7 @@ export const PublicContent = {
 
     const row = (await db.get(
       `SELECT ${PAGE_COLUMNS} ${PAGE_JOINS}
-       WHERE pages.published = 1 AND (pages.slug = ? OR pages.id = ?)`,
+       WHERE ${livePage('pages')} AND (pages.slug = ? OR pages.id = ?)`,
       [identifier, Number(identifier) || -1]
     )) as PageRow | undefined
 
@@ -436,7 +436,7 @@ export const PublicContent = {
    *
    * Only people who have published: an account with no posts is a user, not an
    * author, and listing one exposes that the account exists to anyone who asks
-   * for the author index. Counts come from the same `published = 1` filter the
+   * for the author index. Counts come from the same `livePost` filter the
    * post listing uses, so an archive link never leads to an empty page.
    */
   async authors(): Promise<PublicAuthor[]> {

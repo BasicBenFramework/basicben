@@ -8,7 +8,7 @@
  */
 
 import { getDb, query } from '@basicbenframework/core/db'
-import { livePost } from './visibility.ts'
+import { livePost, livePage } from './visibility.ts'
 import { postPath, pagePath, categoryPath, isSafeLinkUrl } from '../helpers/content-paths.ts'
 
 export const TARGET_TYPES = ['post', 'page', 'category'] as const
@@ -392,11 +392,11 @@ export const Menu = {
     }
 
     // The same visibility rules as the rest of the public API: `livePost` for
-    // posts (published, not trashed, its time has come), `published = 1` for
-    // pages. Categories have no visibility of their own.
+    // posts (published, not trashed, its time has come, not private), `livePage`
+    // for pages. Categories have no visibility of their own.
     const targets: ResolvedTargets = {
       post: await lookup('post', list => `SELECT posts.id, posts.slug FROM posts WHERE posts.id IN (${list}) AND ${livePost('posts')}`),
-      page: await lookup('page', list => `SELECT id, slug FROM pages WHERE id IN (${list}) AND published = 1`),
+      page: await lookup('page', list => `SELECT pages.id, pages.slug FROM pages WHERE pages.id IN (${list}) AND ${livePage('pages')}`),
       category: await lookup('category', list => `SELECT id, slug FROM categories WHERE id IN (${list})`)
     }
 

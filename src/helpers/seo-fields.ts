@@ -54,3 +54,13 @@ export const SEO_COLUMNS = [
   'og_title', 'og_description', 'og_image', 'twitter_title', 'twitter_description',
   'twitter_image', 'canonical_url', 'noindex'
 ]
+
+/**
+ * The private flag (migration 043) as stored: 1 or 0.
+ *
+ * A checkbox arrives as true, "true", "on" or "1" depending on the client, and
+ * anything else — including absent-but-present-as-null — is public.
+ */
+export function privateFlag(value: unknown): 0 | 1 {
+  return [true, 1, '1', 'true', 'on'].includes(value as never) ? 1 : 0
+}

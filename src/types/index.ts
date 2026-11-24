@@ -87,6 +87,8 @@ export interface Post {
   noindex?: number | boolean
   /** Who may read the body: `public`, or a level the access policy defines (helpers/access.ts). */
   visibility?: string
+  /** 1 when private: published, but only for people who can edit it, in the admin (migration 043). */
+  is_private?: number | boolean
   /** Written by the members feature: the author asked for this post to be emailed when it goes live. */
   send_newsletter?: number | boolean
   /** Content type key (migration 038). `post` for every post that predates types. */
@@ -133,6 +135,8 @@ export interface Page {
   content_html?: string
   template: string
   published: boolean
+  /** 1 when private: published, but only for people who can edit it, in the admin (migration 043). */
+  is_private?: number | boolean
   parent_id?: number
   menu_order: number
   /** Foreign key into `media`. Not a filename — see `featured_image_url`. */

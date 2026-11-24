@@ -29,12 +29,14 @@ export const Media = {
    * @param perPage
    * @param filters - `search` matches the original filename; `type` is a mime
    *   prefix such as 'image', or 'other' for anything that is not image, video
-   *   or audio.
+   *   or audio. `servedAt` is the path of a URL the file is served from: it
+   *   matches the item whose storage key that path ends with, which is how a
+   *   pasted URL is turned back into the library item it points at.
    */
   async all(
     page = 1,
     perPage = 20,
-    filters: { search?: string; type?: string } = {}
+    filters: { search?: string; type?: string; servedAt?: string } = {}
   ): Promise<{ items: MediaType[]; total: number }> {
     const db = await getDb()
     const offset = (page - 1) * perPage
@@ -45,6 +47,13 @@ export const Media = {
     if (filters.search) {
       where.push('m.original_name LIKE ?')
       params.push(`%${filters.search}%`)
+    }
+
+    if (filters.servedAt) {
+      // Every storage driver serves a key at a URL ending in that key, after
+      // whatever prefix its bucket, CDN or local route adds.
+      where.push("(m.path = ? OR ? LIKE '%/' || m.path)")
+      params.push(filters.servedAt, filters.servedAt)
     }
 
     if (filters.type === 'other') {

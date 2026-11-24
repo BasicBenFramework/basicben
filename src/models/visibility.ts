@@ -14,10 +14,26 @@
  * Scheduling needs no cron: a scheduled post simply starts matching when its
  * time comes. What does need a tick is telling webhooks — see `publishDue()` in
  * `src/hooks.ts`.
+ *
+ * Not private (migration 043): a private post is published for the people who
+ * can edit it, in the admin, and for nobody on any public surface. Folding it
+ * into this fragment is what makes that true everywhere at once.
  */
 export function livePost(alias = 'posts'): string {
   const now = new Date().toISOString()
-  return `(${alias}.published = 1 AND ${alias}.deleted_at IS NULL AND (${alias}.publish_at IS NULL OR ${alias}.publish_at <= '${now}'))`
+  return `(${alias}.published = 1 AND ${alias}.deleted_at IS NULL AND (${alias}.publish_at IS NULL OR ${alias}.publish_at <= '${now}') AND ${notPrivate(alias)})`
+}
+
+/**
+ * When a page is on the public site: published and not private. The page
+ * counterpart of `livePost`, for the same reason — one copy of the rule.
+ */
+export function livePage(alias = 'pages'): string {
+  return `(${alias}.published = 1 AND ${notPrivate(alias)})`
+}
+
+function notPrivate(alias: string): string {
+  return `${alias}.is_private = 0`
 }
 
 /** Normalise a date to the stored form, or null. Throws on nonsense. */

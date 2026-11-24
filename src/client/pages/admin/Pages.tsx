@@ -10,6 +10,7 @@ interface Page {
   title: string
   slug: string
   published: boolean
+  is_private?: boolean | number
   template: string
   created_at: string
 }
@@ -104,6 +105,12 @@ export default function AdminPages() {
                     <span className={`admin-badge ${page.published ? 'admin-badge-success' : 'admin-badge-warning'}`}>
                       {page.published ? t('Published') : t('Draft')}
                     </span>
+                    {Number(page.is_private) ? (
+                      <>
+                        {' '}
+                        <span className="admin-badge admin-badge-info" title={t('Only people who can edit it can see it')}>{t('Private')}</span>
+                      </>
+                    ) : null}
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>

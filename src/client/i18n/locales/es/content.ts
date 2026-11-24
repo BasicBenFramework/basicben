@@ -24,6 +24,8 @@ const strings: Dictionary = {
   'Key': 'Clave',
   'Published': 'Publicada',
   'Draft': 'Borrador',
+  '(no title)': '(sin título)',
+  'Only people who can edit it can see it': 'Solo la ven quienes pueden editarla',
   'Edit {name}': 'Editar {name}',
   'New {name}': 'Añadir {name}',
   'Select {name}': 'Seleccionar {name}',

@@ -159,7 +159,9 @@ describe('the editor knows which thing it is editing', () => {
     // always saved to /api/posts — so creating a page created a post, which
     // then did not appear in the list you came from.
     assert.match(editor, /const isPage = path\.startsWith\('\/admin\/pages'\)/)
-    assert.match(editor, /api\.put\(`\/api\/\$\{resource\}\/\$\{postId\}`/)
+    // `id` is the post's — or, for a new post, the draft its first autosave made.
+    assert.match(editor, /const id = postId \?\? \(creatingDraft\.current \? await creatingDraft\.current : null\)/)
+    assert.match(editor, /api\.put\(`\/api\/\$\{resource\}\/\$\{id\}`/)
     assert.match(editor, /api\.post\(`\/api\/\$\{resource\}`/)
   })
 
@@ -170,9 +172,11 @@ describe('the editor knows which thing it is editing', () => {
   test('the resolved image URL is not sent back as the image', () => {
     // featured_image holds a media id; a URL in that column is a foreign key
     // that points at nothing.
-    // Both resolved URLs — the featured image's and the social card's — are
-    // pulled out before anything is sent.
-    assert.match(editor, /featured_image_url, og_image_url, user_id, category_ids, tags, excerpt,\s*\n\s*status, publish_at, published, \.\.\.common\s*\n\s*\} = formData/)
+    // The featured image's resolved URL is pulled out before anything is
+    // sent. The social cards' URLs never enter the form: SocialImageField keeps
+    // its preview to itself and hands the editor only the id.
+    assert.match(editor, /featured_image_url, user_id, category_ids, tags, excerpt,\s*\n\s*status, publish_at, published, \.\.\.common\s*\n\s*\} = formData/)
+    assert.doesNotMatch(editor, /og_image_url|twitter_image_url/)
   })
 
   test('the slug that will be generated is visible before the save', () => {

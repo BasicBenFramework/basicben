@@ -29,6 +29,7 @@ interface CreatePostData {
   noindex?: number
   visibility?: string
   send_newsletter?: number
+  is_private?: number
   /** Content type key (migration 038). Absent means `post`. */
   post_type?: string
   /** Custom field values as stored: a JSON string, already validated. */
@@ -59,6 +60,7 @@ interface UpdatePostData {
   noindex?: number
   visibility?: string
   send_newsletter?: number
+  is_private?: number
   post_type?: string
   fields?: string | null
 }
@@ -78,7 +80,7 @@ const UPDATABLE = [
   'status', 'deleted_at', 'live_notified',
   'og_title', 'og_description', 'og_image', 'twitter_title', 'twitter_description',
   'twitter_image', 'canonical_url', 'noindex',
-  'visibility', 'send_newsletter',
+  'visibility', 'send_newsletter', 'is_private',
   // Content types (migrations 038–039). Validated by helpers/content-model.ts
   // before they reach here.
   'post_type', 'fields'
@@ -390,6 +392,7 @@ export const Post = {
       live_notified: data.live_notified ?? 1,
       visibility: data.visibility ?? 'public',
       send_newsletter: data.send_newsletter ?? 0,
+      is_private: data.is_private ? 1 : 0,
       post_type: data.post_type ?? 'post',
       fields: data.fields ?? null,
       ...Object.fromEntries(SEO_FIELDS.filter((key) => data[key] !== undefined).map((key) => [key, data[key]]))
@@ -454,6 +457,20 @@ export const Post = {
     )
 
     return this.find(id) as Promise<PostType>
+  },
+
+  /**
+   * Forget a draft's slug, so the first real save derives one.
+   *
+   * For the draft an autosave makes from a new post's first words (see
+   * `PostController.autosaveNew`): a slug derived then would come from "He",
+   * or be `post` for a draft with only a body, and the editor would load it
+   * back as if the author had chosen it. Null is what a post with no slug yet
+   * already means, and the unique index allows any number of them.
+   */
+  async forgetSlug(id: number): Promise<void> {
+    const db = await getDb()
+    await db.run('UPDATE posts SET slug = NULL WHERE id = ?', [id])
   },
 
   /** Gone for good. Only ever called on a post already in the trash. */

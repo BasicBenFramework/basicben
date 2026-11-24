@@ -160,7 +160,29 @@ const strings: Dictionary = {
   'Preview failed: {message}': 'Error en la vista previa: {message}',
   'Nothing to preview yet.': 'Aún no hay nada que previsualizar.',
   'Markdown supported — headings, lists, links, tables, and fenced code. HTML is shown as text rather than rendered.':
-    'Se admite Markdown: encabezados, listas, enlaces, tablas y bloques de código. El HTML se muestra como texto, no se interpreta.'
+    'Se admite Markdown: encabezados, listas, enlaces, tablas y bloques de código. El HTML se muestra como texto, no se interpreta.',
+
+  // Visibility: public or private (migration 043)
+  'Visibility': 'Visibilidad',
+  'Public': 'Público',
+  'Only its author, editors and admins see it, here in the admin. It is left out of the site, the API, feeds, the sitemap and search.':
+    'Solo la ven su autor, los editores y los administradores, aquí en el panel. Queda fuera del sitio, la API, los feeds, el mapa del sitio y la búsqueda.',
+  'Only people who can edit pages see it, here in the admin. It is left out of the site, the API, feeds, the sitemap and search.':
+    'Solo la ven quienes pueden editar páginas, aquí en el panel. Queda fuera del sitio, la API, los feeds, el mapa del sitio y la búsqueda.',
+
+  // Social card images
+  'Open Graph image': 'Imagen de Open Graph',
+  'Twitter / X image': 'Imagen de Twitter / X',
+  'Falls back to the featured image.': 'Si se deja vacía, se usa la imagen destacada.',
+  'Falls back to the Open Graph image.': 'Si se deja vacía, se usa la imagen de Open Graph.',
+  'A social card image has to be an image.': 'La imagen de una tarjeta social tiene que ser una imagen.',
+  'Choose image': 'Elegir imagen',
+  'or paste the URL of a library image': 'o pega la URL de una imagen de la biblioteca',
+  'Use URL': 'Usar URL',
+  'Looking…': 'Buscando…',
+  'That URL is not an image in the media library. Upload it first, then choose it here.':
+    'Esa URL no es una imagen de la biblioteca de medios. Súbela primero y luego elígela aquí.',
+  'Could not look that URL up.': 'No se pudo buscar esa URL.'
 }
 
 export default strings

@@ -1,6 +1,6 @@
 import { getDb } from '@basicbenframework/core/db'
 import { Settings } from '../models/Settings.ts'
-import { livePost } from '../models/visibility.ts'
+import { livePost, livePage } from '../models/visibility.ts'
 import { siteUrl } from '../helpers/site.ts'
 import { isGated, gatedFeedHtml, publicExcerpt } from '../helpers/gating.ts'
 import { excerpt as plainText } from '@basicbenframework/core/content'
@@ -221,7 +221,7 @@ export const FeedController = {
 
     const pages = await db.all(`
       SELECT id, slug, updated_at FROM pages
-      WHERE published = 1 AND (noindex IS NULL OR noindex = 0)
+      WHERE ${livePage('pages')} AND (noindex IS NULL OR noindex = 0)
     `)
 
     const categories = await db.all('SELECT id, slug FROM categories')
