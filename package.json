@@ -42,6 +42,7 @@
     "build:lib": "rm -rf lib && tsc -p tsconfig.build.json && cp src/client/styles.css lib/client/styles.css && chmod +x lib/cli/index.mjs",
     "start": "npm start --workspace site",
     "prepack": "npm run build:lib",
+    "pretest": "npm run build:lib",
     "test": "cd site && node --test \"../tests/**/*.test.js\" \"../src/features/**/*.test.js\"",
     "migrate": "npm run migrate --workspace site",
     "migrate:status": "npm run migrate:status --workspace site",

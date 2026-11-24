@@ -24,13 +24,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # pretest compiles lib/ first: site/basicben.config.js imports the
+      # package, which is lib/, and the tests run from site/.
       - name: Run tests
         run: npm test
-
-      # src/ compiled to lib/ the way the package will ship it (phase 4b). It
-      # must keep compiling, with no type errors, before anything depends on it.
-      - name: Compile lib/
-        run: npm run build:lib
 
   smoke:
     runs-on: ubuntu-latest
