@@ -41,7 +41,6 @@ import snippetsRoutes from '../routes/api/snippets'
 import exportRoutes from '../routes/api/export'
 import opsRoutes from '../routes/api/ops'
 import contentModelRoutes from '../routes/api/content-model'
-import themeRoutes from '../routes/theme'
 
 // Determine static directory based on environment
 // In production, static files are in dist/client (relative to app root/cwd)
@@ -89,10 +88,9 @@ opsRoutes(router)
 // repository, and read-only because the admin API already owns the writes.
 v1Routes(router)
 contentModelRoutes(router)
-// Features, after core and in the order src/features.ts lists them.
+// Features, after core and in the order src/features.ts lists them. The theme
+// is listed last: its /:slug and /:base/:slug would catch anything after it.
 mountFeatureRoutes(router)
-// Last: its /:slug and /:base/:slug routes would catch anything registered after it.
-themeRoutes(router)
 router.applyTo(app)
 
 // Serverless platforms invoke a handler per request and give you no port to

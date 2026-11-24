@@ -18,7 +18,7 @@ export interface AdminFeature {
 }
 
 /** Named places in core screens that features may add to. */
-export type SlotName = 'post.editor.sidebar'
+export type SlotName = 'post.editor.sidebar' | 'settings.reading'
 
 /**
  * What the post editor gives a `post.editor.sidebar` fill.
@@ -70,6 +70,17 @@ export function registerAdminFeatures(features: AdminFeature[], manifests: Array
       }
     })
   }
+}
+
+/**
+ * What the Settings page gives a `settings.reading` fill, rendered after the
+ * Reading card. `values` is every stored setting plus what fills have changed;
+ * `onChange` changes them, and the page saves them with its own. Only keys a
+ * feature defined (host.settings.define) are accepted by the server.
+ */
+export interface SettingsSectionProps {
+  values: Record<string, string>
+  onChange(changes: Record<string, string>): void
 }
 
 /** Whether any feature fills a slot. */

@@ -9,7 +9,8 @@
 import type { Feature } from './host'
 import analytics from './features/analytics/index.ts'
 import members from './features/members/index.ts'
+import theme from './features/theme/index.ts'
 
-const features: Feature[] = [analytics, members]
+const features: Feature[] = [analytics, members, theme]
 
 export default features

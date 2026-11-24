@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../../../helpers/api'
 import AdminLayout from '../../layouts/AdminLayout'
 import { useT, ADMIN_LOCALES, applySiteLocale, slots } from '../../i18n'
+import { Slot } from '../../host'
 
 interface SiteSettings {
   site_name: string
@@ -12,7 +13,6 @@ interface SiteSettings {
   public_api: string
   webhook_urls: string
   robots_txt: string
-  public_theme: string
   site_logo: string
   site_icon: string
   default_social_image: string
@@ -32,7 +32,6 @@ const DEFAULTS: SiteSettings = {
   public_api: 'false',
   webhook_urls: '',
   robots_txt: '',
-  public_theme: '',
   site_logo: '',
   site_icon: '',
   default_social_image: '',
@@ -64,6 +63,9 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [failed, setFailed] = useState(false)
+  // Every stored setting, for features' sections, and what they changed.
+  const [stored, setStored] = useState<Record<string, string>>({})
+  const [extra, setExtra] = useState<Record<string, string>>({})
 
   useEffect(() => {
     loadSettings()
@@ -81,6 +83,7 @@ export default function AdminSettings() {
           if (res.settings[key]) loaded[key] = res.settings[key] as string
         }
         setSettings(loaded)
+        setStored(Object.fromEntries(Object.entries(res.settings).map(([key, value]) => [key, String(value ?? '')])))
       }
       setSiteUrl(res?.site_url || '')
     } catch (error) {
@@ -97,7 +100,7 @@ export default function AdminSettings() {
     setFailed(false)
 
     try {
-      await api.put('/api/settings', { settings })
+      await api.put('/api/settings', { settings: { ...settings, ...extra } })
       // The admin's own language may have just changed; show it now.
       await applySiteLocale(settings.admin_locale)
       setMessage(t('Settings saved successfully!'))
@@ -273,22 +276,9 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        {/* The server-rendered reference theme. Off by default, so a site
-            using its own front end (or the SPA) sees no change; the
-            PUBLIC_THEME environment variable overrides this either way. */}
-        <div className="admin-card">
-          <h3 className="admin-card-title">{t('Public site')}</h3>
-          <div className="admin-form-group">
-            <label className="admin-label" htmlFor="public_theme">{t('Render the public site')}</label>
-            <select id="public_theme" name="public_theme" value={settings.public_theme} onChange={handleChange} className="admin-input">
-              <option value="">{t('No — a separate front end (or the built-in app) renders it')}</option>
-              <option value="ssr">{t('Yes — with the built-in server-rendered theme')}</option>
-            </select>
-            <p style={hint}>
-              {t('Serves the home page, posts, pages, archives and custom content types as HTML from this app, with full SEO tags and oEmbed. Takes up to 30 seconds to apply.')}
-            </p>
-          </div>
-        </div>
+        {/* Features' settings that belong with reading, such as the theme's
+            "render the public site". Saved with the rest of the form. */}
+        <Slot name="settings.reading" values={{ ...stored, ...extra }} onChange={(changes: Record<string, string>) => setExtra(prev => ({ ...prev, ...changes }))} />
 
         {/* Discussion Settings */}
         <div className="admin-card">

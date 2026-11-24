@@ -1,17 +1,16 @@
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
-import { ThemeController, themeEnabled } from '../controllers/ThemeController'
-import { OEmbedController } from '../controllers/OEmbedController'
-import { publicApiLimit } from '../middleware/rate-limits'
-import { publishDueOpportunistically } from '../helpers/publish-due'
+import { ThemeController, themeEnabled } from './ThemeController'
+import { OEmbedController } from './OEmbedController'
+import { publicApiLimit } from '../../middleware/rate-limits'
+import { publishDueOpportunistically } from '../../helpers/publish-due'
 
-interface Router {
-  get: (path: string, ...handlers: Function[]) => void
-}
+import type { Router } from '../../host'
 
 /**
  * The reference public site (server-rendered theme) and the oEmbed provider.
  *
- * Register this **last**, after every other route module. The router answers
+ * This feature goes **last** in src/features.ts, so these routes are mounted
+ * after core's and every other feature's. The router answers
  * with the first route that matches, and `/:slug` and `/:base/:slug` match a
  * great deal: registered last, `/api/...`, `/feed.xml`, `/sitemap.xml` and
  * every other real route are matched before them. Static files are served by
@@ -22,7 +21,7 @@ interface Router {
  * With DISABLE_PUBLIC_SITE nothing is registered, for the same reason the
  * feeds are not: there is no public site to render or to embed.
  */
-export default (router: Router) => {
+export function themeRoutes(router: Router): void {
   if (process.env.DISABLE_PUBLIC_SITE === 'true') return
 
   // oEmbed answers whether or not the theme renders pages: a headless front

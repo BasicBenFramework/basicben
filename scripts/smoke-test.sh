@@ -996,14 +996,23 @@ case "$SHELL_PAGE" in
   *) echo "$SHELL_PAGE" | head -5; fail "a public path did not serve the app shell with the theme off" ;;
 esac
 
-OEMBED="$(curl -s "$H/oembed?format=json&url=http%3A%2F%2Flocalhost%3A$PORT%2Fblog%2Fp2-new")"
-case "$OEMBED" in
-  *'"type":"rich"'*'Phase two'*|*'Phase two'*'"type":"rich"'*) pass "oEmbed describes a post on this site" ;;
-  *) echo "$OEMBED"; fail "oEmbed did not describe the post" ;;
-esac
-code="$(curl -s -o /dev/null -w '%{http_code}' "$H/oembed?format=json&url=https%3A%2F%2Fevil.example%2Fblog%2Fp2-new")"
-[ "$code" = "404" ] || [ "$code" = "400" ] || fail "oEmbed answered for another origin ($code)"
-pass "oEmbed refuses URLs on other origins"
+# oEmbed belongs to the theme feature (src/features/theme).
+if has_feature theme; then
+  OEMBED="$(curl -s "$H/oembed?format=json&url=http%3A%2F%2Flocalhost%3A$PORT%2Fblog%2Fp2-new")"
+  case "$OEMBED" in
+    *'"type":"rich"'*'Phase two'*|*'Phase two'*'"type":"rich"'*) pass "oEmbed describes a post on this site" ;;
+    *) echo "$OEMBED"; fail "oEmbed did not describe the post" ;;
+  esac
+  code="$(curl -s -o /dev/null -w '%{http_code}' "$H/oembed?format=json&url=https%3A%2F%2Fevil.example%2Fblog%2Fp2-new")"
+  [ "$code" = "404" ] || [ "$code" = "400" ] || fail "oEmbed answered for another origin ($code)"
+  pass "oEmbed refuses URLs on other origins"
+else
+  OEMBED="$(curl -s "$H/oembed?format=json&url=http%3A%2F%2Flocalhost%3A$PORT%2Fblog%2Fp2-new")"
+  case "$OEMBED" in
+    *'"type":"rich"'*) fail "with the theme removed, oEmbed still answers" ;;
+  esac
+  pass "with the theme removed, there is no oEmbed provider"
+fi
 
 # What the docs promise is what the server sends.
 #

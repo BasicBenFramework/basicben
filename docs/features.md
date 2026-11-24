@@ -1,7 +1,8 @@
 # Features
 
-A feature is something the CMS does that the core does not need: analytics,
-and members with their newsletters, today; the reference theme next. Each one is a
+A feature is something the CMS does that the core does not need. Three ship
+with the CMS: `analytics`, `members` (with newsletters and the access policy)
+and `theme` (the server-rendered public site and oEmbed). Each one is a
 folder in `src/features/` that plugs into the core through a small host. Delete
 the folder and its line in each of the three lists, and the core still builds,
 passes its tests and runs. `npm test` checks that on every import.
@@ -35,6 +36,8 @@ plain Node, without booting the server or a database.
 ## The rules
 
 - **Core never imports a feature**, except through those three lists.
+- **Order matters for routes.** Features' routes are mounted after core's, in
+  list order. The theme catches `/:slug`, so it stays last.
 - **Features never import each other.** Two features that need to talk do it
   through hooks.
 - **A feature may import core freely**: models, helpers, middleware. The host
@@ -60,7 +63,7 @@ plain Node, without booting the server or a database.
 | Call | Does |
 |---|---|
 | `admin.page(path, Component)` | The screen for a page the manifest declares. A page not in the manifest is refused, so the menu and the routes cannot disagree |
-| `admin.fill(slot, Component)` | Adds to a named place in a core screen. The one slot is `post.editor.sidebar` (below) |
+| `admin.fill(slot, Component)` | Adds to a named place in a core screen: `post.editor.sidebar` (below) or `settings.reading`, a card after Settings' Reading section that gets `SettingsSectionProps` (`values`, `onChange`) and is saved with the form |
 | `admin.dictionaries({ es: () => import('./i18n/es') })` | Translations, merged over the admin's own when the language loads |
 
 A manifest page's `label` and `section` go through `t()` like core's menu, so

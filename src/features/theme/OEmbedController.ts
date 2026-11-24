@@ -1,11 +1,11 @@
 import { strongEtag, conditional } from '@basicbenframework/core/etag'
-import { PublicContent } from '../models/PublicContent'
-import { Settings } from '../models/Settings'
-import { ContentType } from '../models/ContentType'
-import { siteUrl } from '../helpers/site'
-import { POST_ROUTE_BASE } from '../helpers/content-paths'
-import { resolveOEmbed, type OEmbedTarget } from '../theme/oembed'
-import type { Request, Response } from '../types'
+import { PublicContent } from '../../models/PublicContent'
+import { Settings } from '../../models/Settings'
+import { ContentType } from '../../models/ContentType'
+import { siteUrl } from '../../helpers/site'
+import { POST_ROUTE_BASE } from '../../helpers/content-paths'
+import { resolveOEmbed, type OEmbedTarget } from './oembed'
+import type { Request, Response } from '../../types'
 
 /**
  * `GET /oembed?url=…&format=json` — the oEmbed provider (oembed.com).
