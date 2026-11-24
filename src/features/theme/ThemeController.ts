@@ -8,7 +8,7 @@ import { Taxonomy } from '../../models/Taxonomy.ts'
 import { Menu } from '../../models/Menu.ts'
 import { Redirect } from '../../models/Redirect.ts'
 import { normalizeRedirectSource, RESERVED_ROUTE_SEGMENTS, POST_ROUTE_BASE } from '../../helpers/content-paths.ts'
-import { renderListing, renderEntry, renderPage, renderNotFound, pathOf, type ThemeContext } from './templates.ts'
+import { renderListing, renderEntry, renderPage, renderNotFound, pathOf, listingPath, type ThemeContext } from './templates.ts'
 import type { Request, Response } from '../../types/index.ts'
 
 /**
@@ -216,6 +216,9 @@ function themed(handler: (req: Request, res: Response, ctx: ThemeContext) => Pro
 
 export const ThemeController = {
   home: themed(async (req, res, ctx) => {
+    // One address per page: `/?page=2` is `/page/2`, the one the pager links.
+    const page = pageNumber(req)
+    if (page > 1) return res.redirect(listingPath('/', page), 301)
     await listing(req, res, { title: ctx.site.name, intro: ctx.site.description, basePath: '/', heading: false }, ctx)
   }),
 
@@ -254,6 +257,7 @@ export const ThemeController = {
 
   /** `/page/:page` — the home page, paginated the WordPress way. */
   homePage: themed(async (req, res, ctx) => {
+    if (pageNumber(req) <= 1) return res.redirect('/', 301)
     await listing(req, res, { title: ctx.site.name, intro: ctx.site.description, basePath: '/', heading: false }, ctx)
   }),
 

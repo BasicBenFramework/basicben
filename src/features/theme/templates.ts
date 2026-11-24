@@ -122,9 +122,19 @@ export function card(ctx: ThemeContext, post: PublicPost): SafeHtml {
 </article>`
 }
 
+/**
+ * Page `n` of a listing. The home page pages the WordPress way, `/page/2`,
+ * the route it has; an archive adds `?page=2` to its own path.
+ */
+export function listingPath(base: string, n: number): string {
+  if (n <= 1) return base
+  if (base === '/') return `/page/${n}`
+  return `${base}${base.includes('?') ? '&' : '?'}page=${n}`
+}
+
 function pager(page: number, totalPages: number, base: string): SafeHtml | '' {
   if (totalPages <= 1) return ''
-  const link = (n: number) => (n <= 1 ? base : `${base}${base.includes('?') ? '&' : '?'}page=${n}`)
+  const link = (n: number) => listingPath(base, n)
   return html`<nav class="pager" aria-label="Pagination">
   ${page > 1 ? html`<a rel="prev" href="${link(page - 1)}">← Newer</a>` : html`<span></span>`}
   <span>Page ${page} of ${totalPages}</span>
@@ -268,7 +278,7 @@ export interface ListingView {
   posts: PublicPost[]
   page: number
   totalPages: number
-  /** The listing's own path, without `?page=`. */
+  /** The listing's own path, without its page number. */
   basePath: string
   /** The home page and a type archive are the site; archives are collections. */
   heading?: boolean
@@ -277,7 +287,7 @@ export interface ListingView {
 
 /** The home page, a type archive, or a category/tag/author/term archive. */
 export function renderListing(ctx: ThemeContext, view: ListingView): string {
-  const pageUrl = (n: number) => absolute(ctx, n <= 1 ? view.basePath : `${view.basePath}?page=${n}`)
+  const pageUrl = (n: number) => absolute(ctx, listingPath(view.basePath, n))
   const isHome = view.basePath === '/'
 
   const body = html`

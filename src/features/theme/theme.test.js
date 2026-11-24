@@ -81,6 +81,23 @@ describe('the reference theme templates', () => {
     assert.strictEqual(templates.pathOf(ctx(), { slug: 'x', id: 1, type: 'post' }), '/blog/x')
   })
 
+  test('the home page pages as /page/n, the route it has; an archive adds ?page=n', () => {
+    assert.strictEqual(templates.listingPath('/', 1), '/')
+    assert.strictEqual(templates.listingPath('/', 2), '/page/2')
+    assert.strictEqual(templates.listingPath('/category/news', 1), '/category/news')
+    assert.strictEqual(templates.listingPath('/category/news', 3), '/category/news?page=3')
+  })
+
+  test("the home page's pager, canonical and prev/next all use /page/n", () => {
+    const listing = (page) => templates.renderListing(ctx(), { title: 'Home', basePath: '/', heading: false, posts: [], page, totalPages: 3 })
+    const second = listing(2)
+    assert.ok(!second.includes('?page='), 'no ?page= link is left on the home page')
+    assert.match(second, /<a rel="prev" href="\/">/)
+    assert.match(second, /<a rel="next" href="\/page\/3">/)
+    assert.match(second, /<link rel="canonical" href="[^"]*\/page\/2">/)
+    assert.match(listing(1), /<a rel="next" href="\/page\/2">/)
+  })
+
   test('the head carries canonical, feeds, oEmbed discovery and JSON-LD; the title is escaped', () => {
     const page = templates.documentHtml(ctx(), {
       title: 'A <title>',
