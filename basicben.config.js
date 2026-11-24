@@ -90,10 +90,9 @@ export default {
  * uploads cannot work at all and anything written would vanish with the
  * instance. Hence the warning.
  *
- * It warns rather than throws. The framework catches any error raised while
- * loading this file, reports it as a syntax problem and continues with an
- * *empty* config — so throwing here would silently discard CORS, mail and the
- * port along with itself. Reads are unaffected either way: only uploads break.
+ * It warns rather than throws. Since core 0.8.0 an error raised while loading
+ * this file stops the app, which is right for a broken config and wrong here:
+ * without storage, reads and the admin still work, and only uploads break.
  */
 function resolveStorage() {
   const maxSize = 10 * 1024 * 1024
