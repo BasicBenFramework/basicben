@@ -97,16 +97,16 @@ export default function AdminTools() {
 
           <dl className="tools-list">
             <dt>{t('Another BasicBen site (an export from the button above)')}</dt>
-            <dd><code>node --env-file=.env scripts/import-json.mjs basicben-export.json --dry-run</code></dd>
+            <dd><code>npx basicben-cms import:json basicben-export.json --dry-run</code></dd>
 
             <dt>{t('WordPress export file (Tools → Export in wp-admin)')}</dt>
-            <dd><code>node --env-file=.env scripts/import-wxr.mjs wordpress.xml --dry-run</code></dd>
+            <dd><code>npx basicben-cms import:wxr wordpress.xml --dry-run</code></dd>
 
             <dt>{t('A live WordPress site, over its REST API')}</dt>
-            <dd><code>node --env-file=.env scripts/import-wordpress.mjs --url https://old.example.com --dry-run</code></dd>
+            <dd><code>npx basicben-cms import:wordpress --url https://old.example.com --dry-run</code></dd>
 
             <dt>{t('Ghost export (Settings → Labs → Export)')}</dt>
-            <dd><code>node --env-file=.env scripts/import-ghost.mjs ghost.json --url https://old.example.com --dry-run</code></dd>
+            <dd><code>npx basicben-cms import:ghost ghost.json --url https://old.example.com --dry-run</code></dd>
           </dl>
 
           <p className="tools-muted">

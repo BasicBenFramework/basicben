@@ -24,6 +24,9 @@
     },
     "./package.json": "./package.json"
   },
+  "bin": {
+    "basicben-cms": "./lib/cli/index.mjs"
+  },
   "files": [
     "lib",
     "db/migrations",
@@ -42,7 +45,14 @@
     "prepack": "npm run build:lib",
     "test": "cd site && node --test \"../tests/**/*.test.js\" \"../src/features/**/*.test.js\"",
     "migrate": "npm run migrate --workspace site",
-    "migrate:status": "npm run migrate:status --workspace site"
+    "migrate:status": "npm run migrate:status --workspace site",
+    "export": "npm run export --workspace site --",
+    "import:json": "npm run import:json --workspace site --",
+    "import:wxr": "npm run import:wxr --workspace site --",
+    "import:ghost": "npm run import:ghost --workspace site --",
+    "import:wordpress": "npm run import:wordpress --workspace site --",
+    "backup": "npm run backup --workspace site --",
+    "restore": "npm run restore --workspace site --"
   },
   "peerDependencies": {
     "@basicbenframework/core": "^0.8.1",

@@ -11,10 +11,10 @@
  *
  * For a site that is already offline, or to bring across drafts and private
  * posts without an application password, use the WXR export file instead:
- * `scripts/import-wxr.mjs`.
+ * `basicben-cms import:wxr`.
  *
  * Usage:
- *   node --env-file=.env scripts/import-wordpress.mjs [options]
+ *   npx basicben-cms import:wordpress [options]
  *
  *   --dry-run       report what would change, write nothing
  *   --update        overwrite posts, pages, terms and media that already exist
@@ -72,7 +72,7 @@
  * happens to posts you actually edit.
  *
  * The rules shared with the other importers — matching, conversion, what an
- * author account gets — live in `scripts/lib/site-import.mjs`.
+ * author account gets — live in `src/cli/lib/site-import.mjs`.
  */
 
 import { getDb } from '@basicbenframework/core/db'

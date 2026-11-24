@@ -4,10 +4,10 @@
  *
  * The same document the admin's Tools → Export button downloads, for when a
  * shell is closer than a browser — a cron backup, or a database too large for
- * a request to stream comfortably. Read back with `scripts/import-json.mjs`.
+ * a request to stream comfortably. Read back with `basicben-cms import:json`.
  *
  * Usage:
- *   node --env-file=.env scripts/export.mjs [options]
+ *   npx basicben-cms export [options]
  *
  *   --out FILE     where to write (default basicben-export-YYYY-MM-DD.json;
  *                  `-` for stdout)
@@ -26,7 +26,7 @@
 import { createWriteStream } from 'node:fs'
 import { once } from 'node:events'
 import { getDb } from '@basicbenframework/core/db'
-import { exportChunks, EXPORT_FORMAT } from '../src/helpers/export-data.ts'
+import { exportChunks, EXPORT_FORMAT } from '../helpers/export-data.ts'
 import { parseArgs } from './lib/import-common.mjs'
 
 async function main() {

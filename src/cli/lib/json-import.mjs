@@ -37,7 +37,7 @@
  * no way to tell a duplicate from a new row.
  */
 
-import { EXPORT_FORMAT, EXPORT_VERSION, isSecretSetting } from '../../src/helpers/export-data.ts'
+import { EXPORT_FORMAT, EXPORT_VERSION, isSecretSetting } from '../../helpers/export-data.ts'
 import { insertRow, updateRow, tableColumns, unusablePassword, uniqueSlug, Report } from './import-common.mjs'
 
 const KNOWN = [

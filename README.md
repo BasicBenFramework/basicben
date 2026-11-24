@@ -112,8 +112,8 @@ in front of one does not mean rewriting rows.
 ## Migrating from WordPress
 
 ```bash
-node --env-file=.env scripts/import-wordpress.mjs --dry-run
-node --env-file=.env scripts/import-wordpress.mjs
+npx basicben-cms import:wordpress --dry-run
+npx basicben-cms import:wordpress
 ```
 
 Posts are matched on slug, so it is safe to run repeatedly — import now, keep

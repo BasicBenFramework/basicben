@@ -1,5 +1,5 @@
 /**
- * The moving parts of `scripts/backup.mjs` and `scripts/restore.mjs`, kept
+ * The moving parts of `basicben-cms backup` and `basicben-cms restore`, kept
  * apart from the CLI so the tests can drive them against an in-memory
  * database and a fake bucket.
  *
@@ -30,7 +30,7 @@ import { pipeline } from 'node:stream/promises'
 import { createGzip } from 'node:zlib'
 import { randomBytes } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
-import { exportChunks, NEVER_EXPORTED, isSecretSetting } from '../../src/helpers/export-data.ts'
+import { exportChunks, NEVER_EXPORTED, isSecretSetting } from '../../helpers/export-data.ts'
 import { unusablePassword, defaultAuthor, withDryRun, Report } from './import-common.mjs'
 import { importExport } from './json-import.mjs'
 

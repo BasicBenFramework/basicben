@@ -117,12 +117,12 @@ describe('the editor selection reaches the database', () => {
   })
 })
 
-// The WordPress importer now maps its responses in scripts/lib/wordpress-rest.mjs
+// The WordPress importer now maps its responses in src/cli/lib/wordpress-rest.mjs
 // and writes through the writer every importer shares, so that is where these
 // rules live. tests/phase2-import-export.test.js checks them against a database.
 describe('the importer keeps the whole taxonomy', () => {
-  const mapping = read('scripts/lib/wordpress-rest.mjs')
-  const writer = read('scripts/lib/site-import.mjs')
+  const mapping = read('src/cli/lib/wordpress-rest.mjs')
+  const writer = read('src/cli/lib/site-import.mjs')
 
   test('every category is linked, not just the first', () => {
     assert.match(mapping, /categoryKeys\.push\(term\.slug\)/)

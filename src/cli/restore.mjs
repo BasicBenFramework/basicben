@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Restore a backup from `scripts/backup.mjs` into an empty database.
+ * Restore a backup from `basicben-cms backup` into an empty database.
  *
  *   npm run migrate                                  # an empty, current schema
  *   npm run restore -- backups/basicben-backup-….json.gz --dry-run
@@ -44,7 +44,7 @@ async function load(file, s3Key) {
     return object.body
   }
 
-  if (!file) throw new Error('Pass the backup file: scripts/restore.mjs backups/basicben-backup-….json.gz')
+  if (!file) throw new Error('Pass the backup file: basicben-cms restore backups/basicben-backup-….json.gz')
   if (/\.sqlite$/.test(file)) {
     throw new Error('That is a SQLite copy, not a JSON backup. Stop the app and copy it to where DATABASE_URL points (docs/backup.md).')
   }

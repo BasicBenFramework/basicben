@@ -6,11 +6,11 @@
  * its REST API open. The file also carries what the API hides from an
  * anonymous caller — drafts, scheduled and private posts, author addresses,
  * and every comment with its moderation state — so for a full move it is the
- * better source. `scripts/import-wordpress.mjs` remains for live sync from a
+ * better source. `basicben-cms import:wordpress` remains for live sync from a
  * site that is still publishing.
  *
  * Usage:
- *   node --env-file=.env scripts/import-wxr.mjs FILE.xml [options]
+ *   npx basicben-cms import:wxr FILE.xml [options]
  *
  *   --dry-run       report what would change, write nothing
  *   --update        overwrite posts, pages, terms and media that already
@@ -21,7 +21,7 @@
  *   --skip-media    do not create media rows (featured images then unset)
  *   --verbose       print every row written
  *
- * What comes across, and how, is described in scripts/lib/wxr.mjs and
+ * What comes across, and how, is described in src/cli/lib/wxr.mjs and
  * docs/import-export.md. In short: posts, pages (with hierarchy, menu order
  * and template), categories (with hierarchy), tags, threaded comments,
  * authors (as `author` accounts with no usable password), attachments as
@@ -41,7 +41,7 @@ async function main() {
   })
 
   const [file] = positional
-  if (!file) throw new Error('Pass the export file: scripts/import-wxr.mjs wordpress-export.xml')
+  if (!file) throw new Error('Pass the export file: basicben-cms import:wxr wordpress-export.xml')
 
   const site = parseWxr(await readFile(file, 'utf-8'))
   const db = await getDb()

@@ -34,8 +34,8 @@ import {
   isGzip,
   restoreBackup,
   nonEmptyTables
-} from '../scripts/lib/backup.mjs'
-import { readExport } from '../scripts/lib/json-import.mjs'
+} from '../src/cli/lib/backup.mjs'
+import { readExport } from '../src/cli/lib/json-import.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CORE = join(ROOT, 'node_modules/@basicbenframework/core/src/db')
@@ -400,10 +400,17 @@ describe('backups', () => {
   })
 
   test('the CLIs are wired as npm scripts and warn about personal data', () => {
-    const pkg = JSON.parse(read('package.json'))
-    assert.match(pkg.scripts.backup, /scripts\/backup\.mjs/)
-    assert.match(pkg.scripts.restore, /scripts\/restore\.mjs/)
-    assert.match(read('scripts/backup.mjs'), /log\(PERSONAL_DATA_WARNING\)/)
+    // A site runs them through the package's bin, which maps each name to its file.
+    const site = JSON.parse(read('site/package.json'))
+    assert.strictEqual(site.scripts.backup, 'basicben-cms backup')
+    assert.strictEqual(site.scripts.restore, 'basicben-cms restore')
+    const bin = read('src/cli/index.mjs')
+    assert.match(bin, /backup: '\.\/backup\.mjs'/)
+    assert.match(bin, /restore: '\.\/restore\.mjs'/)
+    assert.strictEqual(JSON.parse(read('package.json')).bin['basicben-cms'], './lib/cli/index.mjs')
+    assert.match(read('src/cli/backup.mjs'), /log\(PERSONAL_DATA_WARNING\)/)
+    // Backups hold personal data: ignored here and in every new site.
     assert.match(read('.gitignore'), /^backups\/$/m)
+    assert.match(read('site/gitignore'), /^backups\/$/m)
   })
 })

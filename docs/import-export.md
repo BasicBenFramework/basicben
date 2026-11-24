@@ -10,7 +10,7 @@ Everything here runs as a script against the database the app uses
   object key for media; key for settings) and **leaves existing rows alone**
   unless `--update` is passed, so re-running is safe;
 - never modifies an existing user account, even with `--update`;
-- converts HTML to Markdown the same way (`scripts/lib/html-to-markdown.mjs`)
+- converts HTML to Markdown the same way (`src/cli/lib/html-to-markdown.mjs`)
   and stores the source HTML, sanitized, as `content_html`;
 - keeps original slugs and dates;
 - ends with a summary of what was created, matched, updated and skipped, and
@@ -109,7 +109,7 @@ target does not have and skip tables it does not have, with a note.
 
 ### Importing an export
 
-`scripts/import-json.mjs`:
+`basicben-cms import:json`:
 
 - Users are matched on email. New users keep their exported role (it is the
   same site moving) but get a password nothing matches: each signs in with
@@ -132,9 +132,9 @@ target does not have and skip tables it does not have, with a note.
 
 ## WordPress export file (WXR)
 
-`scripts/import-wxr.mjs` reads the XML from wp-admin → Tools → Export → All
+`basicben-cms import:wxr` reads the XML from wp-admin → Tools → Export → All
 content. Offline: the old site need not be running. The XML parser
-(`scripts/lib/xml.mjs`) refuses DTDs and decodes only XML's five entities and
+(`src/cli/lib/xml.mjs`) refuses DTDs and decodes only XML's five entities and
 numeric references, so a hostile file cannot expand entities.
 
 | WordPress | Here |
@@ -164,7 +164,7 @@ no status column it is skipped and counted instead.
 
 ## WordPress REST API
 
-`scripts/import-wordpress.mjs` reads a live site: posts, pages, categories,
+`basicben-cms import:wordpress` reads a live site: posts, pages, categories,
 tags, comments, authors and the whole media library. Anonymously it sees only
 published content, approved comments and no author emails (new accounts get
 `<slug>@imported.invalid` — fix those before anyone resets a password). Set
@@ -178,7 +178,7 @@ alone unless `--update` is passed — use it on the final run before cut-over.
 
 ## Ghost
 
-`scripts/import-ghost.mjs` reads Settings → Labs → Export (Ghost 4 and 5; the
+`basicben-cms import:ghost` reads Settings → Labs → Export (Ghost 4 and 5; the
 `{ db: [ { meta, data } ] }` wrapper is optional).
 
 | Ghost | Here |

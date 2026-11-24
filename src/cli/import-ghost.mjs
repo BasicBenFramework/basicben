@@ -3,7 +3,7 @@
  * Import a Ghost export — Settings → Labs → Export your content (Ghost 4/5).
  *
  * Usage:
- *   node --env-file=.env scripts/import-ghost.mjs FILE.json [options]
+ *   npx basicben-cms import:ghost FILE.json [options]
  *
  *   --url URL                  the Ghost site's address, to resolve the
  *                              `__GHOST_URL__` placeholder in image URLs
@@ -18,7 +18,7 @@
  *
  * Ghost has no comments in its export (they live with members), so none come
  * across. How tags, the primary tag, statuses, members-only posts and images
- * are mapped is described in scripts/lib/ghost.mjs and docs/import-export.md.
+ * are mapped is described in src/cli/lib/ghost.mjs and docs/import-export.md.
  */
 
 import { readFile } from 'node:fs/promises'
@@ -34,7 +34,7 @@ async function main() {
   })
 
   const [file] = positional
-  if (!file) throw new Error('Pass the export file: scripts/import-ghost.mjs ghost-export.json')
+  if (!file) throw new Error('Pass the export file: basicben-cms import:ghost ghost-export.json')
 
   const site = parseGhost(await readFile(file, 'utf-8'), {
     siteUrl: options.url ?? process.env.GHOST_URL,

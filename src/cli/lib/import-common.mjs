@@ -11,7 +11,7 @@
  */
 
 import { randomBytes } from 'node:crypto'
-import { columnsOf } from '../../src/helpers/export-data.ts'
+import { columnsOf } from '../../helpers/export-data.ts'
 
 /**
  * Parse `--flag` and `--option value` arguments.

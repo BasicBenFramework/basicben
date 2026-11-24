@@ -1,8 +1,8 @@
 /**
  * The full-content export: everything a site is, in one JSON document.
  *
- * Shared by the admin download (`GET /api/export`) and `scripts/export.mjs`,
- * and read back by `scripts/import-json.mjs`. The format is documented in
+ * Shared by the admin download (`GET /api/export`) and `basicben-cms export`,
+ * and read back by `basicben-cms import:json`. The format is documented in
  * `docs/import-export.md`; bump `EXPORT_VERSION` for any change an older
  * importer would misread, and teach the importer the old shape before doing so.
  *

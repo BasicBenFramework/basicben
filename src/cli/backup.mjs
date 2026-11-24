@@ -21,7 +21,7 @@
  *   --no-revisions    leave post revision history out (smaller file)
  *   --remove-local    with --s3, delete the local files after uploading
  *
- * Restore with `scripts/restore.mjs`. See docs/backup.md.
+ * Restore with `basicben-cms restore`. See docs/backup.md.
  *
  * Backups contain personal data (email addresses). They contain no secrets:
  * the export omits password hashes, two-factor secrets, passkeys, API and
@@ -44,7 +44,7 @@ import {
   pruneLocal,
   pruneBucket
 } from './lib/backup.mjs'
-import { recordHeartbeat, HEARTBEATS } from '../src/helpers/heartbeat.ts'
+import { recordHeartbeat, HEARTBEATS } from '../helpers/heartbeat.ts'
 
 const log = (line = '') => console.error(line)
 const size = (bytes) => (bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`)

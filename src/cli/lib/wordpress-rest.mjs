@@ -1,7 +1,7 @@
 /**
  * WordPress REST API responses → the importer's site shape.
  *
- * Kept apart from the fetching in `scripts/import-wordpress.mjs` so the
+ * Kept apart from the fetching in `basicben-cms import:wordpress` so the
  * mapping can be tested against recorded responses without a WordPress.
  *
  * The REST API returns *rendered* HTML (`content.rendered`), unlike a WXR

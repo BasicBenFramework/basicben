@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Import a BasicBen export (from Tools → Export or `scripts/export.mjs`).
+ * Import a BasicBen export (from Tools → Export or `basicben-cms export`).
  *
  * For moving a site between databases. Safe to re-run: rows are matched on
  * their natural keys (slug, address, object key, setting key) and existing
@@ -8,7 +8,7 @@
  * target can already have content.
  *
  * Usage:
- *   node --env-file=.env scripts/import-json.mjs FILE [options]
+ *   npx basicben-cms import:json FILE [options]
  *
  *   --dry-run   report what would change, write nothing
  *   --update    overwrite matching posts, pages, terms, media and settings
@@ -34,7 +34,7 @@ async function main() {
   })
 
   const [file] = positional
-  if (!file) throw new Error('Pass the export file: scripts/import-json.mjs basicben-export.json')
+  if (!file) throw new Error('Pass the export file: basicben-cms import:json basicben-export.json')
 
   const doc = readExport(await readFile(file, 'utf-8'))
   const db = await getDb()

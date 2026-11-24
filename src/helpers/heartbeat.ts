@@ -2,7 +2,7 @@
  * Heartbeats for background jobs: "this ran, at this time, and found this".
  *
  * Read by the site health page; written by scheduled publishing, the
- * analytics purge and `scripts/backup.mjs`. See migration 037 for why this is
+ * analytics purge and `basicben-cms backup`. See migration 037 for why this is
  * a table of its own.
  *
  * Imports nothing and takes the database handle as an argument, for the same
