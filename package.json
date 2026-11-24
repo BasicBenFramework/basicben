@@ -1,7 +1,6 @@
 {
   "name": "@basicbenframework/cms",
   "version": "0.5.1",
-  "private": true,
   "type": "module",
   "description": "The BasicBen CMS. Posts, pages, media, an admin UI, and a headless content API.",
   "license": "MIT",
@@ -76,5 +75,12 @@
   },
   "engines": {
     "node": ">=24.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BasicBenFramework/basicben.git"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

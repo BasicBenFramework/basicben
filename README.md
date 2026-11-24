@@ -3,38 +3,45 @@
 Posts, pages, categories, tags, media, comments, an admin UI, and a headless
 content API at `/api/v1`. Built on [BasicBen](https://github.com/BasicBenFramework/core).
 
-This repository *is* the CMS. Clone it, or scaffold a copy with
-`npx @basicbenframework/create` — either way it is a plain BasicBen
-application that installs the framework from npm, the same shape as any other.
+The CMS is a package, `@basicbenframework/cms`. A site installs it and keeps
+only its own configuration and deploy files:
 
-Nothing here is published. Both `@basicbenframework/core` and
-`@basicbenframework/create` are released from
-[BasicBenFramework/core](https://github.com/BasicBenFramework/core); the
-scaffolder downloads this repository at run time rather than bundling a copy of
-it, so there is no snapshot to keep in step.
+```bash
+npx @basicbenframework/create my-site    # --headless for no public theme
+cd my-site && npm install && npm run migrate && npm run dev
+```
 
-## Getting started
+Updating a site is `npm install @basicbenframework/cms@latest` and
+`npm run migrate`. What a site holds is in [site/README.md](site/README.md).
+
+## This repository
+
+The package's source is `src/`, compiled to `lib/` (`npm run build:lib`), with
+its migrations in `db/migrations/` and mail templates in `mail/`. `site/` is
+the template `create` copies, and an npm workspace that installs the package
+from this checkout, so working on the CMS has no publish step:
 
 ```bash
 npm install
+cp site/.env.example site/.env   # then set APP_KEY
 npm run migrate
 npm run dev          # admin on http://localhost:3000, API on :3001
 ```
 
-The first account you register becomes the admin; everyone after is a
-subscriber, so register yours first. Without a `RESEND_API_KEY` mail is printed
-to the terminal rather than sent, including the verification link.
+`npm run dev` rebuilds `lib/` as you edit and the site picks it up. The first
+account you register becomes the admin. Without a `RESEND_API_KEY` mail is
+printed to the terminal rather than sent, including the verification link.
 
-Copy `.env.example` to `.env` and generate an `APP_KEY`. Everything else is
-optional for local work.
+To change the CMS for one site rather than for everyone, fork this repository.
 
 ## Commands
 
 ```bash
-npm run dev              # Development
-npm run build            # Production build
-npm start                # Production server
-npm test                 # Tests
+npm run dev              # Development, the template site against src/
+npm run build            # lib/, then a production build of site/
+npm start                # Production server (site/)
+npm test                 # Tests, run from site/ as a site runs
+./scripts/smoke-test.sh  # Pack, install into a copy of site/, build, boot, check
 npm run migrate          # Apply pending migrations
 npm run migrate:status   # What has and has not run
 npm run migrate:rollback # Undo the last batch
@@ -173,18 +180,27 @@ The framework declares `engines.node >= 24`; confirm the platform offers it.
 ## Layout
 
 ```
-src/
+src/                        the package, compiled to lib/
+├── config.ts               defineSite (./config)
+├── vite.ts                 the cms() preset (./vite)
+├── server/index.ts         the server (./server)
+├── main.tsx                the admin (./admin)
+├── features/               analytics, members, mysendbox, theme
 ├── routes/api/v1.ts        the public content API
 ├── models/PublicContent.ts what /api/v1 returns, and the reference's source
 ├── controllers/            business logic
 ├── middleware/             scopes, caching, rate limits
+├── cli/                    the basicben-cms commands
 └── client/                 admin UI and docs pages
-db/migrations/              schema, applied in order
+db/migrations/              schema, applied in order, shipped with the package
+mail/                       mail templates, shipped with the package
+site/                       the template create copies, and the dev workspace
 tests/                      hook coverage, API reference drift
-scripts/                    the importer, the generator, the smoke test
-api/index.js                serverless handler
-create/                     the scaffolder — a separate package, published alone
+scripts/                    the generator, the smoke test, the release
 ```
+
+The scaffolder, `@basicbenframework/create`, is published from the framework's
+repository and copies `site/` at the tag of the latest published CMS.
 
 The framework is [@basicbenframework/core](https://github.com/BasicBenFramework/core),
 installed from npm. It used to live here; it has its own repository, and this

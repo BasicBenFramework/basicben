@@ -13,10 +13,8 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$ROOT_DIR"
 
-# Get current version
-# The repository root is a private workspace with no version of its own; core
-# is the package whose number this release names.
-CURRENT_VERSION=$(node -p "require('./create/package.json').version")
+# The repository root is the package, @basicbenframework/cms.
+CURRENT_VERSION=$(node -p "require('./package.json').version")
 
 echo -e "${YELLOW}Current version: ${NC}$CURRENT_VERSION"
 echo ""
@@ -84,26 +82,22 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
   fi
 fi
 
-# Update every versioned package. The CMS is private and never published, but
-# it is the CMS this release ships, so it carries the same number rather than
-# drifting into meaninglessness.
-for TARGET in create .; do
-  echo -e "${GREEN}Updating version in $TARGET/package.json...${NC}"
-  node -e "
+# The package's number. site/ installs the checkout (file:..) and is given the
+# release's number by create, so it has none to update.
+echo -e "${GREEN}Updating version in package.json...${NC}"
+node -e "
 const fs = require('fs');
-const path = './$TARGET/package.json';
-const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 pkg.version = '$NEW_VERSION';
-fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
 "
-done
 
-# The lockfile records workspace versions, so it moves with them.
+# The lockfile records the package's version, so it moves with it.
 npm install --package-lock-only > /dev/null 2>&1 || true
 
 # Commit
 echo -e "${GREEN}Committing changes...${NC}"
-git add create/package.json package.json package-lock.json
+git add package.json package-lock.json
 git commit -m "v$NEW_VERSION"
 
 # Tag
@@ -122,9 +116,10 @@ echo ""
 echo -e "${GREEN}✓ Done!${NC}"
 echo ""
 echo "GitHub Actions will now:"
-echo "  1. Run tests"
-echo "  2. Publish @basicbenframework/core"
-echo "  3. Publish @basicbenframework/create"
+echo "  1. Run the tests and the smoke test"
+echo "  2. Publish @basicbenframework/cms"
+echo ""
+echo "create takes site/ from this tag once the package is on npm."
 echo ""
 echo "Watch the workflow at:"
 echo "  https://github.com/BasicBenFramework/basicben/actions"

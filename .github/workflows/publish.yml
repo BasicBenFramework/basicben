@@ -1,0 +1,55 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # The same gate as CI: the unit suite, then the package packed and installed
+  # into a copy of site/, built and booted, with every feature and with none.
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features: ['', 'none']
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '25'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Pack the CMS, install it into site/, build and boot it
+        run: ./scripts/smoke-test.sh
+        env:
+          SMOKE_FEATURES: ${{ matrix.features }}
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Trusted Publishing
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '25'
+          registry-url: 'https://registry.npmjs.org'
+
+      # prepack compiles lib/ with the dev dependencies' tsc.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish @basicbenframework/cms
+        run: npm publish --access public --provenance
