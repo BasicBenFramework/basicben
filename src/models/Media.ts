@@ -1,4 +1,5 @@
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import type { Media as MediaType } from '../types/index.ts'
 
 interface CreateMediaData {
@@ -126,7 +127,7 @@ export const Media = {
     // Through the query builder, which appends RETURNING id on Postgres. A raw
     // INSERT there reports lastInsertRowid as null, so the row is written and
     // the caller is handed an object with no id.
-    const result = await (await query('media')).insert({
+    const result = await insertRow('media', {
       user_id: data.user_id || null,
       filename: data.filename,
       original_name: data.original_name,

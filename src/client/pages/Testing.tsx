@@ -202,7 +202,7 @@ afterAll(async () => {
 
 describe('posts', () => {
   it('inserts a row and reads it back', async () => {
-    const result = await (await query('posts')).insert({ title: 'Hello', published: 1 })
+    const result = await (await query('posts')).only('title', 'published').insert({ title: 'Hello', published: 1 })
     const post = await (await query('posts')).find(result.lastInsertRowid)
 
     expect(post.title).toBe('Hello')

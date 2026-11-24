@@ -1,4 +1,5 @@
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import { MAX_DEPTH, type CommentStatus } from '../helpers/comment-guard.ts'
 import type { Comment as CommentType } from '../types/index.ts'
 
@@ -187,7 +188,7 @@ export const Comment = {
     // Through the query builder, which appends RETURNING id on Postgres. A raw
     // INSERT there reports lastInsertRowid as null, so the row is written and
     // the caller is handed an object with no id.
-    const result = await (await query('comments')).insert({
+    const result = await insertRow('comments', {
       post_id: data.post_id,
       user_id: data.user_id || null,
       parent_id: data.parent_id || null,

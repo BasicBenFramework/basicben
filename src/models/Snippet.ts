@@ -1,4 +1,5 @@
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 
 /**
  * Reusable Markdown, inserted into posts as text.
@@ -58,7 +59,7 @@ export const Snippet = {
     const now = new Date().toISOString()
     // Through the query builder, which appends RETURNING id on Postgres; a raw
     // INSERT there reports no id (see Tag.create).
-    const result = await (await query('snippets')).insert({
+    const result = await insertRow('snippets', {
       name: data.name,
       content: data.content,
       created_by: data.created_by,

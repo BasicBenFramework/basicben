@@ -8,7 +8,8 @@
 
 import { hooks } from '@basicbenframework/core/hooks'
 import { MEMBER_HOOKS } from './events.ts'
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../../helpers/insert-row.ts'
 import { normalizeEmail } from './session.ts'
 import { parseStoredTimestamp } from '../../models/visibility.ts'
 
@@ -95,7 +96,7 @@ export const Member = {
     const status = data.status ?? 'active'
 
     // Through the query builder for RETURNING id on Postgres — see Post.create.
-    const result = await (await query('members')).insert({
+    const result = await insertRow('members', {
       email: normalizeEmail(data.email),
       name: data.name ?? null,
       status,

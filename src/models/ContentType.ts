@@ -13,7 +13,8 @@
  * plain Node, which is how tests/phase3-content-model.test.js exercises it.
  */
 
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import { isHttpUrl, isRelativePath, MAX_URL_LENGTH, normalizeRouteBase, POST_ROUTE_BASE } from '../helpers/content-paths.ts'
 
 /** The kinds of custom field an editor can declare. */
@@ -503,7 +504,7 @@ export const ContentType = {
 
   async create(values: Omit<ContentTypeRecord, 'id' | 'fields' | 'builtin'> & { fields?: FieldDefinition[] }): Promise<ContentTypeRecord> {
     // Through the query builder, which appends RETURNING id on Postgres.
-    const result = await (await query('content_types')).insert({ ...columnsFor(values), builtin: 0 })
+    const result = await insertRow('content_types', { ...columnsFor(values), builtin: 0 })
     const id = Number(result.lastInsertRowid)
 
     if (values.fields) await this.replaceFields(id, values.fields)

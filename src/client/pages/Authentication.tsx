@@ -210,7 +210,7 @@ export const AuthController = {
     const isFirstUser = (await (await query('users')).count()) === 0
     const role = isFirstUser ? ROLES.ADMIN : DEFAULT_ROLE
 
-    const { lastInsertRowid } = await (await query('users')).insert({
+    const { lastInsertRowid } = await (await query('users')).only('name', 'email', 'password', 'role').insert({
       name,
       email,
       password: await hashPassword(password),

@@ -1,4 +1,5 @@
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import { parseStoredTimestamp } from './visibility.ts'
 
 export interface PostRevision {
@@ -38,7 +39,7 @@ export const PostRevision = {
 
     if (!changed) return
 
-    await (await query('post_revisions')).insert({
+    await insertRow('post_revisions', {
       post_id: before.id,
       user_id: userId,
       title: before.title,
@@ -82,7 +83,7 @@ export const PostRevision = {
   ): Promise<PostRevision | undefined> {
     const db = await getDb()
     await db.run('DELETE FROM post_revisions WHERE post_id = ? AND user_id = ? AND autosave = 1', [postId, userId])
-    const result = await (await query('post_revisions')).insert({
+    const result = await insertRow('post_revisions', {
       post_id: postId,
       user_id: userId,
       title: data.title,

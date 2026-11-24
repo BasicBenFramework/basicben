@@ -234,7 +234,7 @@ import { ROLES } from '@basicbenframework/core/auth/permissions'
 export async function seed() {
   const password = await hashPassword('password123')
 
-  await (await db.table('users')).insert({
+  await (await db.table('users')).only('name', 'email', 'password', 'role').insert({
     name: 'Admin User',
     email: 'admin@example.com',
     password,
@@ -259,7 +259,7 @@ export async function seed() {
 export async function seed() {
   const user = await (await db.table('users')).first()
 
-  await (await db.table('posts')).insert({
+  await (await db.table('posts')).only('user_id', 'title', 'content', 'published').insert({
     user_id: user.id,
     title: 'Welcome to BasicBen',
     content: 'Your first post.',
@@ -335,7 +335,8 @@ const drafts = await (await db.table('posts')).where('published', 0).get()`}
           </CodeBlock>
 
           <CodeBlock title="Writing">
-{`const result = await (await query('posts')).insert({
+{`// Every write names the columns it may touch, or it throws.
+const result = await (await query('posts')).only('user_id', 'title', 'content').insert({
   user_id: 1,
   title: 'My Post',
   content: 'Hello world'
@@ -345,6 +346,7 @@ result.lastInsertRowid   // id of the new row
 result.changes           // 1
 
 await (await query('posts'))
+  .only('title')
   .where('id', postId)
   .update({ title: 'Updated Title' })
 
@@ -423,15 +425,15 @@ const page = await (await query('posts'))
 
           <CodeBlock title="Use 1 and 0">
 {`// Throws on SQLite
-await (await query('posts')).insert({ title: 'Draft', published: false })
+await (await query('posts')).only('title', 'published').insert({ title: 'Draft', published: false })
 await (await query('posts')).where('published', true).get()
 
 // Works
-await (await query('posts')).insert({ title: 'Draft', published: 0 })
+await (await query('posts')).only('title', 'published').insert({ title: 'Draft', published: 0 })
 await (await query('posts')).where('published', 1).get()
 
 // Convert where the value arrives, not everywhere it is used
-await (await query('posts')).insert({
+await (await query('posts')).only('title', 'published').insert({
   title: req.body.title,
   published: req.body.published ? 1 : 0
 })`}
@@ -441,10 +443,13 @@ await (await query('posts')).insert({
         <Card>
           <h2 className="text-lg font-semibold mb-2">Mass Assignment Protection</h2>
           <p className={`text-sm ${t.muted} mb-4`}>
-            <code>only()</code> lists the columns a write may touch; <code>except()</code> lists
-            the ones it may not. Anything excluded is dropped silently rather than raising, so a
-            request body with extra fields still succeeds — minus the fields it should not have
-            set. <code>id</code> is blocked by default.
+            Every <code>insert()</code> and <code>update()</code> names the columns it may touch
+            with <code>only()</code>, or it throws (<code>MASS_ASSIGNMENT</code>). Anything not
+            listed is dropped silently rather than raising, so a request body with extra fields
+            still succeeds — minus the fields it should not have set. <code>except()</code> then
+            removes columns from that list; on its own it no longer permits a write.
+            <code>unguarded()</code> writes every key, for the rare row whose keys you built
+            yourself and have a reason not to list.
           </p>
 
           <CodeBlock title="Whitelist with only()">
@@ -456,9 +461,12 @@ await (await query('posts')).insert({
 // the row is written without is_admin`}
           </CodeBlock>
 
-          <CodeBlock title="Blacklist with except()">
-{`await (await query('users'))
-  .except('id', 'is_admin', 'created_at')
+          <CodeBlock title="Narrow a list with except()">
+{`const PROFILE = ['name', 'email', 'bio', 'avatar_url']
+
+await (await query('users'))
+  .only(...PROFILE)
+  .except('email')          // this form cannot change the address
   .where('id', userId)
   .update(req.body)`}
           </CodeBlock>
@@ -626,7 +634,7 @@ export const Post = {
     // Through the builder so Postgres gets RETURNING id and the new
     // id comes back.
     const posts = await query('posts')
-    const result = await posts.insert({
+    const result = await posts.only('user_id', 'title', 'content', 'published').insert({
       user_id: data.user_id,
       title: data.title,
       content: data.content,

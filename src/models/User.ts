@@ -90,8 +90,12 @@ export const User = {
 
     // Goes through the query builder so Postgres gets a RETURNING clause and
     // the new id comes back — a raw INSERT yields a null id there.
+    // The caller's data is spread in, so the columns are named: a key added to
+    // CreateUserData, or smuggled in by a caller, never reaches the table.
     const users = await query('users')
-    const result = await users.insert({ ...data, role, slug })
+    const result = await users
+      .only('name', 'email', 'password', 'role', 'slug', 'email_verified', 'email_verified_at')
+      .insert({ ...data, role, slug })
 
     return {
       id: result.lastInsertRowid as number,

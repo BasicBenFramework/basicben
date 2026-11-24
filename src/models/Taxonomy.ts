@@ -12,6 +12,7 @@
  */
 
 import { getDb, query } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import { slugify } from '@basicbenframework/core/content'
 import { livePost } from './visibility.ts'
 
@@ -261,7 +262,7 @@ export const Taxonomy = {
   },
 
   async create(values: Omit<TaxonomyRecord, 'id'>): Promise<TaxonomyRecord> {
-    const result = await (await query('taxonomies')).insert({
+    const result = await insertRow('taxonomies', {
       key: values.key,
       singular_label: values.singular_label,
       plural_label: values.plural_label,
@@ -354,7 +355,9 @@ export const Taxonomy = {
   },
 
   async createTerm(taxonomyId: number, values: { name: string; slug: string; description: string | null; parent_id: number | null }): Promise<TermRecord> {
-    const result = await (await query('terms')).insert({ taxonomy_id: taxonomyId, ...values })
+    const result = await (await query('terms'))
+      .only('taxonomy_id', 'name', 'slug', 'description', 'parent_id')
+      .insert({ taxonomy_id: taxonomyId, ...values })
     return (await this.findTerm(Number(result.lastInsertRowid)))!
   },
 

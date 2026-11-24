@@ -1,4 +1,5 @@
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import type { Category as CategoryType } from '../types/index.ts'
 import { livePost } from './visibility.ts'
 
@@ -70,7 +71,7 @@ export const Category = {
     // INSERT there reports lastInsertRowid as null, so the row is written and
     // the caller is handed an object with no id — the failure looks like a bug
     // in whatever used the id next.
-    const result = await (await query('categories')).insert({
+    const result = await insertRow('categories', {
       name: data.name,
       slug,
       description: data.description || null,

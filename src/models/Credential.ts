@@ -26,8 +26,12 @@ export const Credential = {
   },
 
   async create(data: Record<string, unknown>): Promise<CredentialRecord | undefined> {
+    // The columns a new passkey may set. `id`, `created_at` and `last_used_at`
+    // are the database's and the sign-in path's.
     const credentials = await query('user_credentials')
-    await credentials.insert(data)
+    await credentials
+      .only('user_id', 'credential_id', 'public_key', 'algorithm', 'sign_count', 'transports', 'label', 'backed_up')
+      .insert(data)
     return this.findByCredentialId(data.credential_id as string)
   },
 

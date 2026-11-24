@@ -1,4 +1,5 @@
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import type { Tag as TagType } from '../types/index.ts'
 import { livePost } from './visibility.ts'
 
@@ -82,7 +83,7 @@ export const Tag = {
     // INSERT there reports lastInsertRowid as null, so the row is written and
     // the caller is handed an object with no id — the failure looks like a bug
     // in whatever used the id next.
-    const result = await (await query('tags')).insert({ name: data.name, slug })
+    const result = await insertRow('tags', { name: data.name, slug })
 
     return {
       id: result.lastInsertRowid as number,

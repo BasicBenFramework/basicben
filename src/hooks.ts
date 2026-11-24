@@ -110,3 +110,28 @@ for (const [event, kind] of CONTENT_EVENTS) {
  * is no process to keep a timer, so a platform cron calls GET /api/cron/tick.
  */
 hooks.on(HOOKS.SERVER_STARTED, async () => startCronInterval(), { name: 'cron:interval' })
+
+/**
+ * One value per query key, as the CMS has always read them.
+ *
+ * Core 0.9 hands a repeated key over as an array (`?tag=a&tag=b` gives
+ * `['a', 'b']`). Every reader in the CMS takes a key as one string, many of
+ * them through an `as string` that the compiler cannot check, and an array
+ * there reaches a model, a `.trim()` or a SQL parameter it was never meant
+ * for. So the last value wins, which is what core did before 0.9, and nothing
+ * past this point ever sees an array. It runs first (priority 0), ahead of
+ * the theme's home page and every route.
+ */
+hooks.on(
+  HOOKS.REQUEST_BEFORE,
+  async (context: { req: { query?: Record<string, unknown> } }) => {
+    const query = context.req.query
+    if (query) {
+      for (const [key, value] of Object.entries(query)) {
+        if (Array.isArray(value)) query[key] = value[value.length - 1]
+      }
+    }
+    return context
+  },
+  { name: 'query:single-values', priority: 0 }
+)

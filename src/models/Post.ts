@@ -1,4 +1,5 @@
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { renderContent } from '@basicbenframework/core/content'
 import { getStorage } from '@basicbenframework/core/storage'
@@ -378,7 +379,7 @@ export const Post = {
     // INSERT there reports lastInsertRowid as null, so the row is written and
     // the caller is handed an object with no id — the failure looks like a bug
     // in whatever used the id next.
-    const result = await (await query('posts')).insert({
+    const result = await insertRow('posts', {
       user_id: data.user_id,
       title: data.title,
       content: data.content,

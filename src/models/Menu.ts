@@ -7,7 +7,8 @@
  * draft, a trashed post, or a page that was deleted out from under it.
  */
 
-import { getDb, query } from '@basicbenframework/core/db'
+import { getDb } from '@basicbenframework/core/db'
+import { insertRow } from '../helpers/insert-row.ts'
 import { livePost, livePage } from './visibility.ts'
 import { postPath, pagePath, categoryPath, isSafeLinkUrl } from '../helpers/content-paths.ts'
 
@@ -292,7 +293,7 @@ export const Menu = {
 
     // There is no natural unique key to read an item back by, so this one
     // goes through the query builder, which appends RETURNING id on Postgres.
-    const result = await (await query('menu_items')).insert({
+    const result = await insertRow('menu_items', {
       menu_id: menuId,
       parent_id: data.parent_id,
       label: data.label,
