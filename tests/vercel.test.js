@@ -67,3 +67,11 @@ test("the server's imports lead the tracer to the CMS's migrations and mail", ()
   assert.match(read('src/config.ts'), /new URL\('\.\.\/db\/migrations\/', import\.meta\.url\)/)
   assert.match(read('src/helpers/mail-templates.ts'), /new URL\('\.\.\/\.\.\/mail\/', import\.meta\.url\)/)
 })
+
+test("the CMS's migrations are JavaScript", async () => {
+  // A site runs them from node_modules, where Node will not strip types: a
+  // .ts migration in the package fails every site's \`basicben migrate\`.
+  const { readdirSync } = await import('node:fs')
+  const files = readdirSync(join(ROOT, 'db/migrations'))
+  assert.deepStrictEqual(files.filter((name) => !name.endsWith('.js')), [])
+})

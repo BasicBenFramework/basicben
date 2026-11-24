@@ -2,18 +2,23 @@
 #
 # End-to-end smoke test.
 #
-# Packs both published artifacts, scaffolds an app from them exactly as a user
-# would, builds it, boots the production server, and checks that it actually
-# serves. Unit tests pass on all of the failures this catches:
+# Packs the CMS as it would be published, installs it into a copy of the site
+# template (site/) outside the repository, builds the site, boots the
+# production server, and checks that it actually serves. Unit tests pass on all
+# of the failures this catches:
 #
-#   - a create tarball published without its templates (0.1.12)
-#   - a generated server entry that cannot start (0.1.10)
+#   - a package that does not ship a file a site needs (a .ts migration that
+#     Node will not run from node_modules)
+#   - a server entry that cannot start
 #   - client routes returning a JSON 404 in production
 #
-# Usage: ./scripts/smoke-test.sh
+# Usage:
+#   ./scripts/smoke-test.sh                                  every feature
+#   SMOKE_FEATURES=analytics,members,theme ./scripts/smoke-test.sh
+#   SMOKE_FEATURES=none ./scripts/smoke-test.sh              the bare core
 #
-# TypeScript is the only template, so there is nothing to select. `--ts` is
-# still accepted and ignored, so older invocations keep working.
+# A feature's checks run only when it is on. Runs in parallel need different
+# SMOKE_PORTs at least two apart: the webhook receiver takes the next port.
 
 set -euo pipefail
 
@@ -50,51 +55,53 @@ echo ""
 
 # --- Pack both artifacts -----------------------------------------------------
 
-# The framework as published, not as checked out. This is the one thing the
-# split costs: the smoke test can only exercise a *released* core, so a fix made
-# in the core repository is not covered here until it ships. Point
-# SMOKE_CORE_TGZ at a locally packed tarball to test an unreleased one.
+# The framework as published, not as checked out. The smoke test can only
+# exercise a *released* core, so a fix made in the core repository is not
+# covered here until it ships. Point SMOKE_CORE_TGZ at a locally packed tarball
+# to test an unreleased one.
 if [ -n "${SMOKE_CORE_TGZ:-}" ]; then
   cp "$SMOKE_CORE_TGZ" "$WORK_DIR/"
   CORE_TGZ="$(basename "$SMOKE_CORE_TGZ")"
   echo "Using local core: $SMOKE_CORE_TGZ"
 else
-  CORE_VERSION="$(node -p "require('$ROOT_DIR/package.json').dependencies['@basicbenframework/core']" | tr -d '^~')"
+  CORE_VERSION="$(node -p "require('$ROOT_DIR/package.json').peerDependencies['@basicbenframework/core']" | tr -d '^~')"
   (cd "$WORK_DIR" && npm pack "@basicbenframework/core@$CORE_VERSION" > /dev/null 2>&1) \
     || fail "could not download @basicbenframework/core@$CORE_VERSION from npm"
   CORE_TGZ="basicbenframework-core-$CORE_VERSION.tgz"
 fi
 
-SOURCE_COUNT="$(find "$ROOT_DIR/src" -type f | wc -l | tr -d ' ')"
-if [ "$SOURCE_COUNT" -lt 50 ]; then
-  fail "only $SOURCE_COUNT source files under src/ — the CMS is missing"
+# The CMS as it would be published: `npm pack` compiles lib/ first (prepack)
+# and takes only what package.json's `files` names. A site installs exactly
+# this, so a file the package forgets to ship fails here.
+(cd "$ROOT_DIR" && npm pack --pack-destination "$WORK_DIR" > "$WORK_DIR/pack.log" 2>&1) \
+  || { cat "$WORK_DIR/pack.log"; fail "npm pack of the CMS failed"; }
+CMS_TGZ="$(cd "$WORK_DIR" && ls basicbenframework-cms-*.tgz | head -1)"
+[ -n "$CMS_TGZ" ] || fail "npm pack wrote no CMS tarball"
+CMS_FILES="$(tar -tzf "$WORK_DIR/$CMS_TGZ" | wc -l | tr -d ' ')"
+for shipped in package/lib/server/index.js package/lib/main.js package/lib/config.js package/lib/vite.js \
+               package/lib/cli/index.mjs package/lib/client/styles.css package/mail/invitation.html \
+               package/db/migrations/001_create_users.js; do
+  tar -tzf "$WORK_DIR/$CMS_TGZ" | grep -qx "$shipped" || fail "the CMS tarball is missing ${shipped#package/}"
+done
+if tar -tzf "$WORK_DIR/$CMS_TGZ" | grep -qE '^package/(src|tests|site)/'; then
+  fail "the CMS tarball ships its source, tests or template"
 fi
-pass "the CMS is present ($SOURCE_COUNT source files)"
+pass "packed the CMS ($CMS_FILES files)"
 
-# The scaffolder moved to the framework's repository, which is where it is
-# published from. It downloads this repository at run time, so it is checked
-# there against this repository's default branch — see check-scaffolder.sh in
-# BasicBenFramework/core.
-
-# --- Make a project out of this checkout ---------------------------------------
+# --- Make a site from the template ---------------------------------------------
 #
-# Deliberately not through `create`. The scaffolder downloads the repository
-# from GitHub at run time, so driving it here would test whatever is on main
-# rather than the working tree in front of you — which is the opposite of what
-# a pre-release check is for. It is exercised separately below, against what it
-# actually targets.
+# site/ is what `create` downloads. Copied outside the repository, so nothing
+# resolves back into the checkout: the CMS comes from the tarball alone.
 #
-# This mirrors what the scaffolder does: everything except the parts that
-# belong to the repository rather than to a project.
+# SMOKE_FEATURES picks the site's features, comma-separated, in mount order:
+# unset is the template's own list, `none` is the bare core.
 
 cd "$WORK_DIR"
 mkdir -p "$APP_NAME"
 
-tar -cf - -C "$ROOT_DIR" \
-  --exclude='./create' --exclude='./.github' --exclude='./.git' \
-  --exclude='./node_modules' --exclude='./dist' --exclude='./package-lock.json' \
-  --exclude='./PUBLISH.md' --exclude='./TESTING.md' \
-  --exclude='./.env' --exclude='./database.sqlite*' . | tar -xf - -C "$APP_NAME"
+tar -cf - -C "$ROOT_DIR/site" \
+  --exclude='./node_modules' --exclude='./dist' --exclude='./.env' \
+  --exclude='./*.db' --exclude='./*.db-*' --exclude='./*.sqlite*' . | tar -xf - -C "$APP_NAME"
 
 mv "$APP_NAME/gitignore" "$APP_NAME/.gitignore" 2>/dev/null || true
 
@@ -103,18 +110,33 @@ const fs = require('fs')
 const path = '$WORK_DIR/$APP_NAME/package.json'
 const pkg = JSON.parse(fs.readFileSync(path, 'utf8'))
 pkg.name = '$APP_NAME'
-pkg.private = true
+pkg.dependencies['@basicbenframework/cms'] = 'file:../$CMS_TGZ'
+pkg.dependencies['@basicbenframework/core'] = 'file:../$CORE_TGZ'
 fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n')
 "
 
+if [ -n "${SMOKE_FEATURES:-}" ]; then
+  LIST="$(node -e "
+    const names = process.argv[1] === 'none' ? [] : process.argv[1].split(',').filter(Boolean)
+    console.log(JSON.stringify(names).replaceAll('\"', \"'\"))
+  " "$SMOKE_FEATURES")"
+  node -e "
+    const fs = require('fs')
+    const path = '$APP_NAME/basicben.config.js'
+    const source = fs.readFileSync(path, 'utf8')
+    const next = source.replace(/^  features: \[[^\]]*\],$/m, '  features: ' + process.argv[1] + ',')
+    if (next === source) { console.error('no features line in basicben.config.js'); process.exit(1) }
+    fs.writeFileSync(path, next)
+  " "$LIST" || fail "could not set the site's features"
+fi
 sed \
   -e "s|^APP_KEY=.*|APP_KEY=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))")|" \
-  "$ROOT_DIR/.env.example" > "$APP_NAME/.env"
+  "$APP_NAME/.env.example" > "$APP_NAME/.env"
 
-# Hook listeners, appended to the app's own hooks file before the build. This
-# is how an app extends the framework now that plugins are gone, so it is what
-# the checks below should exercise — through the same file a user would edit.
-cat >> "$APP_NAME/src/hooks.ts" <<'PROBE'
+# A site's own hook listeners, in its own module imported ahead of the CMS's
+# server: how a site extends the CMS, so it is what the checks below exercise.
+cat > "$APP_NAME/src/hooks.ts" <<'PROBE'
+import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 
 // --- smoke test probes -------------------------------------------------------
 
@@ -140,19 +162,32 @@ hooks.on(HOOKS.POST_CREATED, async () => {
   throw new Error('deliberate')
 }, { name: 'broken' })
 PROBE
+node -e "
+const fs = require('fs')
+const path = '$APP_NAME/src/server/index.ts'
+fs.writeFileSync(path, \"import '../hooks.ts'\n\" + fs.readFileSync(path, 'utf8'))
+"
 
 FILE_COUNT="$(find "$APP_NAME" -type f | wc -l | tr -d ' ')"
-if [ "$FILE_COUNT" -lt 20 ]; then
-  fail "scaffolded app has only $FILE_COUNT files"
+if [ "$FILE_COUNT" -lt 10 ]; then
+  fail "the site has only $FILE_COUNT files"
 fi
-pass "scaffolded $FILE_COUNT files"
+pass "made a site from site/ ($FILE_COUNT files)"
 
 # --- Install and build -------------------------------------------------------
 
 cd "$WORK_DIR/$APP_NAME"
-npm install --silent --no-audit --no-fund > /dev/null 2>&1
-npm install --silent --no-audit --no-fund "$WORK_DIR/$CORE_TGZ" > /dev/null 2>&1
-pass "installed dependencies"
+npm install --no-audit --no-fund > "$WORK_DIR/install.log" 2>&1 \
+  || { tail -30 "$WORK_DIR/install.log"; fail "npm install failed"; }
+[ "$(find node_modules -name package.json -path '*@basicbenframework/core/package.json' | wc -l | tr -d ' ')" = "1" ] \
+  || fail "more than one copy of core is installed"
+pass "installed dependencies (one copy of core)"
+
+# The list as the server will read it, through defineSite.
+FEATURES="$(node -e "
+  import('./basicben.config.js').then((m) => console.log(m.default.features.join(' ')))
+")" || fail "basicben.config.js does not load"
+pass "the site's features: ${FEATURES:-none (the bare core)}"
 
 # --- Typecheck ---------------------------------------------------------------
 #
@@ -205,7 +240,7 @@ pass "generated files typecheck"
 # And the generated migration must actually be found — the migrator, the seeder
 # and the route loader all filtered for .js, so TypeScript output would have been
 # discovered by nothing and silently never run.
-npx basicben migrate > "$WORK_DIR/migrate-ts.log" 2>&1 || fail "migrating the generated .ts migration failed"
+npx basicben migrate > "$WORK_DIR/migrate-ts.log" 2>&1 || { cat "$WORK_DIR/migrate-ts.log"; fail "migrating the generated .ts migration failed"; }
 grep -qi "create_widgets" "$WORK_DIR/migrate-ts.log" \
   || { cat "$WORK_DIR/migrate-ts.log"; fail "the generated .ts migration was not discovered"; }
 pass "a generated .ts migration runs"
@@ -345,7 +380,7 @@ status() { curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT$1"; }
 
 # Whether a feature is installed and listed. Its checks run only then; a bare
 # core gets the checks that the feature is really gone instead.
-has_feature() { [ -d "src/features/$1" ] && grep -q "features/$1/" src/features.ts; }
+has_feature() { case " $FEATURES " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 [ "$(status /)" = "200" ] || fail "GET / returned $(status /), expected 200"
 pass "GET / serves the app"

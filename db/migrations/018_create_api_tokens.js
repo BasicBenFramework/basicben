@@ -5,17 +5,11 @@
  * anyone read the site's content API.
  */
 
-interface MigrationDb {
-  exec: (sql: string) => Promise<void>
-}
+/** @typedef {{ exec: (sql: string) => Promise<void> }} MigrationDb */
+/** @typedef {{ autoIncrementPrimaryKey: () => string, timestampType: () => string, dropTable: (table: string) => string }} Grammar */
 
-interface Grammar {
-  autoIncrementPrimaryKey: () => string
-  timestampType: () => string
-  dropTable: (table: string) => string
-}
-
-export const up = async (db: MigrationDb, grammar: Grammar) => {
+/** @param {MigrationDb} db @param {Grammar} grammar */
+export const up = async (db, grammar) => {
   await db.exec(`
     CREATE TABLE api_tokens (
       id ${grammar.autoIncrementPrimaryKey()},
@@ -34,6 +28,7 @@ export const up = async (db: MigrationDb, grammar: Grammar) => {
   await db.exec('CREATE INDEX idx_api_tokens_user ON api_tokens (user_id)')
 }
 
-export const down = async (db: MigrationDb, grammar: Grammar) => {
+/** @param {MigrationDb} db @param {Grammar} grammar */
+export const down = async (db, grammar) => {
   await db.exec(grammar.dropTable('api_tokens'))
 }

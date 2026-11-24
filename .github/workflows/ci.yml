@@ -34,6 +34,12 @@ jobs:
 
   smoke:
     runs-on: ubuntu-latest
+    # A site with every feature, one without mysendbox, and the bare core.
+    strategy:
+      fail-fast: false
+      matrix:
+        features: ['', 'analytics,members,theme', 'none']
+    name: smoke (${{ matrix.features || 'all features' }})
     steps:
       - uses: actions/checkout@v7
 
@@ -42,11 +48,11 @@ jobs:
         with:
           node-version: '25'
 
-      # The smoke test is the only job needing the *dev* dependencies: it
-      # regenerates the committed declarations to check they still match the
-      # JSDoc, which needs the framework's own tsc and React types.
+      # npm pack compiles lib/ with the dev dependencies' tsc.
       - name: Install all dependencies
         run: npm ci
 
-      - name: Scaffold, build and boot a real app
+      - name: Pack the CMS, install it into site/, build and boot it
         run: ./scripts/smoke-test.sh
+        env:
+          SMOKE_FEATURES: ${{ matrix.features }}
