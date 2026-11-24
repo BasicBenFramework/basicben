@@ -1,4 +1,6 @@
-import { sendMail, renderMail } from '@basicbenframework/core/mail'
+import { sendMail } from '@basicbenframework/core/mail'
+// The site's mail/ first, then the CMS's.
+import { renderMail } from '../helpers/mail-templates.ts'
 import { issueToken, redeemToken, revokeTokens, TOKEN_KINDS } from '@basicbenframework/core/auth/tokens'
 import { emailSendLimiter } from '../middleware/rate-limits.ts'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'

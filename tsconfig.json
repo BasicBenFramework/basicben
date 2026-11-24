@@ -22,10 +22,5 @@
     "db",
     "plugins",
     "vite-env.d.ts"
-  ],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    }
   ]
 }

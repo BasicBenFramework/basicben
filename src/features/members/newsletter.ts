@@ -33,7 +33,9 @@
 
 import { timingSafeEqual } from 'node:crypto'
 import { getDb } from '@basicbenframework/core/db'
-import { sendMail, renderMail, getMailer, extractAddress } from '@basicbenframework/core/mail'
+import { sendMail, getMailer, extractAddress } from '@basicbenframework/core/mail'
+// The site's mail/ first, then the CMS's.
+import { renderMail } from '../../helpers/mail-templates.ts'
 import { sanitizeHtml, stripTags } from '@basicbenframework/core/content'
 import { absoluteUrl } from '@basicbenframework/core/storage'
 import { can } from '@basicbenframework/core/auth/permissions'

@@ -1,44 +1,66 @@
 {
-  "name": "@basicben/cms",
+  "name": "@basicbenframework/cms",
   "version": "0.5.1",
   "private": true,
   "type": "module",
   "description": "The BasicBen CMS. Posts, pages, media, an admin UI, and a headless content API.",
-  "scripts": {
-    "dev": "basicben dev",
-    "build": "basicben build",
-    "build:client": "vite build",
-    "build:server": "vite build --ssr src/server/index.ts --outDir dist/server",
-    "build:lib": "rm -rf lib && tsc -p tsconfig.build.json && cp src/client/styles.css lib/client/styles.css",
-    "start": "basicben start",
-    "test": "node --test \"tests/**/*.test.js\" \"src/features/**/*.test.js\"",
-    "migrate": "basicben migrate",
-    "migrate:rollback": "basicben migrate:rollback",
-    "migrate:fresh": "basicben migrate:fresh",
-    "migrate:status": "basicben migrate:status",
-    "make:migration": "basicben make:migration",
-    "make:controller": "basicben make:controller",
-    "make:model": "basicben make:model",
-    "export": "node --env-file-if-exists=.env scripts/export.mjs",
-    "import:json": "node --env-file-if-exists=.env scripts/import-json.mjs",
-    "import:wxr": "node --env-file-if-exists=.env scripts/import-wxr.mjs",
-    "import:ghost": "node --env-file-if-exists=.env scripts/import-ghost.mjs",
-    "import:wordpress": "node --env-file-if-exists=.env scripts/import-wordpress.mjs",
-    "backup": "node --env-file-if-exists=.env scripts/backup.mjs",
-    "restore": "node --env-file-if-exists=.env scripts/restore.mjs"
+  "license": "MIT",
+  "exports": {
+    "./config": {
+      "types": "./lib/config.d.ts",
+      "default": "./lib/config.js"
+    },
+    "./vite": {
+      "types": "./lib/vite.d.ts",
+      "default": "./lib/vite.js"
+    },
+    "./server": {
+      "types": "./lib/server/index.d.ts",
+      "default": "./lib/server/index.js"
+    },
+    "./admin": {
+      "types": "./lib/main.d.ts",
+      "default": "./lib/main.js"
+    },
+    "./package.json": "./package.json"
   },
-  "dependencies": {
-    "@basicbenframework/core": "^0.8.0",
+  "files": [
+    "lib",
+    "db/migrations",
+    "mail",
+    "README.md",
+    "LICENSE"
+  ],
+  "workspaces": [
+    "site"
+  ],
+  "scripts": {
+    "dev": "npm run build:lib && node scripts/dev.mjs",
+    "build": "npm run build:lib && npm run build --workspace site",
+    "build:lib": "rm -rf lib && tsc -p tsconfig.build.json && cp src/client/styles.css lib/client/styles.css",
+    "start": "npm start --workspace site",
+    "prepack": "npm run build:lib",
+    "test": "cd site && node --test \"../tests/**/*.test.js\" \"../src/features/**/*.test.js\"",
+    "migrate": "npm run migrate --workspace site",
+    "migrate:status": "npm run migrate:status --workspace site"
+  },
+  "peerDependencies": {
+    "@basicbenframework/core": "^0.8.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
-  "devDependencies": {
+  "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@basicbenframework/core": "^0.8.1",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^6.0.5",
-    "tailwindcss": "^4.3.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "typescript": "^5.8",
     "vite": "^8.2.1"
   },

@@ -60,7 +60,9 @@ export const HealthController = {
       nodeVersion: process.versions.node,
       frameworkVersion: await frameworkVersion(),
       dbDriver: String(db.driver ?? 'sqlite'),
-      migrationFiles: migrationFilesIn('db/migrations'),
+      // The migrator's own list: defineSite's (the CMS's, then the site's), or
+      // the framework's default.
+      migrationFiles: migrationFilesIn((config.migrations as string[] | undefined) ?? 'db/migrations'),
       storageDriver: String(resolveConfig(config.storage || {}).driver),
       mailTransport: transportName(config.mail),
       mailFrom: config.mail?.from ?? null,

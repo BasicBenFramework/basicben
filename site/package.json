@@ -1,0 +1,35 @@
+{
+  "name": "basicben-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A site running the BasicBen CMS.",
+  "scripts": {
+    "dev": "basicben dev",
+    "build": "basicben build",
+    "start": "basicben start",
+    "migrate": "basicben migrate",
+    "migrate:rollback": "basicben migrate:rollback",
+    "migrate:status": "basicben migrate:status",
+    "make:migration": "basicben make:migration",
+    "export": "basicben-cms export",
+    "import:json": "basicben-cms import:json",
+    "import:wxr": "basicben-cms import:wxr",
+    "import:ghost": "basicben-cms import:ghost",
+    "import:wordpress": "basicben-cms import:wordpress",
+    "backup": "basicben-cms backup",
+    "restore": "basicben-cms restore"
+  },
+  "dependencies": {
+    "@basicbenframework/cms": "file:..",
+    "@basicbenframework/core": "^0.8.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "vite": "^8.2.1"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

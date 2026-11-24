@@ -19,6 +19,7 @@ import { gunzipSync } from 'node:zlib'
 import { DatabaseSync } from 'node:sqlite'
 
 import { recordHeartbeat, readHeartbeats, HEARTBEATS } from '../src/helpers/heartbeat.ts'
+import { CMS_MIGRATIONS } from '../src/config.ts'
 import { evaluateHealth, overallStatus, pendingMigrations, databaseFacts, migrationFilesIn, isServerless, ago } from '../src/helpers/health.ts'
 import {
   backupBaseName,
@@ -160,9 +161,11 @@ describe('site health', () => {
     assert.ok(isServerless({ VERCEL: '1' }))
     assert.ok(!isServerless({}))
     assert.strictEqual(ago('2026-11-23T11:57:00Z', now), '3 minutes ago')
-    const files = migrationFilesIn('db/migrations')
+    const files = migrationFilesIn(CMS_MIGRATIONS)
     assert.ok(files.includes('036_create_analytics') && files.includes('037_create_ops_heartbeats'))
     assert.strictEqual(migrationFilesIn('no/such/dir'), null)
+    // defineSite's list: a site with no migrations of its own is not "not shipped".
+    assert.deepStrictEqual(migrationFilesIn([CMS_MIGRATIONS, 'no/such/dir']), files)
   })
 
   test('database facts read a migrated database', async () => {
@@ -175,7 +178,7 @@ describe('site health', () => {
     assert.strictEqual(result.adminsTotal, 2)
     assert.strictEqual(result.adminsWithout2fa, 1)
     assert.strictEqual(result.rateLimitRows, 0)
-    assert.deepStrictEqual(pendingMigrations(migrationFilesIn('db/migrations'), result.migrationsRan), [])
+    assert.deepStrictEqual(pendingMigrations(migrationFilesIn(CMS_MIGRATIONS), result.migrationsRan), [])
   })
 
   test('heartbeats round-trip and never throw', async () => {

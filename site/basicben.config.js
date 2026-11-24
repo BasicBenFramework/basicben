@@ -1,12 +1,16 @@
 /**
- * BasicBen Configuration
+ * The site's configuration. Every process reads it: the server, the admin
+ * build, `basicben migrate` and the `basicben-cms` scripts.
  *
- * See documentation for all available options.
+ * defineSite checks the feature list and adds what the framework needs to
+ * find the CMS's migrations. Everything else is the framework's own config.
  */
+import { defineSite } from '@basicbenframework/cms/config'
 
-export default {
-  // The CMS features this site runs, from src/features/. Order sets the order
-  // their routes mount in, and the theme comes last. [] is the bare core.
+export default defineSite({
+  // The CMS features this site runs: analytics, members, mysendbox, theme.
+  // Order sets the order their routes mount in, and the theme comes last.
+  // [] is the bare core: the admin and the content API.
   features: ['analytics', 'members', 'mysendbox', 'theme'],
 
   // Server options
@@ -27,7 +31,7 @@ export default {
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     // The framework's defaults, plus the member session header a front end on
-    // another origin sends with content reads (src/features/members/session.ts).
+    // another origin sends with content reads (the members feature).
     // Without it the browser's preflight fails and members-only posts can
     // never be unlocked cross-origin.
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Member-Token'],
@@ -38,7 +42,7 @@ export default {
   //
   // Routes under /api/webhooks/ read the request themselves: a webhook's
   // signature is over the exact bytes sent, which parsing and re-serialising
-  // would not reproduce (src/features/mysendbox/webhook.ts).
+  // would not reproduce (the mysendbox feature's webhook).
   bodyParser: {
     limit: '1mb',
     skip: ['/api/webhooks/']
@@ -75,7 +79,7 @@ export default {
   //   driver: 'sqlite',
   //   url: process.env.DATABASE_URL || './data.db'
   // }
-}
+})
 
 /**
  * Object storage for the media library.

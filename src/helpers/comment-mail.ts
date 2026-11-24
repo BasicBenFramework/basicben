@@ -20,7 +20,9 @@
  * loss, and the moderation queue is still there whether or not the mail was.
  */
 
-import { sendMail, renderMail } from '@basicbenframework/core/mail'
+import { sendMail } from '@basicbenframework/core/mail'
+// The site's mail/ first, then the CMS's.
+import { renderMail } from './mail-templates.ts'
 import { capabilitiesFor, ROLES } from '@basicbenframework/core/auth/permissions'
 import { getDb } from '@basicbenframework/core/db'
 import { Comment } from '../models/Comment.ts'

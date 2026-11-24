@@ -12,7 +12,9 @@
  * carrying a sign-in token to an attacker's page would be a phishing kit.
  */
 
-import { sendMail, renderMail } from '@basicbenframework/core/mail'
+import { sendMail } from '@basicbenframework/core/mail'
+// The site's mail/ first, then the CMS's.
+import { renderMail } from '../../helpers/mail-templates.ts'
 import { Member, memberProfile, looksLikeEmail } from './Member.ts'
 import { Settings } from '../../models/Settings.ts'
 import { MEMBER_SIGNUP_MODES } from './settings.ts'

@@ -424,7 +424,7 @@ describe('members-only posts', () => {
   })
 
   test('cross-origin front ends may send the header', () => {
-    assert.match(read('basicben.config.js'), /allowedHeaders: \[[^\]]*'X-Member-Token'/)
+    assert.match(read('site/basicben.config.js'), /allowedHeaders: \[[^\]]*'X-Member-Token'/)
   })
 
   test('feeds carry the excerpt and a link, never the body', async () => {

@@ -1,8 +1,9 @@
 /**
- * Server entry point
+ * `@basicbenframework/cms/server`: the CMS's server. A site's
+ * src/server/index.ts re-exports it, and api/index.js serves it on Vercel.
  *
- * For TypeScript projects, routes must be explicitly imported
- * so Vite can bundle them during SSR build.
+ * Routes are imported explicitly, so a bundler and Vercel's tracer can follow
+ * every one.
  */
 
 import { createServer, createRouter, loadConfig } from '@basicbenframework/core/server'
@@ -15,6 +16,11 @@ import '../host/core-tasks.ts'
 import { registerFeatures, mountFeatureRoutes } from '../host/index.ts'
 import features from '../features.ts'
 import { enabledFeatureNames } from '../host/enabled.ts'
+// Not needed to run: the site's basicben.config.js imports it. On Vercel that
+// file is copied into the function by includeFiles, which does not follow its
+// imports, so the import here is what puts config.js (and the manifests and
+// db/migrations it points to) into the trace.
+import '../config.ts'
 
 // Import routes explicitly for Vite bundling
 import authRoutes from '../routes/api/auth.ts'

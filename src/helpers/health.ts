@@ -141,7 +141,7 @@ export function evaluateHealth(
 
   if (facts.migrationFiles === null) {
     checks.push(check('migrations', 'Migrations', 'warn',
-      `${facts.migrationsRan.length} recorded as run; this deployment does not ship db/migrations, so pending ones cannot be listed.`,
+      `${facts.migrationsRan.length} recorded as run; this deployment does not ship its migration files, so pending ones cannot be listed.`,
       'Run `npm run migrate:status` from a checkout against the production database after each deploy.'))
   } else {
     const pending = pendingMigrations(facts.migrationFiles, facts.migrationsRan)
@@ -295,16 +295,28 @@ export function overallStatus(checks: HealthCheck[]): HealthStatus {
   return 'pass'
 }
 
-/** Migration names in a directory, as the framework's migrator names them. */
-export function migrationFilesIn(dir: string): string[] | null {
-  try {
-    return readdirSync(resolve(process.cwd(), dir))
-      .filter((name) => /\.(m?[jt]s)$/.test(name) && !/\.(test|spec)\.(m?[jt]s)$/.test(name))
-      .map((name) => name.replace(/\.(m?[jt]s)$/, ''))
-      .sort()
-  } catch {
-    return null
+/**
+ * Migration names in the migrator's directories, as it names them: the
+ * config's `migrations` list (defineSite sets the CMS's, then the site's), or
+ * one directory. Null when none can be read, which is a deployment that does
+ * not ship them; a missing site directory alongside the CMS's is just empty.
+ */
+export function migrationFilesIn(dirs: string | string[]): string[] | null {
+  let found = false
+  const names: string[] = []
+  for (const dir of Array.isArray(dirs) ? dirs : [dirs]) {
+    try {
+      names.push(
+        ...readdirSync(resolve(process.cwd(), dir))
+          .filter((name) => /\.(m?[jt]s)$/.test(name) && !/\.(test|spec)\.(m?[jt]s)$/.test(name))
+          .map((name) => name.replace(/\.(m?[jt]s)$/, ''))
+      )
+      found = true
+    } catch {
+      // Not shipped, or a site with none of its own.
+    }
   }
+  return found ? names.sort() : null
 }
 
 interface FactsDb {

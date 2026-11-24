@@ -24,7 +24,7 @@ const read = (path) => readFileSync(join(ROOT, path), 'utf-8')
 
 describe('the flags reach both halves of the app', () => {
   test('one environment variable each, not one per side', () => {
-    const vite = read('vite.config.ts')
+    const vite = read('src/vite.ts')
 
     // Two names for one switch is how a site ends up hiding registration in
     // the UI while still accepting it over the API.
@@ -40,7 +40,7 @@ describe('the flags reach both halves of the app', () => {
   })
 
   test('both are documented, commented out so the default is the full app', () => {
-    const env = read('.env.example')
+    const env = read('site/.env.example')
 
     assert.match(env, /^# DISABLE_REGISTRATION=true$/m)
     assert.match(env, /^# DISABLE_PUBLIC_SITE=true$/m)
