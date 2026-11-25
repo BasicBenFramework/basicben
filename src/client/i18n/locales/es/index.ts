@@ -9,7 +9,8 @@ import content from './content.ts'
 import site from './site.ts'
 import people from './people.ts'
 import editor from './editor.ts'
+import auth from './auth.ts'
 
-const es: Dictionary = { ...layout, ...content, ...site, ...people, ...editor }
+const es: Dictionary = { ...layout, ...content, ...site, ...people, ...editor, ...auth }
 
 export default es

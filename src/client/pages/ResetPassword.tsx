@@ -5,6 +5,7 @@ import { Input } from '../components/Input.tsx'
 import { Button } from '../components/Button.tsx'
 import { api } from '../../helpers/api.ts'
 import { useToast } from '../contexts/ToastContext.tsx'
+import { useT } from '../i18n/index.ts'
 
 interface ResetResponse {
   message: string
@@ -26,7 +27,8 @@ export function ResetPassword() {
   const { setUser } = useAuth()
   const navigate = useNavigate()
   const params = useParams()
-  const { t } = useTheme()
+  const { t: theme } = useTheme()
+  const { t } = useT()
   const toast = useToast()
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -35,7 +37,7 @@ export function ResetPassword() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (password !== confirmation) {
-      toast.error('The passwords do not match.')
+      toast.error(t('The passwords do not match.'))
       return
     }
 
@@ -62,15 +64,15 @@ export function ResetPassword() {
 
   return (
     <div className="max-w-xs mx-auto py-8">
-      <h1 className="text-2xl font-bold text-center mb-1">Choose a new password</h1>
-      <p className={`text-sm ${t.muted} text-center mb-6`}>This signs you out on every other device</p>
+      <h1 className="text-2xl font-bold text-center mb-1">{t('Choose a new password')}</h1>
+      <p className={`text-sm ${theme.muted} text-center mb-6`}>{t('This signs you out on every other device')}</p>
       <form onSubmit={handleSubmit} className="space-y-3 mt-4">
-        <Input type="password" placeholder="New password" required minLength={8} autoComplete="new-password" value={password} onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} />
-        <Input type="password" placeholder="Confirm new password" required minLength={8} autoComplete="new-password" value={confirmation} onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmation(e.target.value)} />
-        <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : 'Set password'}</Button>
+        <Input type="password" placeholder={t('New password')} required minLength={8} autoComplete="new-password" value={password} onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} />
+        <Input type="password" placeholder={t('Confirm new password')} required minLength={8} autoComplete="new-password" value={confirmation} onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirmation(e.target.value)} />
+        <Button type="submit" disabled={loading} className="w-full">{loading ? '…' : t('Set password')}</Button>
       </form>
-      <p className={`text-xs ${t.muted} text-center mt-4`}>
-        <button onClick={() => navigate('/forgot-password')} className="underline hover:no-underline">Need a new link?</button>
+      <p className={`text-xs ${theme.muted} text-center mt-4`}>
+        <button onClick={() => navigate('/forgot-password')} className="underline hover:no-underline">{t('Need a new link?')}</button>
       </p>
     </div>
   )

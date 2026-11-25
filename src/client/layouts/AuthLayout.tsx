@@ -1,22 +1,35 @@
-import { CSSProperties, ReactNode } from 'react'
+import { CSSProperties, ReactNode, useEffect } from 'react'
 import { useNavigate } from '@basicbenframework/core/client'
 import { useTheme } from '../components/ThemeContext.tsx'
 import { RootLayout } from './RootLayout.tsx'
 import { DarkModeToggle } from '../components/Nav/DarkModeToggle.tsx'
 import { SiteMark } from '../components/SiteMark.tsx'
 import { accentVars, useBrandDocument, useSite } from '../hooks/useSite.ts'
+import { localeOverride, setLocale, useT } from '../i18n/index.ts'
 
 /**
  * Sign-in, registration, password reset and invitations: one card on a
  * patterned backdrop, under the site's own logo, name and tagline
  * (Settings → Site Identity). The accent colour, when set, tints the
- * backdrop's glow and the primary button (`var(--accent)`).
+ * backdrop's glow and the primary button (`var(--accent)`). The pages are in
+ * the admin's languages (src/client/i18n), chosen as described below.
  */
 function AuthLayoutInner({ children }: { children: ReactNode }) {
   const { t, dark, setDark } = useTheme()
   const navigate = useNavigate()
   const site = useSite()
   useBrandDocument(site)
+  useT() // re-render the page when its language arrives
+
+  // Nobody is signed in here, so there is no admin session to say which
+  // language: this browser's own choice, then the site's Admin language, then
+  // the browser's language. setLocale falls back to English for one the admin
+  // does not have.
+  useEffect(() => {
+    if (!site) return
+    const browser = typeof navigator !== 'undefined' ? navigator.language : null
+    void setLocale(localeOverride() ?? site.admin_locale ?? browser)
+  }, [site])
 
   const accent = site?.accent_color || (dark ? '#8b5cf6' : '#6366f1')
   const dot = dark ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.13)'

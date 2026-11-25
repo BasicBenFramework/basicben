@@ -155,11 +155,12 @@ export const SettingsController = {
    * sign-in page is shown to people who are not signed in yet.
    */
   async getSiteInfo(req: Request, res: Response) {
-    const [siteName, siteDescription, info, tagline] = await Promise.all([
+    const [siteName, siteDescription, info, tagline, adminLocale] = await Promise.all([
       Settings.getSiteName(),
       Settings.getSiteDescription(),
       Settings.siteInfo(),
-      Settings.get('login_tagline')
+      Settings.get('login_tagline'),
+      Settings.get('admin_locale')
     ])
     res.json({
       site_name: siteName,
@@ -168,6 +169,8 @@ export const SettingsController = {
       icon_url: info.icon_url,
       accent_color: info.accent_color,
       login_tagline: tagline || null,
+      // The language of the sign-in pages, which have no session to ask.
+      admin_locale: adminLocale || null,
       // For the sign-up links: DISABLE_REGISTRATION or the setting.
       registration_open: registrationOpen()
     })

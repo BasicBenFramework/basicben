@@ -5,6 +5,7 @@ import { Input } from '../components/Input.tsx'
 import { Button } from '../components/Button.tsx'
 import { api } from '../../helpers/api.ts'
 import { useToast } from '../contexts/ToastContext.tsx'
+import { useT } from '../i18n/index.ts'
 
 /**
  * Ask for a password reset link.
@@ -15,7 +16,8 @@ import { useToast } from '../contexts/ToastContext.tsx'
  */
 export function ForgotPassword() {
   const navigate = useNavigate()
-  const { t } = useTheme()
+  const { t: theme } = useTheme()
+  const { t } = useT()
   const toast = useToast()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -36,20 +38,20 @@ export function ForgotPassword() {
 
   return (
     <div className="max-w-xs mx-auto py-8">
-      <h1 className="text-2xl font-bold text-center mb-1">Reset your password</h1>
+      <h1 className="text-2xl font-bold text-center mb-1">{t('Reset your password')}</h1>
       {sent ? (
-        <p className={`text-sm ${t.muted} text-center mb-6`}>{sent}</p>
+        <p className={`text-sm ${theme.muted} text-center mb-6`}>{sent}</p>
       ) : (
         <>
-          <p className={`text-sm ${t.muted} text-center mb-6`}>We'll email you a link to choose a new one</p>
+          <p className={`text-sm ${theme.muted} text-center mb-6`}>{t('We’ll email you a link to choose a new one')}</p>
           <form onSubmit={handleSubmit} className="space-y-3 mt-4">
-            <Input type="email" placeholder="Email" required value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} />
-            <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : 'Send reset link'}</Button>
+            <Input type="email" placeholder={t('Email')} required value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} />
+            <Button type="submit" disabled={loading} className="w-full">{loading ? '…' : t('Send reset link')}</Button>
           </form>
         </>
       )}
-      <p className={`text-xs ${t.muted} text-center mt-4`}>
-        <button onClick={() => navigate('/login')} className="underline hover:no-underline">Back to sign in</button>
+      <p className={`text-xs ${theme.muted} text-center mt-4`}>
+        <button onClick={() => navigate('/login')} className="underline hover:no-underline">{t('Back to sign in')}</button>
       </p>
     </div>
   )

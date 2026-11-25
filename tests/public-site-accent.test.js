@@ -1,6 +1,7 @@
 /**
- * `/api/v1/site` carries the accent colour, so a separate front end can use
- * the same brand colour as the CMS's own screens.
+ * The site endpoints. `/api/v1/site` carries the accent colour, so a separate
+ * front end can use the same brand colour as the CMS's own screens; `/api/site`
+ * carries the admin language, so the sign-in pages can use it.
  */
 
 import { test, before, after } from 'node:test'
@@ -41,4 +42,15 @@ test('null until one is set, then the colour, on both site endpoints', async () 
   await db.run("INSERT INTO settings (key, value) VALUES ('accent_color', '#4f46e5')")
   assert.equal((await call('publicSite')).data.accent_color, '#4f46e5')
   assert.equal((await call('getSiteInfo')).accent_color, '#4f46e5')
+})
+
+test('the sign-in pages learn the admin language from /api/site', async () => {
+  assert.equal((await call('getSiteInfo')).admin_locale, null)
+  await db.run("INSERT INTO settings (key, value) VALUES ('admin_locale', 'ja')")
+  assert.equal((await call('getSiteInfo')).admin_locale, 'ja')
+
+  const { readFileSync } = await import('node:fs')
+  const layout = readFileSync(join(ROOT, 'src/client/layouts/AuthLayout.tsx'), 'utf-8')
+  // This browser's choice, then the site's, then the browser's language.
+  assert.match(layout, /setLocale\(localeOverride\(\) \?\? site\.admin_locale \?\? browser\)/)
 })

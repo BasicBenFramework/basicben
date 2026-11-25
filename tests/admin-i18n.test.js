@@ -28,10 +28,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (path) => readFileSync(join(ROOT, path), 'utf-8')
 
-/** The files that make up the admin. Public pages and the framework docs pages are not admin. */
+/**
+ * The files that make up the admin, and the sign-in pages in front of it.
+ * Public pages and the framework docs pages are not admin.
+ */
 export function adminFiles() {
   const dirs = ['src/client/pages/admin', 'src/client/components/admin']
-  const files = ['src/client/layouts/AdminLayout.tsx', 'src/client/pages/Profile.tsx', 'src/client/hooks/usePostLock.ts', 'src/client/hooks/useMediaLibrary.ts', 'src/client/hooks/useContentTypes.ts', 'src/client/components/MarkdownEditor.tsx']
+  const files = ['src/client/layouts/AdminLayout.tsx', 'src/client/pages/Profile.tsx',
+    'src/client/layouts/AuthLayout.tsx', 'src/client/pages/Auth.tsx', 'src/client/pages/ForgotPassword.tsx',
+    'src/client/pages/ResetPassword.tsx', 'src/client/pages/AcceptInvite.tsx', 'src/client/webauthn.ts', 'src/client/hooks/usePostLock.ts', 'src/client/hooks/useMediaLibrary.ts', 'src/client/hooks/useContentTypes.ts', 'src/client/components/MarkdownEditor.tsx']
 
   for (const dir of dirs) {
     for (const entry of readdirSync(join(ROOT, dir))) {

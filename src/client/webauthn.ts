@@ -5,6 +5,8 @@
  * same way; the browser API speaks ArrayBuffers.
  */
 
+import { t } from './i18n/index.ts'
+
 function toBuffer(value: string): ArrayBuffer {
   const base64 = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=')
   const binary = atob(base64)
@@ -32,10 +34,10 @@ export function passkeysSupported(): boolean {
 /** A browser's refusal, in words a person can act on. */
 export function passkeyError(err: unknown): string {
   const name = (err as { name?: string })?.name
-  if (name === 'NotAllowedError') return 'The passkey request was cancelled or timed out.'
-  if (name === 'InvalidStateError') return 'This device already has a passkey for your account.'
-  if (name === 'SecurityError') return 'Passkeys need this site to be opened at its own address over HTTPS.'
-  return (err as Error)?.message || 'The passkey did not work.'
+  if (name === 'NotAllowedError') return t('The passkey request was cancelled or timed out.')
+  if (name === 'InvalidStateError') return t('This device already has a passkey for your account.')
+  if (name === 'SecurityError') return t('Passkeys need this site to be opened at its own address over HTTPS.')
+  return (err as Error)?.message || t('The passkey did not work.')
 }
 
 /** navigator.credentials.create() with core's registration options. */
@@ -48,7 +50,7 @@ export async function createPasskey(options: any): Promise<Record<string, unknow
       excludeCredentials: descriptors(options.excludeCredentials)
     }
   })) as PublicKeyCredential | null
-  if (!credential) throw new Error('No passkey was created.')
+  if (!credential) throw new Error(t('No passkey was created.'))
 
   const response = credential.response as AuthenticatorAttestationResponse
   return {
@@ -72,7 +74,7 @@ export async function signWithPasskey(options: any): Promise<Record<string, unkn
       allowCredentials: descriptors(options.allowCredentials)
     }
   })) as PublicKeyCredential | null
-  if (!credential) throw new Error('No passkey was used.')
+  if (!credential) throw new Error(t('No passkey was used.'))
 
   const response = credential.response as AuthenticatorAssertionResponse
   return {

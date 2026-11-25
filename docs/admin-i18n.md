@@ -19,6 +19,11 @@ A tag the admin has no dictionary for falls back by language (`es-MX` uses
 the language of the public site and is reported to front ends by
 `/api/v1/site`.
 
+The sign-in pages (sign-in, registration, two-step, password reset,
+invitations) are translated too. Nobody is signed in there, so they use this
+browser's choice, then the site's Admin language (sent on the public
+`/api/site`), then the browser's own language, then English.
+
 Messages that come from the server — validation errors, site-health checks —
 are in English for now.
 

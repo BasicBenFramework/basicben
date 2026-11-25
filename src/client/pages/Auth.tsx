@@ -7,6 +7,7 @@ import { useToast } from '../contexts/ToastContext.tsx'
 import { useRegistrationOpen } from '../hooks/useRegistrationOpen.ts'
 import { useSite } from '../hooks/useSite.ts'
 import { passkeysSupported, passkeyError, signWithPasskey } from '../webauthn.ts'
+import { useT } from '../i18n/index.ts'
 
 interface AuthResponse {
   token: string
@@ -32,7 +33,8 @@ export function Auth() {
   const { setUser } = useAuth()
   const navigate = useNavigate()
   const path = usePath()
-  const { t } = useTheme()
+  const { t: theme } = useTheme()
+  const { t } = useT()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
@@ -60,7 +62,7 @@ export function Auth() {
         setUseRecovery(!data.methods.includes('totp') && data.methods.includes('recovery'))
         return
       }
-      finish(data, isLogin ? 'Welcome back!' : 'Account created!')
+      finish(data, isLogin ? t('Welcome back!') : t('Account created!'))
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -73,7 +75,7 @@ export function Auth() {
     setUser(data.user)
     toast.success(message)
     if (data.recoveryCodeUsed) {
-      toast.error(`Recovery code used. ${data.recoveryCodesRemaining ?? 0} left — make new ones in Profile.`)
+      toast.error(t('Recovery code used. {count} left — make new ones in Profile.', { count: data.recoveryCodesRemaining ?? 0 }))
     }
     navigate('/')
   }
@@ -99,19 +101,19 @@ export function Auth() {
         body: JSON.stringify({ challenge: second.challenge, code: code.trim() })
       })
       const data = await res.json().catch(() => ({}))
-      if (res.ok) return finish(data as AuthResponse, 'Welcome back!')
+      if (res.ok) return finish(data as AuthResponse, t('Welcome back!'))
 
       if (data.challenge) {
         setSecond({ ...second, challenge: data.challenge })
         setCode('')
-        toast.error(data.error || 'That code is not right.')
+        toast.error(data.error || t('That code is not right.'))
       } else {
         // Locked, expired or spent: only the password again gets a new
         // challenge.
-        startOver(data.error || 'That sign-in attempt has expired. Please start again.')
+        startOver(data.error || t('That sign-in attempt has expired. Please start again.'))
       }
     } catch {
-      toast.error('Unable to connect to server')
+      toast.error(t('Unable to connect to server'))
     } finally {
       setLoading(false)
     }
@@ -155,7 +157,7 @@ export function Auth() {
       try {
         response = await signWithPasskey(options)
       } catch (err) {
-        startOver(`${passkeyError(err)} Sign in again to retry.`)
+        startOver(`${passkeyError(err)} ${t('Sign in again to retry.')}`)
         return
       }
       const data = await api<AuthResponse>('/api/auth/2fa/verify', {
@@ -173,7 +175,7 @@ export function Auth() {
   // The accent colour when the site has one (AuthLayout sets the variable),
   // otherwise the theme's own button colours.
   const primary = { background: 'var(--accent, currentColor)', color: 'var(--accent-fg, inherit)' }
-  const label = `block text-xs font-medium mb-1.5 ${t.muted}`
+  const label = `block text-xs font-medium mb-1.5 ${theme.muted}`
 
   if (second) {
     const hasPasskey = second.methods.includes('passkey') && passkeysSupported()
@@ -181,11 +183,11 @@ export function Auth() {
 
     return (
       <div className="py-6">
-        <h1 className="text-xl font-semibold text-center">Two-step verification</h1>
-        <p className={`text-sm ${t.muted} text-center mt-1`}>
+        <h1 className="text-xl font-semibold text-center">{t('Two-step verification')}</h1>
+        <p className={`text-sm ${theme.muted} text-center mt-1`}>
           {hasCode
-            ? useRecovery ? 'Enter one of your recovery codes.' : 'Enter the 6-digit code from your authenticator app.'
-            : 'Confirm it\'s you with your passkey.'}
+            ? useRecovery ? t('Enter one of your recovery codes.') : t('Enter the 6-digit code from your authenticator app.')
+            : t('Confirm it’s you with your passkey.')}
         </p>
 
         {hasPasskey && (
@@ -193,23 +195,23 @@ export function Auth() {
             type="button"
             onClick={submitPasskey}
             disabled={loading}
-            className={`w-full mt-6 rounded-lg py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 ${hasCode ? `border ${t.border}` : t.btn}`}
+            className={`w-full mt-6 rounded-lg py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 ${hasCode ? `border ${theme.border}` : theme.btn}`}
             style={!hasCode && site?.accent_color ? primary : undefined}
           >
-            {loading ? 'Waiting for your passkey…' : 'Use a passkey'}
+            {loading ? t('Waiting for your passkey…') : t('Use a passkey')}
           </button>
         )}
 
         {hasPasskey && hasCode && (
-          <div className={`flex items-center gap-3 my-5 text-xs ${t.muted}`}>
-            <span className={`flex-1 border-t ${t.border}`} />or<span className={`flex-1 border-t ${t.border}`} />
+          <div className={`flex items-center gap-3 my-5 text-xs ${theme.muted}`}>
+            <span className={`flex-1 border-t ${theme.border}`} />{t('or')}<span className={`flex-1 border-t ${theme.border}`} />
           </div>
         )}
 
         {hasCode && (
           <form onSubmit={submitCode} className={`space-y-4 ${hasPasskey ? '' : 'mt-6'}`}>
             <div>
-              <label htmlFor="auth-code" className={label}>{useRecovery ? 'Recovery code' : 'Authentication code'}</label>
+              <label htmlFor="auth-code" className={label}>{useRecovery ? t('Recovery code') : t('Authentication code')}</label>
               <Input
                 id="auth-code"
                 autoFocus
@@ -227,21 +229,21 @@ export function Auth() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full rounded-lg py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 ${t.btn}`}
+              className={`w-full rounded-lg py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 ${theme.btn}`}
               style={site?.accent_color ? primary : undefined}
             >
-              {loading ? 'Checking…' : 'Verify'}
+              {loading ? t('Checking…') : t('Verify')}
             </button>
             {second.methods.includes('totp') && second.methods.includes('recovery') && (
-              <button type="button" onClick={() => { setUseRecovery(!useRecovery); setCode('') }} className={`block mx-auto text-xs ${t.muted} hover:underline`}>
-                {useRecovery ? 'Use your authenticator app instead' : 'Lost your phone? Use a recovery code'}
+              <button type="button" onClick={() => { setUseRecovery(!useRecovery); setCode('') }} className={`block mx-auto text-xs ${theme.muted} hover:underline`}>
+                {useRecovery ? t('Use your authenticator app instead') : t('Lost your phone? Use a recovery code')}
               </button>
             )}
           </form>
         )}
 
-        <p className={`text-sm ${t.muted} text-center mt-6 pt-5 border-t ${t.border}`}>
-          <button type="button" onClick={() => startOver()} className="hover:underline">Back to sign in</button>
+        <p className={`text-sm ${theme.muted} text-center mt-6 pt-5 border-t ${theme.border}`}>
+          <button type="button" onClick={() => startOver()} className="hover:underline">{t('Back to sign in')}</button>
         </p>
       </div>
     )
@@ -249,39 +251,39 @@ export function Auth() {
 
   return (
     <div className="py-6">
-      <h1 className="text-xl font-semibold text-center">{isLogin ? 'Welcome back' : 'Create your account'}</h1>
-      <p className={`text-sm ${t.muted} text-center mt-1`}>{isLogin ? 'Sign in to continue' : 'It only takes a minute'}</p>
+      <h1 className="text-xl font-semibold text-center">{isLogin ? t('Welcome back') : t('Create your account')}</h1>
+      <p className={`text-sm ${theme.muted} text-center mt-1`}>{isLogin ? t('Sign in to continue') : t('It only takes a minute')}</p>
 
       <form onSubmit={handleSubmit} className="space-y-4 mt-6">
         {!isLogin && (
           <div>
-            <label htmlFor="auth-name" className={label}>Name</label>
+            <label htmlFor="auth-name" className={label}>{t('Name')}</label>
             <Input id="auth-name" autoComplete="name" required value={form.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, name: e.target.value })} className="py-2.5" />
           </div>
         )}
         <div>
-          <label htmlFor="auth-email" className={label}>Email</label>
+          <label htmlFor="auth-email" className={label}>{t('Email')}</label>
           <Input id="auth-email" type="email" autoComplete="email" required value={form.email} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, email: e.target.value })} className="py-2.5" />
         </div>
         <div>
           <div className="flex items-baseline justify-between">
-            <label htmlFor="auth-password" className={label}>Password</label>
+            <label htmlFor="auth-password" className={label}>{t('Password')}</label>
             {/* Offered whatever DISABLE_REGISTRATION says: a closed site still has
                 people with accounts who forget their passwords. */}
             {isLogin && (
-              <button type="button" onClick={() => navigate('/forgot-password')} className={`text-xs ${t.muted} hover:underline`}>Forgot password?</button>
+              <button type="button" onClick={() => navigate('/forgot-password')} className={`text-xs ${theme.muted} hover:underline`}>{t('Forgot password?')}</button>
             )}
           </div>
           <Input id="auth-password" type="password" autoComplete={isLogin ? 'current-password' : 'new-password'} required minLength={8} value={form.password} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, password: e.target.value })} className="py-2.5" />
-          {!isLogin && <p className={`text-xs ${t.muted} mt-1.5`}>At least 8 characters.</p>}
+          {!isLogin && <p className={`text-xs ${theme.muted} mt-1.5`}>{t('At least 8 characters.')}</p>}
         </div>
         <button
           type="submit"
           disabled={loading}
-          className={`w-full rounded-lg py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 ${t.btn}`}
+          className={`w-full rounded-lg py-2.5 text-sm font-semibold transition hover:opacity-90 disabled:opacity-50 ${theme.btn}`}
           style={site?.accent_color ? primary : undefined}
         >
-          {loading ? (isLogin ? 'Signing in…' : 'Creating account…') : isLogin ? 'Sign in' : 'Create account'}
+          {loading ? (isLogin ? t('Signing in…') : t('Creating account…')) : isLogin ? t('Sign in') : t('Create account')}
         </button>
       </form>
 
@@ -289,19 +291,19 @@ export function Auth() {
           password and the second step. */}
       {isLogin && passkeysSupported() && (
         <>
-          <div className={`flex items-center gap-3 my-5 text-xs ${t.muted}`}>
-            <span className={`flex-1 border-t ${t.border}`} />or<span className={`flex-1 border-t ${t.border}`} />
+          <div className={`flex items-center gap-3 my-5 text-xs ${theme.muted}`}>
+            <span className={`flex-1 border-t ${theme.border}`} />{t('or')}<span className={`flex-1 border-t ${theme.border}`} />
           </div>
           <button
             type="button"
             onClick={signInWithPasskey}
             disabled={loading}
-            className={`w-full flex items-center justify-center gap-2 rounded-lg border ${t.border} py-2.5 text-sm font-medium transition hover:opacity-80 disabled:opacity-50`}
+            className={`w-full flex items-center justify-center gap-2 rounded-lg border ${theme.border} py-2.5 text-sm font-medium transition hover:opacity-80 disabled:opacity-50`}
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="9" cy="7" r="4" /><path d="M2 21v-1a6 6 0 0 1 9.5-4.9" /><circle cx="17.5" cy="13.5" r="2.5" /><path d="M17.5 16v5l1.5-1.5M17.5 19l1.5-1" />
             </svg>
-            Sign in with a passkey
+            {t('Sign in with a passkey')}
           </button>
         </>
       )}
@@ -309,9 +311,9 @@ export function Auth() {
       {/* With registration closed there is nothing to offer someone without an
           account, and inviting them to sign up would be a dead end. */}
       {registrationOpen && (
-        <p className={`text-sm ${t.muted} text-center mt-6 pt-5 border-t ${t.border}`}>
-          {isLogin ? "Don't have an account? " : 'Already have an account? '}
-          <button onClick={() => navigate(isLogin ? '/register' : '/login')} className="font-medium underline-offset-4 hover:underline" style={{ color: 'inherit' }}>{isLogin ? 'Sign up' : 'Sign in'}</button>
+        <p className={`text-sm ${theme.muted} text-center mt-6 pt-5 border-t ${theme.border}`}>
+          {isLogin ? t('Don’t have an account?') : t('Already have an account?')}{' '}
+          <button onClick={() => navigate(isLogin ? '/register' : '/login')} className="font-medium underline-offset-4 hover:underline" style={{ color: 'inherit' }}>{isLogin ? t('Sign up') : t('Sign in')}</button>
         </p>
       )}
     </div>

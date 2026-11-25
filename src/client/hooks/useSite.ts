@@ -14,6 +14,8 @@ export interface SiteBrand {
   /** #rrggbb, or null for the built-in colours. */
   accent_color: string | null
   login_tagline: string | null
+  /** Settings → Language & Time → Admin language, or null for none set. */
+  admin_locale: string | null
   registration_open: boolean
 }
 
