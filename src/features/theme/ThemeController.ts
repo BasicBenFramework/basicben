@@ -63,6 +63,9 @@ const SPA_SEGMENTS = new Set([
   'profile', 'posts', 'docs', 'feed'
 ])
 
+/** SPA_SEGMENTS that are public pages rather than the admin or sign-in. */
+const PUBLIC_SPA_SEGMENTS = new Set(['docs', 'feed'])
+
 /** The SPA's index.html, as the framework's own fallback would serve it. */
 function sendAppShell(req: Request, res: Response): void {
   // The framework's fallback answers these with a JSON 404 rather than the
@@ -79,6 +82,9 @@ function sendAppShell(req: Request, res: Response): void {
     if (!statSync(index).isFile()) throw new Error('no shell')
     raw.statusCode = 200
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
+    // The admin and the sign-in screens are for people, not search results.
+    // `/docs` and `/feed` are the SPA's public pages and stay indexable.
+    if (!PUBLIC_SPA_SEGMENTS.has(path.split('/')[1] ?? '')) res.setHeader('X-Robots-Tag', 'noindex')
     // Same rule as the framework: the shell names hashed assets, so it must
     // never be served stale.
     res.setHeader('Cache-Control', 'no-cache')
@@ -163,6 +169,7 @@ async function listing(
     tag?: string
     author?: string
     taxonomy?: Record<string, string>
+    noindex?: boolean
   },
   ctx: ThemeContext,
   extra: { author?: Awaited<ReturnType<typeof PublicContent.author>> } = {}
@@ -270,13 +277,15 @@ export const ThemeController = {
   tag: themed(async (req, res, ctx) => {
     const tag = (await PublicContent.tags()).find((t) => t.slug === req.params.slug)
     if (!tag) return notFound(req, res, ctx)
-    await listing(req, res, { title: `Tagged “${tag.name}”`, basePath: `/tag/${tag.slug}`, tag: tag.slug, type: 'any' }, ctx)
+    const noindex = (await Settings.get('noindex_tag_archives')) === 'true'
+    await listing(req, res, { title: `Tagged “${tag.name}”`, basePath: `/tag/${tag.slug}`, tag: tag.slug, type: 'any', noindex }, ctx)
   }),
 
   author: themed(async (req, res, ctx) => {
     const author = await PublicContent.author(req.params.slug)
     if (!author || !author.slug) return notFound(req, res, ctx)
-    await listing(req, res, { title: author.name, intro: author.bio, basePath: `/author/${author.slug}`, author: author.slug, type: 'any' }, ctx, { author })
+    const noindex = (await Settings.get('noindex_author_archives')) === 'true'
+    await listing(req, res, { title: author.name, intro: author.bio, basePath: `/author/${author.slug}`, author: author.slug, type: 'any', noindex }, ctx, { author })
   }),
 
   /** `/taxonomy/:key/:slug` — a custom taxonomy term's archive. */

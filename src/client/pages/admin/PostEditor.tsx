@@ -795,7 +795,12 @@ export default function AdminPostEditor() {
                   value={formData.meta_title}
                   onChange={handleChange}
                   className="admin-input"
-                  placeholder={t('SEO title')}
+                  placeholder={formData.title || t('SEO title')}
+                />
+                <SeoHint
+                  length={formData.meta_title.length}
+                  limit={60}
+                  text={t('The whole title in search results. Blank uses the title followed by the site name.')}
                 />
               </div>
 
@@ -807,7 +812,12 @@ export default function AdminPostEditor() {
                   onChange={handleChange}
                   className="admin-textarea"
                   style={{ minHeight: '80px' }}
-                  placeholder={t('SEO description')}
+                  placeholder={(!isPage && formData.excerpt) || t('SEO description')}
+                />
+                <SeoHint
+                  length={formData.meta_description.length}
+                  limit={160}
+                  text={isPage ? t('Blank uses the start of the page.') : t('Blank uses the excerpt.')}
                 />
               </div>
 
@@ -1130,5 +1140,25 @@ export default function AdminPostEditor() {
         </div>
       </form>
     </AdminLayout>
+  )
+}
+
+/**
+ * Under an SEO field: what a blank value falls back to, and a character count
+ * against the length search engines show before they cut it off. Past the
+ * limit is a warning, not an error — the field still saves.
+ */
+function SeoHint({ length, limit, text }: { length: number; limit: number; text: string }) {
+  const { t } = useT()
+  const over = length > limit
+  return (
+    <p style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', color: 'var(--fg-muted)', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
+      <span>{text}</span>
+      {length > 0 && (
+        <span style={{ whiteSpace: 'nowrap', color: over ? 'var(--warning)' : undefined }} aria-live="polite">
+          {over ? t('{count} / {limit} — may be cut off', { count: length, limit }) : t('{count} / {limit}', { count: length, limit })}
+        </span>
+      )}
+    </p>
   )
 }

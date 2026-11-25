@@ -4,7 +4,7 @@ import { useTheme } from '../components/ThemeContext.tsx'
 import { RootLayout } from './RootLayout.tsx'
 import { DarkModeToggle } from '../components/Nav/DarkModeToggle.tsx'
 import { SiteMark } from '../components/SiteMark.tsx'
-import { accentVars, useBrandDocument, useSite } from '../hooks/useSite.ts'
+import { accentVars, useBrandDocument, useNoindex, useSite } from '../hooks/useSite.ts'
 import { localeOverride, setLocale, useT } from '../i18n/index.ts'
 
 /**
@@ -19,6 +19,7 @@ function AuthLayoutInner({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const site = useSite()
   useBrandDocument(site)
+  useNoindex()
   useT() // re-render the page when its language arrives
 
   // Nobody is signed in here, so there is no admin session to say which

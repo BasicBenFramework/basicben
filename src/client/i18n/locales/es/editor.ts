@@ -182,7 +182,12 @@ const strings: Dictionary = {
   'Looking…': 'Buscando…',
   'That URL is not an image in the media library. Upload it first, then choose it here.':
     'Esa URL no es una imagen de la biblioteca de medios. Súbela primero y luego elígela aquí.',
-  'Could not look that URL up.': 'No se pudo buscar esa URL.'
+  'Could not look that URL up.': 'No se pudo buscar esa URL.',
+  "The whole title in search results. Blank uses the title followed by the site name.": "El título completo en los resultados de búsqueda. Si se deja vacío, se usa el título seguido del nombre del sitio.",
+  "Blank uses the start of the page.": "Si se deja vacío, se usa el comienzo de la página.",
+  "Blank uses the excerpt.": "Si se deja vacío, se usa el extracto.",
+  "{count} / {limit}": "{count} / {limit}",
+  "{count} / {limit} — may be cut off": "{count} / {limit} — puede cortarse"
 }
 
 export default strings

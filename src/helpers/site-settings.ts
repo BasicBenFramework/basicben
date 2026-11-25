@@ -223,6 +223,11 @@ export const SETTINGS: Record<string, SettingDefinition> = {
 
   posts_per_page: { group: 'reading', check: integer(1, 100) },
   robots_txt: { group: 'reading', check: text(10_000) },
+  // The built-in public site: mark these archives noindex. They repeat the
+  // posts' own pages, and on a site with many tags or one author they are
+  // thin or duplicate pages a search engine would rather not crawl.
+  noindex_tag_archives: { group: 'reading', check: flag },
+  noindex_author_archives: { group: 'reading', check: flag },
 
   allow_comments: { group: 'discussion', check: flag },
   moderate_comments: { group: 'discussion', check: flag },

@@ -18,7 +18,7 @@ import { getStorage } from '../helpers/storage.ts'
 import { livePost, livePage, parseStoredTimestamp } from './visibility.ts'
 import { responsiveImage, type ResponsiveImage } from '../helpers/images.ts'
 import { siteUrl } from '../helpers/site.ts'
-import { publicExcerpt } from '../helpers/gating.ts'
+import { publicExcerpt, isGated } from '../helpers/gating.ts'
 import { mayRead, visibilityOf, type Viewer } from '../helpers/access.ts'
 import { excerpt as plainText } from '@basicbenframework/core/content'
 import { ContentType, publicFieldValues, type ContentTypeRecord } from './ContentType.ts'
@@ -777,7 +777,9 @@ async function shapePages(rows: PageRow[], format: ContentFormat): Promise<Publi
       row.featured_image_path && storage ? mediaUrl(storage, row.featured_image_path) : null,
     meta_title: row.meta_title,
     meta_description: row.meta_description,
-    ...seoFor(row, storage, null),
+    // A page has no excerpt, so its share cards fall back to the start of its
+    // body rather than to nothing.
+    ...seoFor(row, storage, plainText(row.content ?? '', 160) || null),
     published_at: iso(row.created_at),
     updated_at: row.updated_at
   }))
@@ -858,7 +860,10 @@ function blogPosting(row: PostRow, storage: Storage, types: ContentTypeRecord[] 
       : {}),
     // `entryPath` gives a plain post `/blog/:slug` exactly as before, and a
     // custom type its own route base.
-    ...(site ? { mainEntityOfPage: row.canonical_url || `${site}${entryPath(routeBaseOf(types, row.post_type), row.slug, row.id)}` } : {})
+    ...(site ? { mainEntityOfPage: row.canonical_url || `${site}${entryPath(routeBaseOf(types, row.post_type), row.slug, row.id)}` } : {}),
+    // Members-only: say so, as Google asks of paywalled content, so a page
+    // that shows crawlers only the excerpt is not read as cloaking.
+    ...(isGated(row.visibility) ? { isAccessibleForFree: false } : {})
   }
 }
 

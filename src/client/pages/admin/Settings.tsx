@@ -15,6 +15,8 @@ interface SiteSettings {
   public_api: string
   webhook_urls: string
   robots_txt: string
+  noindex_tag_archives: string
+  noindex_author_archives: string
   site_logo: string
   site_icon: string
   default_social_image: string
@@ -46,6 +48,8 @@ const DEFAULTS: SiteSettings = {
   public_api: 'false',
   webhook_urls: '',
   robots_txt: '',
+  noindex_tag_archives: 'false',
+  noindex_author_archives: 'false',
   site_logo: '',
   site_icon: '',
   default_social_image: '',
@@ -364,9 +368,29 @@ export default function AdminSettings() {
               onChange={handleChange}
               className="admin-textarea"
               rows={5}
-              placeholder={t('Blank uses the default:') + '\nUser-agent: *\nDisallow: /admin\nDisallow: /api/\nAllow: /api/v1/\nSitemap: …/sitemap.xml'}
+              placeholder={t('Blank uses the default:') + '\nUser-agent: *\nDisallow: /admin$\nDisallow: /admin/\nDisallow: /api/\nAllow: /api/v1/\nSitemap: …/sitemap.xml'}
               style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '13px' }}
             />
+            <p style={hint}>{slots(t('Yours replaces the default. If it has no {line} line, one pointing at this site\'s sitemap is added.'), { line: <code>{'Sitemap:'}</code> })}</p>
+          </div>
+
+          {/* Read by the built-in public site (Settings → Public site). A
+              headless front end decides its own robots tags. */}
+          <div className="admin-form-group">
+            <label className="admin-label">{t('Tag archives in search results')}</label>
+            <select name="noindex_tag_archives" value={settings.noindex_tag_archives} onChange={handleChange} className="admin-select">
+              <option value="false">{t('Allow')}</option>
+              <option value="true">{t('Ask search engines not to index')}</option>
+            </select>
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label">{t('Author archives in search results')}</label>
+            <select name="noindex_author_archives" value={settings.noindex_author_archives} onChange={handleChange} className="admin-select">
+              <option value="false">{t('Allow')}</option>
+              <option value="true">{t('Ask search engines not to index')}</option>
+            </select>
+            <p style={hint}>{t('For the built-in public site. Archives repeat posts that have their own pages; on a site with many tags or a single author they add little to search.')}</p>
           </div>
         </div>
 

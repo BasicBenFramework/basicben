@@ -262,6 +262,12 @@ const strings: Dictionary = {
   "Buttons and highlights in the admin, and the tint on the sign-in page. Blank uses the built-in colours.": '用于后台的按钮和高亮，以及登录页面的色调。留空则使用内置颜色。',
   "Sign-in tagline": '登录页标语',
   "Shown under the site name on the sign-in page": '显示在登录页面的站点名称下方',
+  "Yours replaces the default. If it has no {line} line, one pointing at this site's sitemap is added.": "你的内容会替换默认内容。如果其中没有 {line} 行，会自动添加一行指向本站的站点地图。",
+  "Tag archives in search results": "标签归档页在搜索结果中",
+  "Author archives in search results": "作者归档页在搜索结果中",
+  "Allow": "允许",
+  "Ask search engines not to index": "要求搜索引擎不索引",
+  "For the built-in public site. Archives repeat posts that have their own pages; on a site with many tags or a single author they add little to search.": "用于内置公开站点。归档页只是重复已有独立页面的文章；标签很多或只有一位作者的网站，这些页面对搜索帮助不大。"
 }
 
 export default strings

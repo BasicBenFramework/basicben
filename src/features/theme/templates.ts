@@ -44,6 +44,11 @@ export interface ThemeContext {
 /** The head of one page, with every fallback already decided by the caller. */
 export interface HeadMeta {
   title: string
+  /**
+   * Use `title` as the whole <title>. An editor's own SEO title is what they
+   * want in the search result, so it is not given " — Site name" as well.
+   */
+  fullTitle?: boolean
   description?: string | null
   /** Absolute canonical URL. Defaults to the site URL plus the request path. */
   canonical?: string | null
@@ -210,8 +215,11 @@ main{padding:2rem 0}h1{line-height:1.2;margin:.25rem 0 1rem}.meta{color:var(--mu
 export function renderHead(ctx: ThemeContext, meta: HeadMeta): SafeHtml {
   const site = ctx.site
   const canonical = meta.canonical || absolute(ctx, ctx.path)
-  const title = meta.title === site.name ? site.name : `${meta.title} — ${site.name}`
-  const description = meta.description || site.description || null
+  const title = meta.fullTitle || meta.title === site.name ? meta.title : `${meta.title} — ${site.name}`
+  // No site-wide fallback: the same description on every page that lacks its
+  // own is a duplicate a search engine flags, where none lets it write a
+  // snippet from the page. Each caller passes the best it has.
+  const description = meta.description || null
   const image = meta.image || site.default_social_image_url
   const og = meta.og ?? { title: meta.title, description }
   const twitter = meta.twitter ?? { title: og.title, description: og.description, image }
@@ -271,6 +279,29 @@ ${raw(site.code_injection.foot)}
 
 // --- Pages --------------------------------------------------------------------
 
+/**
+ * About 160 characters of a body as plain text, cut at a word: a page's
+ * description when its editor wrote none. Tags are dropped, whichever format
+ * the body is in, and the entities the sanitizer leaves are turned back into
+ * text so they are not escaped twice.
+ */
+export function summary(content: string | null | undefined, length = 160): string | null {
+  const text = String(content ?? '')
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/^\s*(#{1,6}|>|[-*+]|\d+\.)\s+/gm, ' ')
+    .replace(/[*_`~]+/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!text) return null
+  if (text.length <= length) return text
+  const cut = text.slice(0, length)
+  const space = cut.lastIndexOf(' ')
+  return `${(space > length * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`
+}
+
 export interface ListingView {
   title: string
   /** Shown under the heading: a category description, an author bio. */
@@ -283,6 +314,8 @@ export interface ListingView {
   /** The home page and a type archive are the site; archives are collections. */
   heading?: boolean
   author?: PublicAuthor | null
+  /** Settings → Reading can keep tag and author archives out of search. */
+  noindex?: boolean
 }
 
 /** The home page, a type archive, or a category/tag/author/term archive. */
@@ -300,9 +333,12 @@ ${pager(view.page, view.totalPages, view.basePath)}`
 
   return documentHtml(ctx, {
     title: isHome && view.page <= 1 ? ctx.site.name : view.page > 1 ? `${view.title} (page ${view.page})` : view.title,
-    description: view.intro || ctx.site.description,
+    description: isHome ? ctx.site.description : view.intro,
     canonical: pageUrl(view.page),
     type: view.author ? 'profile' : 'website',
+    // An archive with nothing in it is a thin page, whatever the setting.
+    // Not the home page: it is the site, posts or none.
+    noindex: Boolean(view.noindex) || (!isHome && !view.posts.length),
     prev: view.page > 1 ? pageUrl(view.page - 1) : null,
     next: view.page < view.totalPages ? pageUrl(view.page + 1) : null,
     jsonLd: isHome
@@ -335,6 +371,7 @@ export function renderEntry(ctx: ThemeContext, post: PublicPost): string {
 
   return documentHtml(ctx, {
     title: post.meta_title || post.title,
+    fullTitle: Boolean(post.meta_title),
     description: post.meta_description || post.excerpt,
     canonical: post.canonical_url || url,
     image: post.og.image_url,
@@ -361,7 +398,8 @@ export function renderPage(ctx: ThemeContext, page: PublicPage): string {
 
   return documentHtml(ctx, {
     title: page.meta_title || page.title,
-    description: page.meta_description,
+    fullTitle: Boolean(page.meta_title),
+    description: page.meta_description || summary(page.content),
     canonical: page.canonical_url || url,
     image: page.og.image_url,
     noindex: page.noindex,

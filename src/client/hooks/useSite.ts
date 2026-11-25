@@ -93,3 +93,22 @@ export function useBrandDocument(site: SiteBrand | null): void {
     }
   }, [site?.site_name, site?.icon_url])
 }
+
+/**
+ * Keep this screen out of search results: the admin and the sign-in pages.
+ *
+ * The app shell is one index.html for every path, public demo pages included,
+ * so the tag cannot be in the file; it is added while one of these screens is
+ * mounted and removed after. Google reads a robots tag a script adds. robots.txt
+ * also keeps crawlers out of /admin, but a disallowed URL can still be listed
+ * from links to it, without its content — this is what removes it.
+ */
+export function useNoindex(): void {
+  useEffect(() => {
+    const tag = document.createElement('meta')
+    tag.name = 'robots'
+    tag.content = 'noindex'
+    document.head.appendChild(tag)
+    return () => tag.remove()
+  }, [])
+}

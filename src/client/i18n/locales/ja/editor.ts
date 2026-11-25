@@ -182,7 +182,12 @@ const strings: Dictionary = {
   'Looking…': '検索中…',
   'That URL is not an image in the media library. Upload it first, then choose it here.':
     'その URL はメディアライブラリ内の画像ではありません。先にアップロードしてから、ここで選択してください。',
-  'Could not look that URL up.': 'その URL を照会できませんでした。'
+  'Could not look that URL up.': 'その URL を照会できませんでした。',
+  "The whole title in search results. Blank uses the title followed by the site name.": "検索結果に表示されるタイトル全体です。空欄の場合はタイトルの後にサイト名が付きます。",
+  "Blank uses the start of the page.": "空欄の場合はページの冒頭を使用します。",
+  "Blank uses the excerpt.": "空欄の場合は抜粋を使用します。",
+  "{count} / {limit}": "{count} / {limit}",
+  "{count} / {limit} — may be cut off": "{count} / {limit} — 途中で切れる可能性があります"
 }
 
 export default strings

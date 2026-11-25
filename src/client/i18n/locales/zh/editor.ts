@@ -182,7 +182,12 @@ const strings: Dictionary = {
   'Looking…': '查找中…',
   'That URL is not an image in the media library. Upload it first, then choose it here.':
     '该 URL 不是媒体库中的图片。请先上传，再在此处选择。',
-  'Could not look that URL up.': '无法查找该 URL。'
+  'Could not look that URL up.': '无法查找该 URL。',
+  "The whole title in search results. Blank uses the title followed by the site name.": "搜索结果中显示的完整标题。留空则使用标题加上网站名称。",
+  "Blank uses the start of the page.": "留空则使用页面开头的内容。",
+  "Blank uses the excerpt.": "留空则使用摘要。",
+  "{count} / {limit}": "{count} / {limit}",
+  "{count} / {limit} — may be cut off": "{count} / {limit} — 可能会被截断"
 }
 
 export default strings

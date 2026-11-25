@@ -262,6 +262,12 @@ const strings: Dictionary = {
   "Buttons and highlights in the admin, and the tint on the sign-in page. Blank uses the built-in colours.": "管理画面のボタンやハイライト、ログインページの色調に使われます。空欄の場合は標準の色を使用します。",
   "Sign-in tagline": "ログインページのキャッチフレーズ",
   "Shown under the site name on the sign-in page": "ログインページのサイト名の下に表示されます",
+  "Yours replaces the default. If it has no {line} line, one pointing at this site's sitemap is added.": "既定の内容を置き換えます。{line} 行がない場合は、このサイトのサイトマップを指す行が追加されます。",
+  "Tag archives in search results": "検索結果でのタグアーカイブ",
+  "Author archives in search results": "検索結果での投稿者アーカイブ",
+  "Allow": "許可する",
+  "Ask search engines not to index": "インデックスしないよう検索エンジンに求める",
+  "For the built-in public site. Archives repeat posts that have their own pages; on a site with many tags or a single author they add little to search.": "組み込みの公開サイト向けです。アーカイブは個別ページのある投稿を繰り返すだけなので、タグが多いサイトや投稿者が一人のサイトでは検索にほとんど役立ちません。"
 }
 
 export default strings

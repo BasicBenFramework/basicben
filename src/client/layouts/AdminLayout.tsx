@@ -7,7 +7,7 @@ import { can } from '@basicbenframework/core/auth/permissions'
 import { applySiteLocale, useT } from '../i18n/index.ts'
 import { withFeaturePages } from '../../host/menu.ts'
 import { enabledManifests } from '../host/index.ts'
-import { accentVars, useBrandDocument, useSite } from '../hooks/useSite.ts'
+import { accentVars, useBrandDocument, useNoindex, useSite } from '../hooks/useSite.ts'
 
 interface MenuItem {
   path: string
@@ -168,6 +168,7 @@ export default function AdminLayout({ children, title, description, actions }: A
   // (Settings → Site Identity). Built-in colours until it sets one.
   const site = useSite()
   useBrandDocument(site)
+  useNoindex()
   const siteName = site?.site_name || 'BasicBen'
 
   return (

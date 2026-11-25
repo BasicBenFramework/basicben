@@ -1,6 +1,6 @@
 import { getDb } from '@basicbenframework/core/db'
 import { Settings } from '../models/Settings.ts'
-import { livePost, livePage } from '../models/visibility.ts'
+import { livePost, livePage, parseStoredTimestamp } from '../models/visibility.ts'
 import { siteUrl } from '../helpers/site.ts'
 import { isGated, gatedFeedHtml, publicExcerpt } from '../helpers/gating.ts'
 import { excerpt as plainText } from '@basicbenframework/core/content'
@@ -203,7 +203,7 @@ export const FeedController = {
     // `noindex` content is left out: asking a search engine not to index a
     // page and then listing it for them is two contradictory instructions.
     const posts = await db.all(`
-      SELECT p.id, p.slug, p.updated_at FROM posts p
+      SELECT p.id, p.slug, p.updated_at, p.canonical_url FROM posts p
       WHERE ${livePost('p')} AND p.post_type = 'post' AND (p.noindex IS NULL OR p.noindex = 0)
     `)
 
@@ -212,7 +212,7 @@ export const FeedController = {
     const customTypes = (await ContentType.all({ publicOnly: true })).filter((type) => type.key !== 'post')
     const entries = customTypes.length
       ? await db.all(`
-          SELECT p.id, p.slug, p.updated_at, p.post_type FROM posts p
+          SELECT p.id, p.slug, p.updated_at, p.post_type, p.canonical_url FROM posts p
           WHERE ${livePost('p')} AND p.post_type IN (${customTypes.map(() => '?').join(', ')})
             AND (p.noindex IS NULL OR p.noindex = 0)
         `, customTypes.map((type) => type.key))
@@ -220,28 +220,50 @@ export const FeedController = {
     const baseOf = (key: string) => customTypes.find((type) => type.key === key)?.route_base ?? null
 
     const pages = await db.all(`
-      SELECT id, slug, updated_at FROM pages
+      SELECT id, slug, updated_at, canonical_url FROM pages
       WHERE ${livePage('pages')} AND (noindex IS NULL OR noindex = 0)
     `)
 
-    const categories = await db.all('SELECT id, slug FROM categories')
+    // Only categories with something live in them: an empty archive is a
+    // thin page, and the theme answers it with "Nothing here yet". Its
+    // lastmod is its newest post's.
+    const categories = await db.all(`
+      SELECT c.slug, MAX(p.updated_at) AS updated_at FROM categories c
+      JOIN post_categories pc ON pc.category_id = c.id
+      JOIN posts p ON p.id = pc.post_id
+      WHERE ${livePost('p')} AND p.post_type = 'post'
+      GROUP BY c.id, c.slug
+    `)
 
     const url = (loc: string, extra = '') => `  <url>
     <loc>${escapeXml(loc)}</loc>${extra}
   </url>`
-    const lastmod = (value: string) => `
-    <lastmod>${new Date(value).toISOString()}</lastmod>`
+    // Stored timestamps may be bare SQLite UTC ("2026-01-02 03:04:05"), which
+    // new Date() would read as local time; an unparseable one is left out
+    // rather than failing the whole sitemap.
+    const lastmod = (value: string | null) => {
+      const time = parseStoredTimestamp(value)
+      return Number.isNaN(time) ? '' : `
+    <lastmod>${new Date(time).toISOString()}</lastmod>`
+    }
+
+    // A sitemap lists canonical URLs. An entry whose canonical points
+    // somewhere else (first published there) is that other page's to list.
+    type Row = { id: number; slug: string; updated_at: string; canonical_url?: string | null }
+    const own = (row: Row, loc: string) => !row.canonical_url || row.canonical_url === loc
+
+    const entryUrls = [
+      ...posts.map((post: Row) => ({ row: post, loc: `${site}/blog/${post.slug || post.id}` })),
+      ...entries.map((entry: Row & { post_type: string }) =>
+        ({ row: entry, loc: `${site}${entryPath(baseOf(entry.post_type), entry.slug, entry.id)}` })),
+      ...pages.map((page: Row) => ({ row: page, loc: `${site}/${page.slug}` }))
+    ].filter(({ row, loc }) => own(row, loc))
 
     const urls = [
       url(`${site}/`, '\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>'),
-      ...posts.map((post: { id: number; slug: string; updated_at: string }) =>
-        url(`${site}/blog/${post.slug || post.id}`, lastmod(post.updated_at))),
-      ...entries.map((entry: { id: number; slug: string; updated_at: string; post_type: string }) =>
-        url(`${site}${entryPath(baseOf(entry.post_type), entry.slug, entry.id)}`, lastmod(entry.updated_at))),
-      ...pages.map((page: { id: number; slug: string; updated_at: string }) =>
-        url(`${site}/${page.slug}`, lastmod(page.updated_at))),
-      ...categories.map((cat: { id: number; slug: string }) =>
-        url(`${site}/category/${cat.slug}`))
+      ...entryUrls.map(({ row, loc }) => url(loc, lastmod(row.updated_at))),
+      ...categories.map((cat: { slug: string; updated_at: string }) =>
+        url(`${site}/category/${cat.slug}`, lastmod(cat.updated_at)))
     ]
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -257,23 +279,34 @@ ${urls.join('\n')}
    * robots.txt.
    *
    * Points crawlers at the sitemap and keeps them out of the admin and the
-   * API. A custom body from settings replaces it entirely, for a site that
-   * needs rules this cannot guess.
+   * API. A custom body from settings replaces the rules entirely, for a site
+   * that needs rules this cannot guess; if it names no sitemap, this one is
+   * added, since a hand-written file that forgets it costs the site its
+   * sitemap discovery for no gain.
+   *
+   * `/admin` is matched exactly and as a folder: a bare `Disallow: /admin`
+   * is a prefix, and would also hide a page whose slug starts with "admin".
    */
   async robots(req: Request, res: Response) {
     const custom = await Settings.get('robots_txt')
     const site = siteUrl(req)
+    const sitemap = `Sitemap: ${site}/sitemap.xml`
 
-    const body = typeof custom === 'string' && custom.trim()
-      ? custom.trim()
-      : [
-          'User-agent: *',
-          'Disallow: /admin',
-          'Disallow: /api/',
-          'Allow: /api/v1/',
-          '',
-          `Sitemap: ${site}/sitemap.xml`
-        ].join('\n')
+    let body: string
+    if (typeof custom === 'string' && custom.trim()) {
+      body = custom.trim()
+      if (!/^\s*sitemap\s*:/im.test(body)) body += `\n\n${sitemap}`
+    } else {
+      body = [
+        'User-agent: *',
+        'Disallow: /admin$',
+        'Disallow: /admin/',
+        'Disallow: /api/',
+        'Allow: /api/v1/',
+        '',
+        sitemap
+      ].join('\n')
+    }
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
     res.end(body + '\n')

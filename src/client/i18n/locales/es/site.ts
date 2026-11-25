@@ -263,6 +263,12 @@ const strings: Dictionary = {
   "Buttons and highlights in the admin, and the tint on the sign-in page. Blank uses the built-in colours.": "Botones y resaltados del panel, y el tono de la página de inicio de sesión. En blanco se usan los colores predeterminados.",
   "Sign-in tagline": "Lema de inicio de sesión",
   "Shown under the site name on the sign-in page": "Se muestra bajo el nombre del sitio en la página de inicio de sesión",
+  "Yours replaces the default. If it has no {line} line, one pointing at this site's sitemap is added.": "El tuyo sustituye al predeterminado. Si no tiene una línea {line}, se añade una con el sitemap de este sitio.",
+  "Tag archives in search results": "Archivos de etiquetas en los resultados de búsqueda",
+  "Author archives in search results": "Archivos de autor en los resultados de búsqueda",
+  "Allow": "Permitir",
+  "Ask search engines not to index": "Pedir a los buscadores que no indexen",
+  "For the built-in public site. Archives repeat posts that have their own pages; on a site with many tags or a single author they add little to search.": "Para el sitio público integrado. Los archivos repiten entradas que ya tienen su propia página; en un sitio con muchas etiquetas o un solo autor aportan poco a la búsqueda."
 }
 
 export default strings
