@@ -1,6 +1,9 @@
 # Admin languages
 
-The admin ships in English and Spanish. Strings live in
+The admin ships in English, German, Spanish, French, Portuguese (Brazil),
+Japanese and Simplified Chinese (`en`, `de`, `es`, `fr`, `pt`, `ja`, `zh`).
+The translations other than Spanish were machine-written and have not yet
+been reviewed by native speakers; corrections are welcome. Strings live in
 `src/client/i18n/locales/<code>/`; the code is in `src/client/i18n/index.ts`.
 
 ## Choosing a language
@@ -11,7 +14,8 @@ The admin ships in English and Spanish. Strings live in
   setting above.
 
 A tag the admin has no dictionary for falls back by language (`es-MX` uses
-`es`), then to English. This is separate from the `locale` setting, which is
+`es`, `pt-PT` uses `pt`, and `zh-TW` uses the Simplified `zh` until there is a
+`zh-Hant`), then to English. This is separate from the `locale` setting, which is
 the language of the public site and is reported to front ends by
 `/api/v1/site`.
 

@@ -35,7 +35,13 @@ type Vars = Record<string, string | number>
 /** Locales with a dictionary, and the name each calls itself in the picker. */
 export const ADMIN_LOCALES: Array<{ code: string; name: string }> = [
   { code: 'en', name: 'English' },
-  { code: 'es', name: 'Español' }
+  { code: 'de', name: 'Deutsch' },
+  { code: 'es', name: 'Español' },
+  { code: 'fr', name: 'Français' },
+  { code: 'pt', name: 'Português (Brasil)' },
+  { code: 'ja', name: '日本語' },
+  // Simplified. zh-TW and zh-HK fall back to it too, until there is a zh-Hant.
+  { code: 'zh', name: '简体中文' }
 ]
 
 const OVERRIDE_KEY = 'basicben.admin_locale'
