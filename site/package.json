@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@basicbenframework/cms": "file:..",
-    "@basicbenframework/core": "^0.9.0",
+    "@basicbenframework/core": "^0.10.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
