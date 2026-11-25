@@ -13,6 +13,15 @@
 
 @import 'tailwindcss';
 
+/*
+ * Tailwind finds class names by scanning files, and it skips node_modules. A
+ * site that installs the CMS builds this file from
+ * node_modules/@basicbenframework/cms/lib/client, so without this line none of
+ * the admin's classes were scanned and it shipped unstyled. '../' is lib/ in
+ * the package and src/ here.
+ */
+@source '../';
+
 @theme {
   /* Used by the page shell in index.html. */
   --color-dark-900: #0f0f0f;
