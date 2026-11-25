@@ -276,6 +276,10 @@ export const TwoFactorController = {
       return res.json({ error: 'Too many incorrect codes. Try again shortly.' }, 429)
     }
 
-    return res.json({ error: 'That code is not right.' }, 401)
+    // The challenge was spent above, so a typo would otherwise mean typing the
+    // password again. A fresh one comes back with the refusal instead; the
+    // per-account lockout above is what limits guessing, not the challenge.
+    const next = await issueChallenge(user.id)
+    return res.json({ error: 'That code is not right.', ...next }, 401)
   }
 }

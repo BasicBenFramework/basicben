@@ -10,6 +10,7 @@ import { api } from '../../helpers/api.ts'
 import { useMediaLibrary } from '../hooks/useMediaLibrary.ts'
 import { useToast } from '../contexts/ToastContext.tsx'
 import { useTheme } from '../components/ThemeContext.tsx'
+import { SecurityCard } from '../components/admin/SecurityCard.tsx'
 import { useT, ADMIN_LOCALES, localeOverride, chooseLocale, applySiteLocale } from '../i18n/index.ts'
 
 /**
@@ -250,6 +251,8 @@ export function Profile() {
           <Button type="submit" disabled={loading} className="w-full">{loading ? '...' : t('Change Password')}</Button>
         </form>
       </Card>
+
+      <SecurityCard />
 
       {/* Applies at once and is kept in this browser, so it is not part of
           either form above. */}
