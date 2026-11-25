@@ -17,6 +17,7 @@ import { getDb } from '@basicbenframework/core/db'
 import { recordHeartbeat, readHeartbeats } from '../helpers/heartbeat.ts'
 import { cronTaskList, type CronTask } from './index.ts'
 import type { Request, Response } from '../types/index.ts'
+import { refreshConfig } from '../helpers/config.ts'
 
 export interface TickResult {
   ran: Record<string, unknown>
@@ -37,6 +38,9 @@ export async function runCron(
   const started = now()
   const budget = options.budgetMs ?? 25_000
   const db = options.db ?? ((await getDb()) as any)
+  // The in-process tick runs outside any request, so nothing else has loaded
+  // the configuration from settings (MySendbox's key, for one).
+  if (!options.db) await refreshConfig()
   const beats = await readHeartbeats(db)
   const result: TickResult = { ran: {}, skipped: [], failed: {} }
 

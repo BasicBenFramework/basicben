@@ -11,6 +11,7 @@
 import { createElement, Fragment, type ComponentType, type ReactNode } from 'react'
 import { addDictionaries, type Dictionary } from '../i18n/index.ts'
 import type { FeatureManifest } from '../../host/manifest.ts'
+import type { ConfigStatus } from '../components/admin/ConfigField.tsx'
 
 export interface AdminFeature {
   name: string
@@ -88,6 +89,10 @@ export function registerAdminFeatures(features: AdminFeature[], manifests: Featu
 export interface SettingsSectionProps {
   values: Record<string, string>
   onChange(changes: Record<string, string>): void
+  /** Where each value the environment can also set comes from (helpers/config.ts). */
+  config?: ConfigStatus[]
+  /** Which secret settings are saved. Their values are never sent. */
+  secrets?: Record<string, boolean>
 }
 
 /** Whether any feature fills a slot. */

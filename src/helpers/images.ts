@@ -16,6 +16,8 @@
  * dimensions and no srcset, which is still enough to stop layout shift.
  */
 
+import { configValue } from './config.ts'
+
 const WIDTHS = [320, 640, 960, 1280, 1920, 2560]
 
 export interface ResponsiveImage {
@@ -34,7 +36,7 @@ export function responsiveImage(
 
   const width = meta.width ? Number(meta.width) : null
   const height = meta.height ? Number(meta.height) : null
-  const template = process.env.IMAGE_TRANSFORM_URL
+  const template = configValue('IMAGE_TRANSFORM_URL')
 
   let srcset: string | null = null
   if (template && width) {

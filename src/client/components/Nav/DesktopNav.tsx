@@ -3,6 +3,7 @@ import { NavLink } from '../NavLink.tsx'
 import { Button } from '../Button.tsx'
 import { DarkModeToggle } from './DarkModeToggle.tsx'
 import type { User } from '../../../types/index.ts'
+import { useRegistrationOpen } from '../../hooks/useRegistrationOpen.ts'
 
 interface DesktopNavProps {
   user: User | null
@@ -12,6 +13,7 @@ interface DesktopNavProps {
 
 export function DesktopNav({ user, navigate, logout }: DesktopNavProps) {
   const { t, dark, setDark } = useTheme()
+  const registrationOpen = useRegistrationOpen()
 
   return (
     <div className="hidden sm:flex items-center gap-2">
@@ -31,7 +33,7 @@ export function DesktopNav({ user, navigate, logout }: DesktopNavProps) {
       ) : (
         <>
           <NavLink onClick={() => navigate('/login')}>Sign in</NavLink>
-          {!__DISABLE_REGISTRATION__ && (
+          {registrationOpen && (
             <Button onClick={() => navigate('/register')} className="px-3 py-1.5">Get started</Button>
           )}
         </>

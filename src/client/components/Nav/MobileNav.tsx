@@ -1,6 +1,7 @@
 import { useTheme } from '../ThemeContext.tsx'
 import { Logo } from '../Logo.tsx'
 import type { User } from '../../../types/index.ts'
+import { useRegistrationOpen } from '../../hooks/useRegistrationOpen.ts'
 
 interface MobileNavProps {
   user: User | null
@@ -11,6 +12,7 @@ interface MobileNavProps {
 
 export function MobileNav({ user, navigate, onClose, logout }: MobileNavProps) {
   const { t } = useTheme()
+  const registrationOpen = useRegistrationOpen()
 
   const handleNav = (view: string) => {
     navigate(view)
@@ -103,7 +105,7 @@ export function MobileNav({ user, navigate, onClose, logout }: MobileNavProps) {
                 >
                   Sign in
                 </button>
-                {!__DISABLE_REGISTRATION__ && (
+                {registrationOpen && (
                   <button
                     onClick={() => handleNav('/register')}
                     className={`w-full px-4 py-3 rounded-lg ${t.btn} ${t.btnHover} transition`}

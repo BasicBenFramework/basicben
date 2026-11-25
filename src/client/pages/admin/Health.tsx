@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../../../helpers/api.ts'
 import AdminLayout from '../../layouts/AdminLayout.tsx'
 import { useT, slots } from '../../i18n/index.ts'
+import type { ConfigStatus } from '../../components/admin/ConfigField.tsx'
 
 type Status = 'pass' | 'warn' | 'fail'
 
@@ -18,6 +19,8 @@ interface HealthReport {
   generated_at: string
   environment: { node_env: string | null; serverless: boolean }
   checks: Check[]
+  /** Each value the environment or Settings can set, and which one does. */
+  config?: ConfigStatus[]
 }
 
 interface ProbeResult {
@@ -136,6 +139,43 @@ export default function AdminHealth() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {report?.config && report.config.length > 0 && (
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h2 className="admin-card-title">{t('Configuration')}</h2>
+          </div>
+          <p className="health-muted" style={{ marginTop: 0 }}>
+            {t('Where each value comes from. The environment wins over Settings; secrets show whether they are set, never what they are.')}
+          </p>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>{t('Value')}</th>
+                <th>{t('Variable')}</th>
+                <th>{t('Source')}</th>
+                <th>{t('In use')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.config.map((entry) => (
+                <tr key={entry.env}>
+                  <td>{t(entry.label)}</td>
+                  <td><code>{entry.env}</code></td>
+                  <td>
+                    {entry.source === 'env' ? t('Environment')
+                      : entry.source === 'settings' ? t('Settings')
+                      : entry.source === 'unreadable' ? t('Settings (unreadable: re-enter it)')
+                      : entry.locked_by ? slots(t('Not used: {variable} is set'), { variable: <code>{entry.locked_by}</code> })
+                      : t('Not set')}
+                  </td>
+                  <td>{entry.source === 'unset' || entry.source === 'unreadable' ? '—' : entry.secret ? t('Set') : entry.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

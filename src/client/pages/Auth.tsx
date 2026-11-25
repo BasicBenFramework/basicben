@@ -5,6 +5,7 @@ import { Input } from '../components/Input.tsx'
 import { Button } from '../components/Button.tsx'
 import { api } from '../../helpers/api.ts'
 import { useToast } from '../contexts/ToastContext.tsx'
+import { useRegistrationOpen } from '../hooks/useRegistrationOpen.ts'
 
 interface AuthResponse {
   token: string
@@ -24,6 +25,7 @@ export function Auth() {
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const isLogin = path === '/login'
+  const registrationOpen = useRegistrationOpen()
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -64,7 +66,7 @@ export function Auth() {
       )}
       {/* With registration closed there is nothing to offer someone without an
           account, and inviting them to sign up would be a dead end. */}
-      {!__DISABLE_REGISTRATION__ && (
+      {registrationOpen && (
         <p className={`text-xs ${t.muted} text-center mt-4`}>
           {isLogin ? "Don't have an account? " : 'Have an account? '}
           <button onClick={() => navigate(isLogin ? '/register' : '/login')} className="underline hover:no-underline">{isLogin ? 'Sign up' : 'Sign in'}</button>

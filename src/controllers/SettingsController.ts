@@ -1,6 +1,9 @@
 import { Settings } from '../models/Settings.ts'
-import { validateSettings, isKnownSetting } from '../helpers/site-settings.ts'
+import { validateSettings, isKnownSetting, isSecretDefinition } from '../helpers/site-settings.ts'
 import { siteUrl } from '../helpers/site.ts'
+import { describeConfig, lockedBy, refreshConfig, registrationOpen } from '../helpers/config.ts'
+import { encryptSecret } from '../helpers/secrets.ts'
+import { isSecretSetting } from '../helpers/export-data.ts'
 import type { Request, Response } from '../types/index.ts'
 
 /**
@@ -10,21 +13,68 @@ import type { Request, Response } from '../types/index.ts'
  * uses and what it accepts (see helpers/site-settings.ts). The routes require
  * `settings.manage`, which only the admin role holds — that matters most for
  * code injection, which is raw HTML the front end renders unsanitised.
+ *
+ * Some settings are configuration the environment can also set (storage, the
+ * site URL, mail keys: see helpers/config.ts). Where the variable is set it
+ * wins, and a save leaves that setting alone. Secret settings are encrypted
+ * before they are stored and are never sent back: reads report them as '' and
+ * list which are set under `secrets`. A blank secret on save keeps the stored
+ * one; DELETE /api/settings/:key clears it.
  */
+const isSecret = (key: string) => isSecretDefinition(key) || isSecretSetting(key)
+
+/** Settings with every secret blanked, and which secrets are set. */
+function redact(settings: Record<string, string>) {
+  const secrets: Record<string, boolean> = {}
+  const visible: Record<string, string> = {}
+  for (const [key, value] of Object.entries(settings)) {
+    if (isSecret(key)) {
+      secrets[key] = value !== ''
+      visible[key] = ''
+    } else {
+      visible[key] = value
+    }
+  }
+  return { settings: visible, secrets }
+}
+
+/**
+ * Write validated settings. Locked ones (the environment sets them) are
+ * skipped and reported; a blank secret keeps the stored value.
+ */
+async function writeSettings(values: Record<string, { value: string; group: string }>) {
+  const skipped: Record<string, string> = {}
+
+  for (const [key, { value, group }] of Object.entries(values)) {
+    const env = lockedBy(key)
+    if (env) {
+      skipped[key] = env
+      continue
+    }
+
+    // Secrets are never sent to the admin, so a form saves them back blank:
+    // blank means unchanged. Only declared secrets are encrypted; a feature's
+    // key that merely looks secret is stored as the feature reads it.
+    if (isSecret(key) && value.trim() === '') continue
+    await Settings.set(key, isSecretDefinition(key) ? encryptSecret(value.trim()) : value, group)
+  }
+
+  await refreshConfig({ force: true })
+  return skipped
+}
+
 export const SettingsController = {
   async index(req: Request, res: Response) {
-    const settings = await Settings.asObject()
+    const { settings, secrets } = redact(await Settings.asObject())
 
-    // The site URL is configuration (SITE_URL), not a setting: it is shown so
-    // the admin can see what feeds and the sitemap link to, and it is never
-    // writable from here — a URL that can be changed from a form is one stolen
-    // admin session away from pointing every feed reader somewhere else.
-    res.json({ settings, site_url: siteUrl(req) })
+    // `config` says, for each value the environment can also set, where the
+    // one in use comes from — so the admin can show which fields are locked.
+    res.json({ settings, secrets, site_url: siteUrl(req), config: describeConfig() })
   },
 
   async byGroup(req: Request, res: Response) {
-    const settings = await Settings.asObject(req.params.group)
-    res.json({ settings })
+    const { settings, secrets } = redact(await Settings.asObject(req.params.group))
+    res.json({ settings, secrets })
   },
 
   async get(req: Request, res: Response) {
@@ -32,6 +82,7 @@ export const SettingsController = {
     if (value === null) {
       return res.json({ error: 'Setting not found' }, 404)
     }
+    if (isSecret(req.params.key)) return res.json({ key: req.params.key, value: '', set: true })
     res.json({ key: req.params.key, value })
   },
 
@@ -41,12 +92,10 @@ export const SettingsController = {
     const result = validateSettings(settings)
     if ('errors' in result) return res.json({ errors: result.errors }, 422)
 
-    for (const [key, { value, group }] of Object.entries(result.values)) {
-      await Settings.set(key, value, group)
-    }
+    const skipped = await writeSettings(result.values)
 
-    const updated = await Settings.asObject()
-    res.json({ settings: updated })
+    const updated = redact(await Settings.asObject())
+    res.json({ ...updated, skipped, config: describeConfig() })
   },
 
   async set(req: Request, res: Response) {
@@ -62,9 +111,15 @@ export const SettingsController = {
     const result = validateSettings({ [req.params.key]: value })
     if ('errors' in result) return res.json({ errors: result.errors }, 422)
 
+    // One setting, named on purpose: a locked one is an error, not a skip.
+    const env = lockedBy(req.params.key)
+    if (env) {
+      return res.json({ errors: { [req.params.key]: [`Set by ${env} in the environment`] } }, 422)
+    }
+
     const stored = result.values[req.params.key]
-    await Settings.set(req.params.key, stored.value, stored.group)
-    res.json({ key: req.params.key, value: stored.value })
+    await writeSettings({ [req.params.key]: stored })
+    res.json({ key: req.params.key, value: isSecretDefinition(req.params.key) ? '' : stored.value })
   },
 
   async delete(req: Request, res: Response) {
@@ -76,6 +131,7 @@ export const SettingsController = {
     }
 
     await Settings.delete(req.params.key)
+    await refreshConfig({ force: true })
     res.json({ message: 'Setting deleted' })
   },
 
@@ -97,7 +153,9 @@ export const SettingsController = {
     const siteDescription = await Settings.getSiteDescription()
     res.json({
       site_name: siteName,
-      site_description: siteDescription
+      site_description: siteDescription,
+      // For the sign-up links: DISABLE_REGISTRATION or the setting.
+      registration_open: registrationOpen()
     })
   },
 
@@ -114,9 +172,7 @@ export const SettingsController = {
     })
     if ('errors' in result) return res.json({ errors: result.errors }, 422)
 
-    for (const [key, { value, group }] of Object.entries(result.values)) {
-      await Settings.set(key, value, group)
-    }
+    await writeSettings(result.values)
 
     res.json({
       site_name: await Settings.getSiteName(),

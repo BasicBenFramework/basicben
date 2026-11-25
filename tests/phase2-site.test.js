@@ -167,9 +167,13 @@ describe('site settings', () => {
     assert.match(controller, /async updateSiteInfo[\s\S]*?validateSettings\(/)
   })
 
-  test('the site URL is exposed read-only, from configuration', () => {
+  test('the site URL is a setting that SITE_URL overrides', () => {
+    // The URL in use is reported whichever source it comes from, and the
+    // environment variable, when set, locks the setting (helpers/config.ts).
     assert.match(read('src/controllers/SettingsController.ts'), /site_url: siteUrl\(req\)/)
-    assert.doesNotMatch(read('src/helpers/site-settings.ts'), /\bsite_url:/)
+    assert.match(read('src/helpers/site-settings.ts'), /\bsite_url: \{ group: 'general', check: httpUrlOrBlank \}/)
+    assert.match(read('src/helpers/config.ts'), /env: 'SITE_URL', setting: 'site_url'/)
+    assert.match(read('src/helpers/site.ts'), /configValue\('SITE_URL'\) \|\| process\.env\.APP_URL/)
   })
 })
 

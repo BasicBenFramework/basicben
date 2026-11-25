@@ -19,6 +19,7 @@ import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { deliver } from '@basicbenframework/core/webhooks'
 import { Settings } from './models/Settings.ts'
 import { startCronInterval } from './host/cron.ts'
+import { refreshConfig } from './helpers/config.ts'
 
 /**
  * Trim titles before a post is written.
@@ -134,4 +135,19 @@ hooks.on(
     return context
   },
   { name: 'query:single-values', priority: 0 }
+)
+
+/**
+ * Configuration from settings (storage, site URL, mail keys: see
+ * helpers/config.ts), reloaded at most every 30 seconds, before any handler
+ * reads it. A failed read keeps the previous values rather than failing the
+ * request.
+ */
+hooks.on(
+  HOOKS.REQUEST_BEFORE,
+  async (context: unknown) => {
+    await refreshConfig()
+    return context
+  },
+  { name: 'config:refresh', priority: 0 }
 )

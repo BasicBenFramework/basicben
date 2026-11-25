@@ -29,6 +29,7 @@ import { Credential } from '../models/Credential.ts'
 import { emailSendLimiter } from '../middleware/rate-limits.ts'
 import { issueSessionToken, revokeSessions } from '../helpers/session.ts'
 import type { Request, Response } from '../types/index.ts'
+import { siteName } from '../helpers/config.ts'
 
 const appUrl = () => process.env.APP_URL || 'http://localhost:3000'
 
@@ -62,7 +63,7 @@ async function sendResetEmail(user: { id: number; name: string; email: string })
     subject: 'Reset your password',
     ...renderMail('password-reset', {
       name: user.name,
-      siteName: process.env.SITE_NAME || 'BasicBen',
+      siteName: siteName(),
       resetUrl
     })
   })

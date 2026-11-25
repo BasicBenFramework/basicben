@@ -1,16 +1,20 @@
 /**
- * How the feature finds MySendbox: environment for secrets, site settings for
- * everything an admin may choose.
+ * How the feature finds MySendbox: site settings for everything an admin may
+ * choose, with the environment winning where it is set (helpers/config.ts).
  *
- * - `MYSENDBOX_API_KEY`: a key with contacts and broadcasts scopes and no
- *   domain or mailbox limits. Without it the feature does nothing at all.
- * - `MYSENDBOX_WEBHOOK_SECRET`: the `whsec_…` secret of the webhook pointed
- *   at `/api/webhooks/mysendbox`. Without it that endpoint answers 404.
- * - `MYSENDBOX_API_URL`: only to point at another MySendbox, such as in tests.
+ * - `MYSENDBOX_API_KEY`, or the API key setting (stored encrypted): a key with
+ *   contacts and broadcasts scopes and no domain or mailbox limits. Without it
+ *   the feature does nothing at all.
+ * - `MYSENDBOX_API_URL`, or its setting: only to point at another MySendbox,
+ *   such as in tests.
+ * - `MYSENDBOX_WEBHOOK_SECRET`: environment only, because it authenticates
+ *   requests to this server. The `whsec_…` secret of the webhook pointed at
+ *   `/api/webhooks/mysendbox`. Without it that endpoint answers 404.
  */
 
 import { Settings } from '../../models/Settings.ts'
 import { checks, type SettingDefinition } from '../../helpers/site-settings.ts'
+import { configValue } from '../../helpers/config.ts'
 import { createClient, type ClientOptions, type MySendboxClient } from './client.ts'
 
 export const SETTINGS: Record<string, SettingDefinition> = {
@@ -25,11 +29,14 @@ export const SETTINGS: Record<string, SettingDefinition> = {
   mysendbox_consent_attestation: { group: 'mysendbox', check: checks.text(1000) },
   // A MySendbox signup form (`frm_…`). With one, an added or imported member
   // without an attestation gets its double opt-in mail instead.
-  mysendbox_form_id: { group: 'mysendbox', check: checks.text(64) }
+  mysendbox_form_id: { group: 'mysendbox', check: checks.text(64) },
+  // MYSENDBOX_API_KEY and MYSENDBOX_API_URL win over these when set.
+  mysendbox_api_key: { group: 'mysendbox', check: checks.text(256), secret: true },
+  mysendbox_api_url: { group: 'mysendbox', check: checks.httpUrlOrBlank }
 }
 
 export function apiKey(): string {
-  return process.env.MYSENDBOX_API_KEY?.trim() || ''
+  return configValue('MYSENDBOX_API_KEY')
 }
 
 export function webhookSecret(): string {
@@ -50,7 +57,7 @@ export function setClientOptions(next: Partial<ClientOptions>): void {
 export function client(): MySendboxClient {
   return createClient({
     apiKey: apiKey(),
-    ...(process.env.MYSENDBOX_API_URL ? { baseUrl: process.env.MYSENDBOX_API_URL } : {}),
+    ...(configValue('MYSENDBOX_API_URL') ? { baseUrl: configValue('MYSENDBOX_API_URL') } : {}),
     ...overrides
   })
 }

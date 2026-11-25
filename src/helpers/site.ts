@@ -1,3 +1,5 @@
+import { configValue } from './config.ts'
+
 /**
  * The public site's origin, for links a feed, sitemap or robots.txt hands out.
  *
@@ -5,12 +7,12 @@
  * client sent, and these responses are cached — one request with a forged Host
  * would poison every reader's feed with links to somewhere else.
  *
- * SITE_URL is the public site when it is separate from this app (a headless
- * front end); APP_URL otherwise. The request is consulted only outside
+ * SITE_URL (or the Site URL setting, see helpers/config.ts) is the public site
+ * when it is separate from this app (a headless front end); APP_URL otherwise. The request is consulted only outside
  * production, so a local checkout works without either.
  */
 export function siteUrl(req?: { headers?: Record<string, unknown> }): string {
-  const configured = process.env.SITE_URL || process.env.APP_URL
+  const configured = configValue('SITE_URL') || process.env.APP_URL
   if (configured) return configured.replace(/\/+$/, '')
 
   if (process.env.NODE_ENV !== 'production') {

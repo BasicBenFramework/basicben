@@ -53,7 +53,9 @@ describe('DISABLE_REGISTRATION', () => {
   test('is enforced in the controller, not only in the router', () => {
     // A route the UI does not link to is still a route, and a middleware
     // guard on the router would not know whether this is the first account.
-    assert.match(controller, /process\.env\.DISABLE_REGISTRATION === 'true'/)
+    // DISABLE_REGISTRATION or the setting, through helpers/config.ts.
+    assert.match(controller, /!registrationOpen\(\)/)
+    assert.match(read('src/helpers/config.ts'), /configValue\('DISABLE_REGISTRATION'\) !== 'true'/)
     assert.match(controller, /Registration is closed/)
   })
 
@@ -66,7 +68,7 @@ describe('DISABLE_REGISTRATION', () => {
   test('does not apply when no account exists yet', () => {
     // Otherwise a fresh deployment with the flag already set can never create
     // its own admin, and the flag locks the operator out of their own install.
-    const guard = controller.match(/if \(!isFirstUser && process\.env\.DISABLE_REGISTRATION[^)]*\)/)
+    const guard = controller.match(/if \(!isFirstUser && !registrationOpen\(\)\)/)
 
     assert.ok(guard, 'the guard must exempt the first account')
   })
@@ -104,12 +106,17 @@ describe('DISABLE_REGISTRATION', () => {
 
       if (!source.includes("'/register'")) continue
 
+      // useRegistrationOpen() folds in the build flag and the setting.
       assert.match(
         source,
-        /!__DISABLE_REGISTRATION__/,
+        /registrationOpen && \(/,
         `${file} links to /register without guarding it`
       )
     }
+
+    const hook = read('src/client/hooks/useRegistrationOpen.ts')
+    assert.match(hook, /useState\(!__DISABLE_REGISTRATION__\)/)
+    assert.match(hook, /registration_open !== false/)
   })
 })
 

@@ -3,12 +3,13 @@ import { absoluteUrl } from '@basicbenframework/core/storage'
 import type { Settings as SettingsType } from '../types/index.ts'
 import { SITE_DEFAULTS } from '../helpers/site-settings.ts'
 import { siteUrl } from '../helpers/site.ts'
+import { configValue } from '../helpers/config.ts'
 
 /** What `/api/v1/site` reports. See `siteInfo()`. */
 export interface PublicSiteInfo {
   name: string
   description: string
-  /** The public site's origin, from SITE_URL (or APP_URL). Read-only: configuration, not a setting. */
+  /** The public site's origin: SITE_URL, else the Site URL setting, else APP_URL. */
   url: string
   /** Absolute URL of the logo, or null. */
   logo_url: string | null
@@ -93,8 +94,9 @@ export const Settings = {
   },
 
   // Convenience methods for common settings
+  // SITE_NAME, when set, wins over the setting: see helpers/config.ts.
   async getSiteName(): Promise<string> {
-    return (await this.get('site_name')) || 'My BasicBen Blog'
+    return configValue('SITE_NAME') || (await this.get('site_name')) || 'My BasicBen Blog'
   },
 
   async getSiteDescription(): Promise<string> {
@@ -160,7 +162,7 @@ export const Settings = {
     const image = (key: string) => (value(key) ? absoluteUrl(value(key)) : null)
 
     return {
-      name: value('site_name') || 'My BasicBen Blog',
+      name: configValue('SITE_NAME') || value('site_name') || 'My BasicBen Blog',
       description: value('site_description'),
       url: siteUrl(),
       logo_url: image('site_logo'),

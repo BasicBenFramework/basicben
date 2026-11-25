@@ -20,12 +20,13 @@ import { User } from '../models/User.ts'
 import { verifyPasskeyAssertion } from './PasskeyController.ts'
 import { TwoFactor } from '../models/TwoFactor.ts'
 import type { Request, Response } from '../types/index.ts'
+import { siteName } from '../helpers/config.ts'
 
 // A challenge is the only thing standing between a correct password and a
 // session, so it is short-lived and single use.
 const CHALLENGE_TTL = 5 * 60 * 1000
 
-const issuer = () => process.env.SITE_NAME || 'BasicBen'
+const issuer = () => siteName()
 
 /**
  * Start the second step of a login.

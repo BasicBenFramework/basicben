@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { getDb } from '@basicbenframework/core/db'
 import { loadConfig } from '@basicbenframework/core/server'
-import { getStorage, resolveConfig } from '@basicbenframework/core/storage'
+import { resolveConfig } from '@basicbenframework/core/storage'
+import { getStorage, storageSource } from '../helpers/storage.ts'
 import { sendMail } from '@basicbenframework/core/mail'
 import { Post } from '../models/Post.ts'
 import { User } from '../models/User.ts'
@@ -11,6 +12,7 @@ import { runCron, cronAuthorized } from '../host/cron.ts'
 import { readHeartbeats } from '../helpers/heartbeat.ts'
 import { evaluateHealth, overallStatus, databaseFacts, migrationFilesIn, isServerless, type HealthFacts } from '../helpers/health.ts'
 import type { Request, Response } from '../types/index.ts'
+import { CONFIG, configValue, describeConfig } from '../helpers/config.ts'
 
 /**
  * The installed framework version, read from its package.json.
@@ -63,7 +65,7 @@ export const HealthController = {
       // The migrator's own list: defineSite's (the CMS's, then the site's), or
       // the framework's default.
       migrationFiles: migrationFilesIn((config.migrations as string[] | undefined) ?? 'db/migrations'),
-      storageDriver: String(resolveConfig(config.storage || {}).driver),
+      storageDriver: storageSource() === 'settings' ? 's3' : String(resolveConfig(config.storage || {}).driver),
       mailTransport: transportName(config.mail),
       mailFrom: config.mail?.from ?? null,
       heartbeats: await readHeartbeats(db),
@@ -71,13 +73,16 @@ export const HealthController = {
       ...(await databaseFacts(db, now))
     }
 
-    const checks = evaluateHealth(process.env, facts, now)
+    // The values in use, wherever they come from: a setting the admin saved
+    // counts as configured, the same as the variable would.
+    const env = { ...process.env, ...effectiveEnv() }
+    const checks = evaluateHealth(env, facts, now)
 
     // Features' own checks. One that throws reports itself as a warning rather
     // than taking the page down.
     for (const { name, run } of featureHealthChecks()) {
       try {
-        const found = await run({ db, now, env: process.env })
+        const found = await run({ db, now, env })
         if (found) checks.push(...(Array.isArray(found) ? found : [found]))
       } catch (err) {
         checks.push({ id: name, label: name, status: 'warn', message: `The check failed: ${short(err)}`, hint: '' })
@@ -92,7 +97,8 @@ export const HealthController = {
         node_env: process.env.NODE_ENV || null,
         serverless: isServerless(process.env)
       },
-      checks
+      checks,
+      config: describeConfig()
     })
   },
 
@@ -183,4 +189,9 @@ export const HealthController = {
     if (!cronAuthorized(req)) return res.json({ error: 'Not found' }, 404)
     res.json(await runCron())
   }
+}
+
+/** Every configurable variable, with the value in use (env or setting) or absent. */
+function effectiveEnv(): Record<string, string | undefined> {
+  return Object.fromEntries(CONFIG.map((entry) => [entry.env, configValue(entry.env) || undefined]))
 }

@@ -156,14 +156,14 @@ export function evaluateHealth(
   if (facts.storageDriver === 'local') {
     checks.push(serverless
       ? check('storage', 'Media storage', 'fail', 'Local disk on a serverless host — uploads cannot work.',
-        'Configure object storage: S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_ENDPOINT, S3_PUBLIC_URL (R2, S3, B2, MinIO all work).')
+        'Configure object storage in Settings → Storage, or with S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_ENDPOINT and S3_PUBLIC_URL in the environment (R2, S3, B2, MinIO all work).')
       : check('storage', 'Media storage', production ? 'warn' : 'pass', 'Local disk (public/uploads).',
         production ? 'Uploads live on this machine only and are not in the JSON backup. Use object storage, or back the directory up separately.' : ''))
   } else {
     const publicUrl = Boolean(env.S3_PUBLIC_URL)
     checks.push(check('storage', 'Media storage', publicUrl ? 'pass' : 'warn',
       `${facts.storageDriver} (bucket set, access key ${env.S3_ACCESS_KEY_ID ? 'set' : 'missing'}, secret ${env.S3_SECRET_ACCESS_KEY ? 'set' : 'missing'}${publicUrl ? ', public URL set' : ''}).`,
-      publicUrl ? 'Use "Run storage probe" to confirm the credentials can write, read and delete.' : 'Set S3_PUBLIC_URL to the bucket\'s public or CDN address, or media URLs point at the private API host.'))
+      publicUrl ? 'Use "Run storage probe" to confirm the credentials can write, read and delete.' : 'Set the public URL (Settings → Storage, or S3_PUBLIC_URL) to the bucket\'s public or CDN address, or media URLs point at the private API host.'))
   }
 
   if (facts.mailTransport === 'console') {
@@ -182,7 +182,7 @@ export function evaluateHealth(
   const which = env.SITE_URL ? 'SITE_URL' : 'APP_URL'
   if (!publicUrl) {
     checks.push(check('site_url', 'Site URL', production ? 'fail' : 'warn', 'Neither SITE_URL nor APP_URL is set.',
-      'Set APP_URL (this app) and SITE_URL (the public front end, if separate). Feeds, the sitemap and email links are built from them.'))
+      'Set APP_URL (this app), and the Site URL in Settings or SITE_URL (the public front end, if separate). Feeds, the sitemap and email links are built from them.'))
   } else {
     let url: URL | null = null
     try { url = new URL(publicUrl) } catch { /* reported below */ }
@@ -241,7 +241,7 @@ export function evaluateHealth(
 
   checks.push(production && env.DISABLE_REGISTRATION !== 'true'
     ? check('registration', 'Registration', 'warn', 'Open — anyone can create an account.',
-      'Set DISABLE_REGISTRATION=true and invite people from Users instead, unless open sign-up is the intent.')
+      'Close registration in Settings (or set DISABLE_REGISTRATION=true) and invite people from Users instead, unless open sign-up is the intent.')
     : check('registration', 'Registration', 'pass', env.DISABLE_REGISTRATION === 'true' ? 'Disabled; accounts are by invitation.' : 'Open (fine outside production).'))
 
   checks.push(facts.settings.public_api === 'true'

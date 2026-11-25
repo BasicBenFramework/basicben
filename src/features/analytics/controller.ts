@@ -9,6 +9,7 @@ import {
 } from './helpers.ts'
 import { recordHit, summary, analyticsSettings, purgeOpportunistically } from './model.ts'
 import type { Request, Response } from '../../types/index.ts'
+import { configValue } from '../../helpers/config.ts'
 
 /** The ranges the admin offers. Anything else is refused, not clamped. */
 const RANGES = [7, 30, 90]
@@ -50,7 +51,7 @@ export const AnalyticsController = {
       if (!settings.enabled) return accepted(res)
 
       const ownHosts = [
-        hostOf(process.env.SITE_URL),
+        hostOf(configValue('SITE_URL')),
         hostOf(process.env.APP_URL),
         hostOf(req.headers.origin),
         hostOf(body.path)

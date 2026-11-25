@@ -13,7 +13,8 @@
  */
 
 import { getDb } from '@basicbenframework/core/db'
-import { getStorage, absoluteUrl } from '@basicbenframework/core/storage'
+import { absoluteUrl } from '@basicbenframework/core/storage'
+import { getStorage } from '../helpers/storage.ts'
 import { livePost, livePage, parseStoredTimestamp } from './visibility.ts'
 import { responsiveImage, type ResponsiveImage } from '../helpers/images.ts'
 import { siteUrl } from '../helpers/site.ts'

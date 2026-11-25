@@ -6,6 +6,7 @@ import { emailSendLimiter } from '../middleware/rate-limits.ts'
 import { hooks, HOOKS } from '@basicbenframework/core/hooks'
 import { User } from '../models/User.ts'
 import type { Request, Response } from '../types/index.ts'
+import { siteName } from '../helpers/config.ts'
 
 const appUrl = () => process.env.APP_URL || 'http://localhost:3000'
 
@@ -23,7 +24,7 @@ export async function sendVerificationEmail(user: { id: number; name: string; em
 
   const body = renderMail('verify-email', {
     name: user.name,
-    siteName: process.env.SITE_NAME || 'BasicBen',
+    siteName: siteName(),
     verifyUrl
   })
 

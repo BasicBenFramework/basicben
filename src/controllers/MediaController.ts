@@ -19,7 +19,7 @@ import { imageSize } from '../helpers/image-size.ts'
  */
 
 import { signUpload, confirmUpload, deleteUpload } from '@basicbenframework/core/storage/uploads'
-import { getStorage } from '@basicbenframework/core/storage'
+import { getStorage } from '../helpers/storage.ts'
 import { Media } from '../models/Media.ts'
 import { guardWrite, MEDIA_HOOKS } from '../helpers/write-hooks.ts'
 import type { Request, Response } from '../types/index.ts'
@@ -73,7 +73,7 @@ export const MediaController = {
 
     const result = await signUpload(
       { filename: filename as string, contentType: contentType as string, size: size as number, userId: req.userId },
-      { maxSize: MAX_FILE_SIZE }
+      { maxSize: MAX_FILE_SIZE, storage: await getStorage() }
     )
 
     if (!result.ok) {
@@ -106,7 +106,7 @@ export const MediaController = {
 
     const result = await confirmUpload(
       { key: key as string, ticket: ticket as string, userId: req.userId },
-      { maxSize: MAX_FILE_SIZE }
+      { maxSize: MAX_FILE_SIZE, storage: await getStorage() }
     )
 
     if (!result.ok) {
@@ -149,7 +149,7 @@ export const MediaController = {
     }, { req }, { refused: 'Upload rejected.' })
 
     if (!creating.ok) {
-      await deleteUpload(result.key as string, { userId: req.userId }).catch(() => {})
+      await deleteUpload(result.key as string, { userId: req.userId, storage: await getStorage() }).catch(() => {})
       return res.json({ error: creating.error }, creating.status)
     }
 
@@ -206,7 +206,7 @@ export const MediaController = {
     // The row is the record; a storage object that outlives it is a leak, but a
     // failure to remove it should not fail the request the user asked for.
     try {
-      await deleteUpload(media.path, { userId: req.userId })
+      await deleteUpload(media.path, { userId: req.userId, storage: await getStorage() })
     } catch (err) {
       console.error('Failed to remove the stored object:', (err as Error).message)
     }

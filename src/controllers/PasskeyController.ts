@@ -9,6 +9,7 @@ import {
 import { User } from '../models/User.ts'
 import { Credential } from '../models/Credential.ts'
 import type { Request, Response } from '../types/index.ts'
+import { siteName } from '../helpers/config.ts'
 
 const CHALLENGE_TTL = 5 * 60 * 1000
 
@@ -20,7 +21,7 @@ const CHALLENGE_TTL = 5 * 60 * 1000
  * invalidates every enrolled passkey, so decide it before anyone enrols.
  */
 const rpId = () => process.env.WEBAUTHN_RP_ID || new URL(appUrl()).hostname
-const rpName = () => process.env.SITE_NAME || 'BasicBen'
+const rpName = () => siteName()
 const appUrl = () => process.env.APP_URL || 'http://localhost:3000'
 
 /** Origins a response may claim. */

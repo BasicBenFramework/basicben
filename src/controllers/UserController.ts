@@ -29,9 +29,9 @@ import { User } from '../models/User.ts'
 import { paginationFrom, meta } from '../models/pagination.ts'
 import { issueSessionToken, revokeSessions } from '../helpers/session.ts'
 import type { Request, Response } from '../types/index.ts'
+import { siteName } from '../helpers/config.ts'
 
 const appUrl = () => process.env.APP_URL || 'http://localhost:3000'
-const siteName = () => process.env.SITE_NAME || 'BasicBen'
 
 /**
  * The auth_tokens kind for an invitation.

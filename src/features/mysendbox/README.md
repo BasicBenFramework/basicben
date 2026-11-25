@@ -1,6 +1,6 @@
 # Newsletters through MySendbox
 
-With `MYSENDBOX_API_KEY` set, the members feature's newsletters go through
+With a MySendbox API key (`MYSENDBOX_API_KEY`, or the setting), the members feature's newsletters go through
 [MySendbox](https://mysendbox.com) instead of its own queue:
 
 - **Members become MySendbox contacts** in one audience, named after the site
@@ -33,7 +33,10 @@ In MySendbox:
 
 Here:
 
-1. Set `MYSENDBOX_API_KEY` and `MYSENDBOX_WEBHOOK_SECRET`, and restart.
+1. Set `MYSENDBOX_WEBHOOK_SECRET`, and restart. Set `MYSENDBOX_API_KEY` too,
+   or enter the key in **Settings** instead (stored encrypted with `APP_KEY`);
+   the variable wins when both are set. The webhook secret stays
+   environment-only, because it authenticates requests to this server.
 2. In **Settings**, fill the **Newsletters through MySendbox** card. Write the
    consent attestation if you have members you added or imported (see below).
 3. Click **Copy members to MySendbox**, and save the settings first if you

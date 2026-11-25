@@ -25,7 +25,12 @@ const strings: Dictionary = {
   "draft": "borrador",
   "scheduled": "programado",
   "paused": "en pausa",
-  "canceled": "cancelado"
+  "canceled": "cancelado",
+  "MySendbox API key": "Clave de API de MySendbox",
+  "MySendbox API URL": "URL de la API de MySendbox",
+  "A key with the contacts and broadcasts scopes. Stored encrypted with APP_KEY and never shown again.": "Una clave con los permisos de contactos y envíos. Se guarda cifrada con APP_KEY y no se vuelve a mostrar.",
+  "Blank for MySendbox itself.": "En blanco para el propio MySendbox.",
+  "Add an API key to send newsletters to members through MySendbox. Save, then reload this page.": "Añade una clave de API para enviar boletines a los miembros a través de MySendbox. Guarda y vuelve a cargar esta página."
 }
 
 export default strings

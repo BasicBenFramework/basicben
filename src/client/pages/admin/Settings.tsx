@@ -3,6 +3,7 @@ import { api } from '../../../helpers/api.ts'
 import AdminLayout from '../../layouts/AdminLayout.tsx'
 import { useT, ADMIN_LOCALES, applySiteLocale, slots } from '../../i18n/index.ts'
 import { Slot } from '../../host/index.ts'
+import { ConfigField, type ConfigStatus } from '../../components/admin/ConfigField.tsx'
 
 interface SiteSettings {
   site_name: string
@@ -21,6 +22,16 @@ interface SiteSettings {
   admin_locale: string
   code_injection_head: string
   code_injection_foot: string
+  // Configuration the environment can also set (helpers/config.ts).
+  site_url: string
+  disable_registration: string
+  image_transform_url: string
+  storage_bucket: string
+  storage_endpoint: string
+  storage_region: string
+  storage_public_url: string
+  storage_access_key_id: string
+  storage_secret_access_key: string
 }
 
 const DEFAULTS: SiteSettings = {
@@ -39,7 +50,16 @@ const DEFAULTS: SiteSettings = {
   locale: 'en',
   admin_locale: '',
   code_injection_head: '',
-  code_injection_foot: ''
+  code_injection_foot: '',
+  site_url: '',
+  disable_registration: 'false',
+  image_transform_url: '',
+  storage_bucket: '',
+  storage_endpoint: '',
+  storage_region: '',
+  storage_public_url: '',
+  storage_access_key_id: '',
+  storage_secret_access_key: ''
 }
 
 // The zones the runtime knows, for the picker. The server validates against
@@ -55,6 +75,9 @@ const TIME_ZONES: string[] = (() => {
 const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '13px' }
 const hint = { color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }
 
+/** The value in use for a configurable setting, when it is not secret. */
+const configValueOf = (status?: ConfigStatus) => status?.value ?? ''
+
 export default function AdminSettings() {
   const { t } = useT()
   const [settings, setSettings] = useState<SiteSettings>(DEFAULTS)
@@ -66,6 +89,17 @@ export default function AdminSettings() {
   // Every stored setting, for features' sections, and what they changed.
   const [stored, setStored] = useState<Record<string, string>>({})
   const [extra, setExtra] = useState<Record<string, string>>({})
+  // Where each configurable value comes from, and which secrets are saved.
+  const [config, setConfig] = useState<ConfigStatus[]>([])
+  const [secrets, setSecrets] = useState<Record<string, boolean>>({})
+  const statusOf = (setting: string) => config.find((entry) => entry.setting === setting)
+  const field = (name: keyof SiteSettings) => ({
+    name,
+    value: settings[name],
+    onChange: (value: string) => setSettings(prev => ({ ...prev, [name]: value })),
+    status: statusOf(name),
+    saved: secrets[name]
+  })
 
   useEffect(() => {
     loadSettings()
@@ -73,7 +107,7 @@ export default function AdminSettings() {
 
   const loadSettings = async () => {
     try {
-      const res = await api.get<{ settings: Partial<SiteSettings>; site_url?: string }>('/api/settings')
+      const res = await api.get<{ settings: Partial<SiteSettings>; site_url?: string; config?: ConfigStatus[]; secrets?: Record<string, boolean> }>('/api/settings')
       if (res?.settings) {
         // Only the known keys, each falling back to its default: the response
         // can also carry legacy rows the form has no field for, and sending
@@ -86,6 +120,8 @@ export default function AdminSettings() {
         setStored(Object.fromEntries(Object.entries(res.settings).map(([key, value]) => [key, String(value ?? '')])))
       }
       setSiteUrl(res?.site_url || '')
+      setConfig(res?.config || [])
+      setSecrets(res?.secrets || {})
     } catch (error) {
       console.error('Failed to load settings:', error)
     } finally {
@@ -100,7 +136,13 @@ export default function AdminSettings() {
     setFailed(false)
 
     try {
-      await api.put('/api/settings', { settings: { ...settings, ...extra } })
+      const saved = await api.put<{ config?: ConfigStatus[]; secrets?: Record<string, boolean> }>('/api/settings', { settings: { ...settings, ...extra } })
+      // A secret is sent once: clear its field and show it as saved.
+      const sent = new Set(Object.keys(saved?.secrets || {}))
+      setSettings(prev => Object.fromEntries(Object.entries(prev).map(([key, value]) => [key, sent.has(key) ? '' : value])) as unknown as SiteSettings)
+      setExtra(prev => Object.fromEntries(Object.entries(prev).filter(([key]) => !sent.has(key))))
+      if (saved?.config) setConfig(saved.config)
+      if (saved?.secrets) setSecrets(saved.secrets)
       // The admin's own language may have just changed; show it now.
       await applySiteLocale(settings.admin_locale)
       setMessage(t('Settings saved successfully!'))
@@ -138,11 +180,15 @@ export default function AdminSettings() {
             <input
               type="text"
               name="site_name"
-              value={settings.site_name}
+              value={statusOf('site_name')?.locked_by ? statusOf('site_name')?.value ?? '' : settings.site_name}
               onChange={handleChange}
               className="admin-input"
               placeholder={t('My Blog')}
+              disabled={Boolean(statusOf('site_name')?.locked_by)}
             />
+            {statusOf('site_name')?.locked_by && (
+              <p style={hint}>{slots(t('Set by {variable} in the environment, which wins over this setting.'), { variable: <code>{'SITE_NAME'}</code> })}</p>
+            )}
           </div>
 
           <div className="admin-form-group">
@@ -162,13 +208,12 @@ export default function AdminSettings() {
         <div className="admin-card">
           <h3 className="admin-card-title">{t('Site Identity')}</h3>
 
-          <div className="admin-form-group">
-            <label className="admin-label">{t('Site URL')}</label>
-            <input type="text" value={siteUrl} className="admin-input" readOnly disabled />
-            <p style={hint}>
-              {slots(t('Set by {variable} in the environment, not here. Feeds, the sitemap and {path} link to it.'), { variable: <code>{'SITE_URL'}</code>, path: <code>{'/api/v1/site'}</code> })}
-            </p>
-          </div>
+          <ConfigField
+            {...field('site_url')}
+            label={t('Site URL')}
+            placeholder={siteUrl}
+            help={slots(t('The public site, if it is not this app. Feeds, the sitemap and {path} link to it. Blank uses APP_URL.'), { path: <code>{'/api/v1/site'}</code> })}
+          />
 
           <div className="admin-form-group">
             <label className="admin-label">{t('Logo URL')}</label>
@@ -278,7 +323,7 @@ export default function AdminSettings() {
 
         {/* Features' settings that belong with reading, such as the theme's
             "render the public site". Saved with the rest of the form. */}
-        <Slot name="settings.reading" values={{ ...stored, ...extra }} onChange={(changes: Record<string, string>) => setExtra(prev => ({ ...prev, ...changes }))} />
+        <Slot name="settings.reading" values={{ ...stored, ...extra }} config={config} secrets={secrets} onChange={(changes: Record<string, string>) => setExtra(prev => ({ ...prev, ...changes }))} />
 
         {/* Discussion Settings */}
         <div className="admin-card">
@@ -393,6 +438,55 @@ export default function AdminSettings() {
               style={mono}
             />
           </div>
+        </div>
+
+        {/* Registration: DISABLE_REGISTRATION wins when set. */}
+        <div className="admin-card">
+          <h3 className="admin-card-title">{t('Registration')}</h3>
+
+          <div className="admin-form-group">
+            <label className="admin-label" htmlFor="disable_registration">{t('Who can create an account')}</label>
+            <select
+              id="disable_registration"
+              name="disable_registration"
+              value={statusOf('disable_registration')?.locked_by ? (configValueOf(statusOf('disable_registration')) === 'true' ? 'true' : 'false') : settings.disable_registration}
+              onChange={handleChange}
+              className="admin-select"
+              disabled={Boolean(statusOf('disable_registration')?.locked_by)}
+            >
+              <option value="false">{t('Anyone, from the sign-up page')}</option>
+              <option value="true">{t('Only people you invite from Users')}</option>
+            </select>
+            <p style={hint}>
+              {statusOf('disable_registration')?.locked_by
+                ? slots(t('Set by {variable} in the environment, which wins over this setting.'), { variable: <code>{'DISABLE_REGISTRATION'}</code> })
+                : t('The first account can always be created, so a new site can make its admin.')}
+            </p>
+          </div>
+        </div>
+
+        {/* Media storage: the S3_* variables, as settings. S3_BUCKET locks them all. */}
+        <div className="admin-card">
+          <h3 className="admin-card-title">{t('Media Storage')}</h3>
+          <p style={{ ...hint, marginTop: 0, marginBottom: '1rem' }}>
+            {statusOf('storage_bucket')?.locked_by
+              ? slots(t('Storage is configured by {variable} and the other S3 variables in the environment, which win over these settings.'), { variable: <code>{'S3_BUCKET'}</code> })
+              : t('Any S3-compatible bucket: Cloudflare R2, AWS S3, Backblaze B2, MinIO. Without one, uploads go to this server\'s disk, which serverless hosts do not keep.')}
+          </p>
+
+          <ConfigField {...field('storage_bucket')} label={t('Bucket')} />
+          <ConfigField {...field('storage_endpoint')} label={t('Endpoint')} placeholder={'https://<account-id>.r2.cloudflarestorage.com'} help={t('Blank for AWS S3.')} />
+          <ConfigField {...field('storage_region')} label={t('Region')} placeholder={'auto'} help={t('auto for R2; the bucket\'s region for AWS S3.')} />
+          <ConfigField {...field('storage_public_url')} label={t('Public URL')} placeholder={'https://media.example.com'} help={t('Where the files are served from: a custom domain or CDN in front of the bucket.')} />
+          <ConfigField {...field('storage_access_key_id')} label={t('Access key ID')} />
+          <ConfigField {...field('storage_secret_access_key')} label={t('Secret access key')} help={t('Stored encrypted with APP_KEY and never shown again.')} />
+
+          <ConfigField
+            {...field('image_transform_url')}
+            label={t('Image transform URL')}
+            placeholder={'https://example.com/cdn-cgi/image/width={width}/{url}'}
+            help={t('Optional. A resizing service template with {url} and {width}, so images get a srcset.')}
+          />
         </div>
 
         {/* Save Button */}

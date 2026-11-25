@@ -25,6 +25,11 @@ export type Check = (value: unknown) => { value: string } | { error: string }
 export interface SettingDefinition {
   group: SettingGroup
   check: Check
+  /**
+   * Stored encrypted, never sent back to the admin (see helpers/config.ts).
+   * A blank value on save keeps the stored one; DELETE clears it.
+   */
+  secret?: boolean
 }
 
 const text = (max: number, { required = false } = {}): Check => (value) => {
@@ -175,6 +180,24 @@ const httpUrlOrBlank: Check = (value) => {
 }
 
 /**
+ * An image transform URL template: blank, or a template naming the image with
+ * {url} or {url_encoded} and the size with {width}. It starts with http(s)://
+ * or with {url} (Bunny's `{url}?width={width}`). See helpers/images.ts.
+ */
+const imageTransformTemplate: Check = (value) => {
+  if (value === null || value === undefined || value === '') return { value: '' }
+  if (typeof value !== 'string' || value.length > MAX_URL_LENGTH) return { error: 'Must be a URL template' }
+
+  const template = value.trim()
+  if (!/^(https?:\/\/|\{url\})/i.test(template)) return { error: 'Must start with http://, https:// or {url}' }
+  if (!/\{url(_encoded)?\}/.test(template) || !template.includes('{width}')) {
+    return { error: 'Must contain {url} or {url_encoded}, and {width}' }
+  }
+
+  return { value: template }
+}
+
+/**
  * The known settings.
  *
  * Code injection is HTML a front end inserts verbatim into every page's
@@ -209,7 +232,21 @@ export const SETTINGS: Record<string, SettingDefinition> = {
   admin_locale: { group: 'locale', check: locale },
 
   code_injection_head: { group: 'code_injection', check: text(100_000) },
-  code_injection_foot: { group: 'code_injection', check: text(100_000) }
+  code_injection_foot: { group: 'code_injection', check: text(100_000) },
+
+  // Configuration the environment can also set, and then wins: see
+  // helpers/config.ts. The site URL is where feeds and the sitemap link.
+  site_url: { group: 'general', check: httpUrlOrBlank },
+  disable_registration: { group: 'general', check: flag },
+  image_transform_url: { group: 'media', check: imageTransformTemplate },
+
+  // Object storage for the media library, as the S3_* variables would set it.
+  storage_bucket: { group: 'storage', check: text(255) },
+  storage_endpoint: { group: 'storage', check: httpUrlOrBlank },
+  storage_region: { group: 'storage', check: text(64) },
+  storage_public_url: { group: 'storage', check: httpUrlOrBlank },
+  storage_access_key_id: { group: 'storage', check: text(256), secret: true },
+  storage_secret_access_key: { group: 'storage', check: text(256), secret: true }
 }
 
 /**
@@ -218,6 +255,10 @@ export const SETTINGS: Record<string, SettingDefinition> = {
  * checked exactly as strictly.
  */
 export const checks = { text, flag, integer, oneOf, imageUrl, urlList, timeZone, locale, emailOrBlank, httpUrlOrBlank }
+
+export function isSecretDefinition(key: string): boolean {
+  return Boolean(SETTINGS[key]?.secret)
+}
 
 /**
  * Add a feature's settings to the allowlist. A key core or another feature

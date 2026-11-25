@@ -11,6 +11,7 @@ import { loginByAddress, loginByAccount } from '../middleware/rate-limits.ts'
 import { issueSessionToken, revokeSessions } from '../helpers/session.ts'
 import { getDb } from '@basicbenframework/core/db'
 import type { Request, Response } from '../types/index.ts'
+import { registrationOpen } from '../helpers/config.ts'
 
 /**
  * A hash to check against when the address has no account.
@@ -62,7 +63,7 @@ export const AuthController = {
     // business asking: a taken address would come back "already registered"
     // while a free one came back "closed", turning an endpoint that refuses
     // everyone into a way to test which addresses have accounts.
-    if (!isFirstUser && process.env.DISABLE_REGISTRATION === 'true') {
+    if (!isFirstUser && !registrationOpen()) {
       return res.json({ error: 'Registration is closed' }, 403)
     }
 

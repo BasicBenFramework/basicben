@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../helpers/api.ts'
 import { useT } from '../../client/i18n/index.ts'
 import type { SettingsSectionProps } from '../../client/host/index.ts'
+import { ConfigField } from '../../client/components/admin/ConfigField.tsx'
 
 const hint = { color: 'var(--fg-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }
 
@@ -20,7 +21,7 @@ interface Status {
  * copies the members who aren't yet. Saved with the rest of Settings, except
  * the copy, which runs at once.
  */
-export default function MySendboxSettingsCard({ values, onChange }: SettingsSectionProps) {
+export default function MySendboxSettingsCard({ values, onChange, config = [], secrets = {} }: SettingsSectionProps) {
   const { t } = useT()
   const [status, setStatus] = useState<Status | null>(null)
   const [copying, setCopying] = useState(false)
@@ -29,8 +30,44 @@ export default function MySendboxSettingsCard({ values, onChange }: SettingsSect
   const load = () => api.get<Status>('/api/mysendbox/status').then(setStatus).catch(() => setStatus(null))
   useEffect(() => { load() }, [])
 
-  // Not set up, or not someone who manages members: say nothing.
-  if (!status?.configured) return null
+  // The key and URL, which can also come from MYSENDBOX_API_KEY and
+  // MYSENDBOX_API_URL. Shown before the feature is configured, since this is
+  // where it gets configured.
+  const statusOf = (setting: string) => config.find((entry) => entry.setting === setting)
+  const connection = (
+    <>
+      <ConfigField
+        name="mysendbox_api_key"
+        label={t('MySendbox API key')}
+        value={values.mysendbox_api_key ?? ''}
+        onChange={(value) => onChange({ mysendbox_api_key: value })}
+        status={statusOf('mysendbox_api_key')}
+        saved={secrets.mysendbox_api_key}
+        help={t('A key with the contacts and broadcasts scopes. Stored encrypted with APP_KEY and never shown again.')}
+      />
+      <ConfigField
+        name="mysendbox_api_url"
+        label={t('MySendbox API URL')}
+        value={values.mysendbox_api_url ?? ''}
+        onChange={(value) => onChange({ mysendbox_api_url: value })}
+        status={statusOf('mysendbox_api_url')}
+        help={t('Blank for MySendbox itself.')}
+      />
+    </>
+  )
+
+  // Not set up yet: just the connection. Not someone who manages members
+  // (no status at all): nothing.
+  if (!status) return null
+  if (!status.configured) {
+    return (
+      <div className="admin-card">
+        <h3 className="admin-card-title">{t('Newsletters through MySendbox')}</h3>
+        <p style={hint}>{t('Add an API key to send newsletters to members through MySendbox. Save, then reload this page.')}</p>
+        {connection}
+      </div>
+    )
+  }
 
   const copy = async () => {
     setCopying(true)
@@ -78,6 +115,7 @@ export default function MySendboxSettingsCard({ values, onChange }: SettingsSect
       </p>
       {status.error && <p style={{ ...hint, color: 'var(--danger, #b00)' }}>{status.error}</p>}
 
+      {connection}
       {field('mysendbox_from_address', t('From address'), t("Blank uses your MySendbox workspace's default sender."), 'email')}
       {field('mysendbox_from_name', t('From name'), t('Blank uses the newsletter sender name.'))}
       {field('mysendbox_consent_attestation', t('Consent for members you added or imported'),

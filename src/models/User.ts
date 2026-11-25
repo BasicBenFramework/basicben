@@ -1,6 +1,6 @@
 import { getDb, query } from '@basicbenframework/core/db'
 import { DEFAULT_ROLE, capabilitiesFor } from '@basicbenframework/core/auth/permissions'
-import { getStorage } from '@basicbenframework/core/storage'
+import { getStorage } from '../helpers/storage.ts'
 import { uniqueSlug } from './derive.ts'
 import type { AuthorProfile, User as UserType } from '../types/index.ts'
 

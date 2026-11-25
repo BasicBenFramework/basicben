@@ -118,7 +118,7 @@ export const NEVER_EXPORTED = [
  * under `omitted.settings` — a false positive costs a setting re-entered by
  * hand, a false negative would put a key in a file.
  */
-const SECRET_SETTING = /(secret|password|passwd|token|api[_-]?key|private[_-]?key|credential|smtp_pass)/i
+const SECRET_SETTING = /(secret|password|passwd|token|api[_-]?key|access[_-]?key|private[_-]?key|credential|smtp_pass)/i
 
 export function isSecretSetting(key: unknown): boolean {
   return SECRET_SETTING.test(String(key ?? ''))
