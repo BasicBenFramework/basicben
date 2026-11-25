@@ -7,6 +7,7 @@ import { can } from '@basicbenframework/core/auth/permissions'
 import { applySiteLocale, useT } from '../i18n/index.ts'
 import { withFeaturePages } from '../../host/menu.ts'
 import { enabledManifests } from '../host/index.ts'
+import { accentVars, useBrandDocument, useSite } from '../hooks/useSite.ts'
 
 interface MenuItem {
   path: string
@@ -163,15 +164,23 @@ export default function AdminLayout({ children, title, description, actions }: A
   // 'system' sets no attribute, which is what lets the media query decide.
   const themeAttr = appearance === 'system' ? undefined : appearance
 
+  // The site's name, logo and icon, and its accent colour for --accent
+  // (Settings → Site Identity). Built-in colours until it sets one.
+  const site = useSite()
+  useBrandDocument(site)
+  const siteName = site?.site_name || 'BasicBen'
+
   return (
-    <div className="admin-layout" data-theme={themeAttr}>
+    <div className="admin-layout" data-theme={themeAttr} style={accentVars(site) as React.CSSProperties}>
       <style>{adminStyles}</style>
 
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="admin-sidebar-header">
-          <Link href="/" className="admin-logo" title="BasicBen">
-            <span className="admin-logo-mark">B</span>
-            {sidebarOpen && <span className="admin-logo-text">BasicBen</span>}
+          <Link href="/" className="admin-logo" title={siteName}>
+            {site?.logo_url
+              ? <img src={site.logo_url} alt="" className="admin-logo-image" />
+              : <span className="admin-logo-mark">{siteName.trim().charAt(0).toUpperCase() || 'B'}</span>}
+            {sidebarOpen && <span className="admin-logo-text">{siteName}</span>}
           </Link>
         </div>
 
@@ -444,6 +453,20 @@ const adminStyles = `
     color: var(--accent-fg);
     font-size: 13px;
     font-weight: 700;
+  }
+
+  .admin-logo-image {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 7px;
+    object-fit: contain;
+  }
+
+  .admin-logo-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .admin-nav {

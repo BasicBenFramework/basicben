@@ -179,6 +179,16 @@ const httpUrlOrBlank: Check = (value) => {
   return { value: value.trim() }
 }
 
+/** A colour as #rrggbb (#rgb is expanded), or blank. Stored lower-case. */
+const hexColor: Check = (value) => {
+  if (value === null || value === undefined || value === '') return { value: '' }
+  if (typeof value !== 'string') return { error: 'Must be a colour like #3b82f6' }
+
+  let hex = value.trim().toLowerCase()
+  if (/^#[0-9a-f]{3}$/.test(hex)) hex = '#' + [...hex.slice(1)].map((c) => c + c).join('')
+  return /^#[0-9a-f]{6}$/.test(hex) ? { value: hex } : { error: 'Must be a colour like #3b82f6' }
+}
+
 /**
  * An image transform URL template: blank, or a template naming the image with
  * {url} or {url_encoded} and the size with {width}. It starts with http(s)://
@@ -223,6 +233,10 @@ export const SETTINGS: Record<string, SettingDefinition> = {
   site_logo: { group: 'identity', check: imageUrl },
   site_icon: { group: 'identity', check: imageUrl },
   default_social_image: { group: 'identity', check: imageUrl },
+  // The CMS's own screens: the admin's buttons and the sign-in page's tint,
+  // and the line under the site name there.
+  accent_color: { group: 'identity', check: hexColor },
+  login_tagline: { group: 'identity', check: text(200) },
 
   timezone: { group: 'locale', check: timeZone },
   locale: { group: 'locale', check: locale },
@@ -254,7 +268,7 @@ export const SETTINGS: Record<string, SettingDefinition> = {
  * (`host.settings.define`). Same rules as core's, so a feature's settings are
  * checked exactly as strictly.
  */
-export const checks = { text, flag, integer, oneOf, imageUrl, urlList, timeZone, locale, emailOrBlank, httpUrlOrBlank }
+export const checks = { text, flag, integer, oneOf, imageUrl, urlList, timeZone, locale, emailOrBlank, httpUrlOrBlank, hexColor }
 
 export function isSecretDefinition(key: string): boolean {
   return Boolean(SETTINGS[key]?.secret)

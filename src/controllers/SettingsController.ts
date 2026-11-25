@@ -148,12 +148,26 @@ export const SettingsController = {
   },
 
   // Convenience endpoints for common settings
+  /**
+   * `GET /api/site` — what the CMS's own screens brand themselves with: the
+   * sign-in pages, the admin's sidebar, the browser tab. Public, since the
+   * sign-in page is shown to people who are not signed in yet.
+   */
   async getSiteInfo(req: Request, res: Response) {
-    const siteName = await Settings.getSiteName()
-    const siteDescription = await Settings.getSiteDescription()
+    const [siteName, siteDescription, info, accent, tagline] = await Promise.all([
+      Settings.getSiteName(),
+      Settings.getSiteDescription(),
+      Settings.siteInfo(),
+      Settings.get('accent_color'),
+      Settings.get('login_tagline')
+    ])
     res.json({
       site_name: siteName,
       site_description: siteDescription,
+      logo_url: info.logo_url,
+      icon_url: info.icon_url,
+      accent_color: accent || null,
+      login_tagline: tagline || null,
       // For the sign-up links: DISABLE_REGISTRATION or the setting.
       registration_open: registrationOpen()
     })

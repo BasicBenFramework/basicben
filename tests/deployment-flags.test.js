@@ -115,7 +115,7 @@ describe('DISABLE_REGISTRATION', () => {
     }
 
     const hook = read('src/client/hooks/useRegistrationOpen.ts')
-    assert.match(hook, /useState\(!__DISABLE_REGISTRATION__\)/)
+    assert.match(hook, /if \(__DISABLE_REGISTRATION__\) return false/)
     assert.match(hook, /registration_open !== false/)
   })
 })

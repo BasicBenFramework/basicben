@@ -4,6 +4,7 @@ import AdminLayout from '../../layouts/AdminLayout.tsx'
 import { useT, ADMIN_LOCALES, applySiteLocale, slots } from '../../i18n/index.ts'
 import { Slot } from '../../host/index.ts'
 import { ConfigField, type ConfigStatus } from '../../components/admin/ConfigField.tsx'
+import { refreshSite } from '../../hooks/useSite.ts'
 
 interface SiteSettings {
   site_name: string
@@ -17,6 +18,8 @@ interface SiteSettings {
   site_logo: string
   site_icon: string
   default_social_image: string
+  accent_color: string
+  login_tagline: string
   timezone: string
   locale: string
   admin_locale: string
@@ -46,6 +49,8 @@ const DEFAULTS: SiteSettings = {
   site_logo: '',
   site_icon: '',
   default_social_image: '',
+  accent_color: '',
+  login_tagline: '',
   timezone: 'UTC',
   locale: 'en',
   admin_locale: '',
@@ -143,6 +148,8 @@ export default function AdminSettings() {
       setExtra(prev => Object.fromEntries(Object.entries(prev).filter(([key]) => !sent.has(key))))
       if (saved?.config) setConfig(saved.config)
       if (saved?.secrets) setSecrets(saved.secrets)
+      // The sidebar, the tab and the accent colour follow the saved identity.
+      refreshSite()
       // The admin's own language may have just changed; show it now.
       await applySiteLocale(settings.admin_locale)
       setMessage(t('Settings saved successfully!'))
@@ -250,6 +257,48 @@ export default function AdminSettings() {
               placeholder={t('Used on share cards when a post or page has no image')}
             />
             <p style={hint}>{t('Paste a URL from the media library, or a path starting with /.')}</p>
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label" htmlFor="accent_color">{t('Accent colour')}</label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="color"
+                aria-label={t('Pick a colour')}
+                value={/^#[0-9a-f]{6}$/i.test(settings.accent_color) ? settings.accent_color : '#6366f1'}
+                onChange={(e) => setSettings(prev => ({ ...prev, accent_color: e.target.value }))}
+                style={{ width: '2.75rem', height: '2.25rem', padding: 2, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', cursor: 'pointer' }}
+              />
+              <input
+                type="text"
+                id="accent_color"
+                name="accent_color"
+                value={settings.accent_color}
+                onChange={handleChange}
+                className="admin-input"
+                placeholder={'#6366f1'}
+                style={{ ...mono, maxWidth: '10rem' }}
+              />
+              {settings.accent_color && (
+                <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setSettings(prev => ({ ...prev, accent_color: '' }))}>
+                  {t('Reset')}
+                </button>
+              )}
+            </div>
+            <p style={hint}>{t('Buttons and highlights in the admin, and the tint on the sign-in page. Blank uses the built-in colours.')}</p>
+          </div>
+
+          <div className="admin-form-group">
+            <label className="admin-label" htmlFor="login_tagline">{t('Sign-in tagline')}</label>
+            <input
+              type="text"
+              id="login_tagline"
+              name="login_tagline"
+              value={settings.login_tagline}
+              onChange={handleChange}
+              className="admin-input"
+              placeholder={t('Shown under the site name on the sign-in page')}
+            />
           </div>
         </div>
 

@@ -120,3 +120,23 @@ describe('the new settings', () => {
     assert.ok('values' in validateSettings({ disable_registration: 'true', storage_bucket: 'media' }))
   })
 })
+
+describe('identity for the CMS\'s own screens', () => {
+  test('the accent colour is a hex colour, stored lower-case and expanded', () => {
+    assert.deepEqual(validateSettings({ accent_color: '#ABC' }), { values: { accent_color: { value: '#aabbcc', group: 'identity' } } })
+    assert.ok('values' in validateSettings({ accent_color: '' }))
+    for (const bad of ['red', '#12345', 'rgb(0,0,0)', '#gggggg']) assert.ok('errors' in validateSettings({ accent_color: bad }), bad)
+    assert.ok('errors' in validateSettings({ login_tagline: 'x'.repeat(201) }))
+  })
+
+  test('text on the accent stays readable', async () => {
+    const { readableOn, accentVars } = await load('src/client/hooks/useSite.ts')
+    assert.equal(readableOn('#ffffff'), '#111111')
+    assert.equal(readableOn('#facc15'), '#111111')
+    assert.equal(readableOn('#1d1c1a'), '#ffffff')
+    assert.equal(readableOn('#4f46e5'), '#ffffff')
+    assert.deepEqual(accentVars({ accent_color: '#4f46e5' }), { '--accent': '#4f46e5', '--accent-fg': '#ffffff' })
+    assert.deepEqual(accentVars({ accent_color: null }), {})
+    assert.deepEqual(accentVars({ accent_color: 'url(x)' }), {})
+  })
+})

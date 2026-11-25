@@ -257,6 +257,12 @@ const strings: Dictionary = {
   "Public theme": "Tema público",
   "MySendbox API key": "Clave de API de MySendbox",
   "MySendbox API URL": "URL de la API de MySendbox",
+  "Accent colour": "Color de acento",
+  "Pick a colour": "Elige un color",
+  "Reset": "Restablecer",
+  "Buttons and highlights in the admin, and the tint on the sign-in page. Blank uses the built-in colours.": "Botones y resaltados del panel, y el tono de la página de inicio de sesión. En blanco se usan los colores predeterminados.",
+  "Sign-in tagline": "Lema de inicio de sesión",
+  "Shown under the site name on the sign-in page": "Se muestra bajo el nombre del sitio en la página de inicio de sesión",
 }
 
 export default strings
