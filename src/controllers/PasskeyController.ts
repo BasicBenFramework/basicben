@@ -10,6 +10,8 @@ import { User } from '../models/User.ts'
 import { Credential } from '../models/Credential.ts'
 import type { Request, Response } from '../types/index.ts'
 import { siteName } from '../helpers/config.ts'
+import { sessionFor } from '../helpers/session.ts'
+import { PasskeyChallenge } from '../models/PasskeyChallenge.ts'
 
 const CHALLENGE_TTL = 5 * 60 * 1000
 
@@ -193,6 +195,64 @@ export const PasskeyController = {
     const handle = await issueChallenge(redeemed.userId, challenge)
 
     return res.json({ options, challengeHandle: handle })
+  },
+
+  /**
+   * Signing in with a passkey instead of a password: options with no
+   * allowCredentials, so the browser offers whichever passkey this device
+   * holds for the site. Nothing here says which accounts exist.
+   */
+  async signInOptions(_req: Request, res: Response) {
+    const { options, challenge } = generateAuthenticationOptions({ rpId: rpId(), userVerification: 'required' })
+    const challengeHandle = await PasskeyChallenge.issue(challenge, CHALLENGE_TTL)
+    return res.json({ options, challengeHandle })
+  },
+
+  /**
+   * The passkey's answer, exchanged for a session.
+   *
+   * The passkey replaces both the password and the second step, so the
+   * authenticator must have verified the person (fingerprint, face or PIN),
+   * not only that the device is present.
+   */
+  async signIn(req: Request, res: Response) {
+    const { challengeHandle, response } = req.body as { challengeHandle?: string; response?: Record<string, unknown> }
+    const failed = () => res.json({ error: 'That passkey could not sign you in.' }, 401)
+
+    const challenge = await PasskeyChallenge.redeem(challengeHandle)
+    if (!challenge) return res.json({ error: 'That sign-in attempt has expired. Please try again.' }, 401)
+
+    const presentedId = (response as { id?: unknown } | undefined)?.id
+    const credential = typeof presentedId === 'string' ? await Credential.findByCredentialId(presentedId) : undefined
+    if (!credential) return failed()
+
+    let signCount: number
+    try {
+      signCount = verifyAuthentication({
+        response,
+        credential: {
+          credentialId: credential.credential_id,
+          publicKey: credential.public_key,
+          signCount: credential.sign_count
+        },
+        expectedChallenge: challenge,
+        expectedOrigin: allowedOrigins(),
+        expectedRpId: rpId(),
+        requireUserVerification: true
+      }).signCount
+    } catch {
+      return failed()
+    }
+
+    const user = await User.find(credential.user_id)
+    if (!user) return failed()
+    // After the signature, as the password path checks it after the password.
+    if ((user as { disabled_at?: string | null }).disabled_at) {
+      return res.json({ error: 'This account has been disabled.' }, 403)
+    }
+
+    await Credential.recordUse(credential.id, signCount)
+    return res.json(sessionFor(user))
   },
 
   /** Remove a passkey. */

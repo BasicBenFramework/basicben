@@ -1,6 +1,5 @@
 import { verifyPassword } from '@basicbenframework/core/auth'
-import { issueSessionToken } from '../helpers/session.ts'
-import { DEFAULT_ROLE } from '@basicbenframework/core/auth/permissions'
+import { sessionFor } from '../helpers/session.ts'
 import { issueToken, redeemToken, TOKEN_KINDS } from '@basicbenframework/core/auth/tokens'
 import {
   generateSecret,
@@ -41,17 +40,6 @@ export async function issueChallenge(userId: number) {
   })
 
   return { challenge: token, expiresAt }
-}
-
-/** Mint the real session once a second factor has been satisfied. */
-function sessionFor(user: { id: number; name: string; email: string; role?: string; email_verified?: number; token_version?: number }) {
-  const role = user.role ?? DEFAULT_ROLE
-  const emailVerified = Boolean(user.email_verified)
-
-  return {
-    token: issueSessionToken(user),
-    user: { id: user.id, name: user.name, email: user.email, role, email_verified: emailVerified }
-  }
 }
 
 /**

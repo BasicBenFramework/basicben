@@ -48,3 +48,15 @@ export async function revokeSessions(userId: number): Promise<void> {
   const db = await getDb()
   await db.run('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [userId])
 }
+
+/**
+ * The sign-in answer once every factor is satisfied: the token and the
+ * account as the client keeps it.
+ */
+export function sessionFor(user: SessionUser & { name: string; email: string }) {
+  const role = user.role ?? DEFAULT_ROLE
+  return {
+    token: issueSessionToken(user),
+    user: { id: user.id, name: user.name, email: user.email, role, email_verified: Boolean(user.email_verified) }
+  }
+}

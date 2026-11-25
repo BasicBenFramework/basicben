@@ -117,6 +117,30 @@ export function Auth() {
     }
   }
 
+  /** A passkey instead of the password: the device's own passkey for this site. */
+  const signInWithPasskey = async () => {
+    setLoading(true)
+    try {
+      const { options, challengeHandle } = await api<{ options: unknown; challengeHandle: string }>('/api/auth/passkey/sign-in/options', { method: 'POST' })
+      let response
+      try {
+        response = await signWithPasskey(options)
+      } catch (err) {
+        toast.error(passkeyError(err))
+        return
+      }
+      const data = await api<AuthResponse>('/api/auth/passkey/sign-in', {
+        method: 'POST',
+        body: JSON.stringify({ challengeHandle, response })
+      })
+      finish(data, 'Welcome back!')
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const submitPasskey = async () => {
     if (!second) return
     setLoading(true)
@@ -260,6 +284,27 @@ export function Auth() {
           {loading ? (isLogin ? 'Signing in…' : 'Creating account…') : isLogin ? 'Sign in' : 'Create account'}
         </button>
       </form>
+
+      {/* Only for a passkey added in Profile; one used here skips the
+          password and the second step. */}
+      {isLogin && passkeysSupported() && (
+        <>
+          <div className={`flex items-center gap-3 my-5 text-xs ${t.muted}`}>
+            <span className={`flex-1 border-t ${t.border}`} />or<span className={`flex-1 border-t ${t.border}`} />
+          </div>
+          <button
+            type="button"
+            onClick={signInWithPasskey}
+            disabled={loading}
+            className={`w-full flex items-center justify-center gap-2 rounded-lg border ${t.border} py-2.5 text-sm font-medium transition hover:opacity-80 disabled:opacity-50`}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="7" r="4" /><path d="M2 21v-1a6 6 0 0 1 9.5-4.9" /><circle cx="17.5" cy="13.5" r="2.5" /><path d="M17.5 16v5l1.5-1.5M17.5 19l1.5-1" />
+            </svg>
+            Sign in with a passkey
+          </button>
+        </>
+      )}
 
       {/* With registration closed there is nothing to offer someone without an
           account, and inviting them to sign up would be a dead end. */}

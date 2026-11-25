@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent, ChangeEvent } from 'react'
+import { useEffect, useMemo, useState, FormEvent, ChangeEvent } from 'react'
 import { api } from '../../../helpers/api.ts'
 import { Card } from '../Card.tsx'
 import { Input } from '../Input.tsx'
@@ -7,6 +7,7 @@ import { useTheme } from '../ThemeContext.tsx'
 import { useToast } from '../../contexts/ToastContext.tsx'
 import { useT } from '../../i18n/index.ts'
 import { createPasskey, passkeyError, passkeysSupported } from '../../webauthn.ts'
+import { qrModules, qrPath } from '../../qr.ts'
 
 interface TwoFactorStatus {
   totp: { enabled: boolean; enabledAt: string | null }
@@ -28,10 +29,21 @@ type Pending =
   | { kind: 'add-passkey' }
   | { kind: 'remove-passkey'; id: number; label: string }
 
+/** The otpauth URI as a QR code, dark on white whatever the theme: scanners expect it. */
+function OtpQr({ uri, label }: { uri: string; label: string }) {
+  const modules = useMemo(() => qrModules(uri), [uri])
+  const size = modules.length + 8
+  return (
+    <svg role="img" aria-label={label} viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges" className="w-44 h-44 rounded-md bg-white">
+      <path d={qrPath(modules)} fill="#000" />
+    </svg>
+  )
+}
+
 /**
  * Two-step verification for the signed-in account: an authenticator app (with
- * recovery codes) and passkeys. Either one makes sign-in ask for it after the
- * password. Every change asks for the current password again, which the
+ * recovery codes) and passkeys. Either one makes a password sign-in ask for it
+ * next; a passkey can also sign in on its own, from the sign-in page. Every change asks for the current password again, which the
  * server requires.
  */
 export function SecurityCard() {
@@ -154,7 +166,7 @@ export function SecurityCard() {
         <div>
           <h2 className="font-medium">{t('Two-step verification')}</h2>
           <p className={muted}>
-            {t('With an authenticator app or a passkey, signing in asks for it after your password.')}
+            {t('An authenticator app asks for a code after your password. A passkey can sign you in on its own.')}
           </p>
         </div>
 
@@ -181,9 +193,10 @@ export function SecurityCard() {
 
         {enrolment && (
           <form onSubmit={confirmCode} className={`space-y-3 rounded-lg border ${theme.border} p-3`}>
-            <p className="text-sm">{t('Add this account to your authenticator app, then enter the code it shows.')}</p>
+            <p className="text-sm">{t('Scan this with your authenticator app, then enter the code it shows.')}</p>
+            <OtpQr uri={enrolment.uri} label={t('QR code for your authenticator app')} />
             <div>
-              <div className={muted}>{t('Setup key')}</div>
+              <div className={muted}>{t('Or type this setup key')}</div>
               <code className="block mt-1 text-sm font-mono break-all select-all">{enrolment.secret.match(/.{1,4}/g)?.join(' ')}</code>
             </div>
             {/* otpauth: is handed to whichever authenticator app is installed. */}
@@ -230,7 +243,7 @@ export function SecurityCard() {
             <div>
               <div className="text-sm font-medium">{t('Passkeys')}</div>
               <div className={muted}>
-                {passkeysSupported() ? t('Your fingerprint, face or device screen lock.') : t('This browser does not support passkeys.')}
+                {passkeysSupported() ? t('Sign in with your fingerprint, face or screen lock instead of your password.') : t('This browser does not support passkeys.')}
               </div>
             </div>
             {passkeysSupported() && (

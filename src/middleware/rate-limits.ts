@@ -118,6 +118,20 @@ export const twoFactorLimit = rateLimit({
 })
 
 /**
+ * Signing in with a passkey alone. A guess is not possible (the browser has to
+ * produce a signature), so this only stops one address filling the challenge
+ * table or spinning on the endpoint.
+ */
+export const passkeySignInLimit = rateLimit({
+  limit: 30,
+  window: '15m',
+  blockFor: '15m',
+  store,
+  key: addressIn('passkey-sign-in'),
+  message: 'Too many attempts. Please try again shortly.'
+})
+
+/**
  * Outbound email triggered by a caller.
  *
  * Used directly rather than as middleware, since the controller decides who the
