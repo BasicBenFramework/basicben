@@ -7,7 +7,7 @@ import { getStorage, storageSource } from '../helpers/storage.ts'
 import { sendMail } from '@basicbenframework/core/mail'
 import { Post } from '../models/Post.ts'
 import { User } from '../models/User.ts'
-import { featureHealthChecks } from '../host/index.ts'
+import { featureHealthChecks, registeredFeatures } from '../host/index.ts'
 import { runCron, cronAuthorized } from '../host/cron.ts'
 import { readHeartbeats } from '../helpers/heartbeat.ts'
 import { evaluateHealth, overallStatus, databaseFacts, migrationFilesIn, isServerless, type HealthFacts } from '../helpers/health.ts'
@@ -98,7 +98,7 @@ export const HealthController = {
         serverless: isServerless(process.env)
       },
       checks,
-      config: describeConfig()
+      config: describeConfig(registeredFeatures())
     })
   },
 

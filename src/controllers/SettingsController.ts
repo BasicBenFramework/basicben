@@ -5,6 +5,7 @@ import { describeConfig, lockedBy, refreshConfig, registrationOpen } from '../he
 import { encryptSecret } from '../helpers/secrets.ts'
 import { isSecretSetting } from '../helpers/export-data.ts'
 import type { Request, Response } from '../types/index.ts'
+import { registeredFeatures } from '../host/index.ts'
 
 /**
  * Site settings.
@@ -69,7 +70,7 @@ export const SettingsController = {
 
     // `config` says, for each value the environment can also set, where the
     // one in use comes from — so the admin can show which fields are locked.
-    res.json({ settings, secrets, site_url: siteUrl(req), config: describeConfig() })
+    res.json({ settings, secrets, site_url: siteUrl(req), config: describeConfig(registeredFeatures()) })
   },
 
   async byGroup(req: Request, res: Response) {
@@ -95,7 +96,7 @@ export const SettingsController = {
     const skipped = await writeSettings(result.values)
 
     const updated = redact(await Settings.asObject())
-    res.json({ ...updated, skipped, config: describeConfig() })
+    res.json({ ...updated, skipped, config: describeConfig(registeredFeatures()) })
   },
 
   async set(req: Request, res: Response) {
@@ -154,11 +155,10 @@ export const SettingsController = {
    * sign-in page is shown to people who are not signed in yet.
    */
   async getSiteInfo(req: Request, res: Response) {
-    const [siteName, siteDescription, info, accent, tagline] = await Promise.all([
+    const [siteName, siteDescription, info, tagline] = await Promise.all([
       Settings.getSiteName(),
       Settings.getSiteDescription(),
       Settings.siteInfo(),
-      Settings.get('accent_color'),
       Settings.get('login_tagline')
     ])
     res.json({
@@ -166,7 +166,7 @@ export const SettingsController = {
       site_description: siteDescription,
       logo_url: info.logo_url,
       icon_url: info.icon_url,
-      accent_color: accent || null,
+      accent_color: info.accent_color,
       login_tagline: tagline || null,
       // For the sign-up links: DISABLE_REGISTRATION or the setting.
       registration_open: registrationOpen()

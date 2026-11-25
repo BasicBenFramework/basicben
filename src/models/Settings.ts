@@ -17,6 +17,8 @@ export interface PublicSiteInfo {
   icon_url: string | null
   /** Image to use for social cards when a post or page has none of its own. */
   default_social_image_url: string | null
+  /** The brand colour (Settings → Site Identity), lower-case `#rrggbb`, or null. */
+  accent_color: string | null
   /** IANA time zone the site's dates should be shown in. */
   timezone: string
   /** BCP 47 language tag, for `<html lang>` and date formatting. */
@@ -153,8 +155,8 @@ export const Settings = {
   async siteInfo(): Promise<PublicSiteInfo> {
     const db = await getDb()
     const rows = (await db.all(
-      `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ['site_name', 'site_description', 'site_logo', 'site_icon', 'default_social_image',
+      `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ['site_name', 'site_description', 'site_logo', 'site_icon', 'default_social_image', 'accent_color',
         'timezone', 'locale', 'code_injection_head', 'code_injection_foot']
     )) as Array<{ key: string; value: string | null }>
 
@@ -168,6 +170,7 @@ export const Settings = {
       logo_url: image('site_logo'),
       icon_url: image('site_icon'),
       default_social_image_url: image('default_social_image'),
+      accent_color: value('accent_color') || null,
       timezone: value('timezone') || SITE_DEFAULTS.timezone,
       locale: value('locale') || SITE_DEFAULTS.locale,
       code_injection: {

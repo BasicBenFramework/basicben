@@ -45,6 +45,11 @@ export interface ConfigEntry {
    * of two configurations.
    */
   lockedBy?: string[]
+  /**
+   * The feature this belongs to. Its row is left out of the status list on a
+   * server that does not run that feature, where "unset" would read as a fault.
+   */
+  feature?: string
 }
 
 const STORAGE_ENV = ['S3_BUCKET']
@@ -64,8 +69,8 @@ export const CONFIG: ConfigEntry[] = [
   { env: 'S3_ACCESS_KEY_ID', setting: 'storage_access_key_id', label: 'Access key ID', group: 'storage', secret: true, lockedBy: STORAGE_ENV },
   { env: 'S3_SECRET_ACCESS_KEY', setting: 'storage_secret_access_key', label: 'Secret access key', group: 'storage', secret: true, lockedBy: STORAGE_ENV },
 
-  { env: 'MYSENDBOX_API_KEY', setting: 'mysendbox_api_key', label: 'MySendbox API key', group: 'mail', secret: true },
-  { env: 'MYSENDBOX_API_URL', setting: 'mysendbox_api_url', label: 'MySendbox API URL', group: 'mail' }
+  { env: 'MYSENDBOX_API_KEY', setting: 'mysendbox_api_key', label: 'MySendbox API key', group: 'mail', secret: true, feature: 'mysendbox' },
+  { env: 'MYSENDBOX_API_URL', setting: 'mysendbox_api_url', label: 'MySendbox API URL', group: 'mail', feature: 'mysendbox' }
 ]
 
 const byEnv = new Map(CONFIG.map((entry) => [entry.env, entry]))
@@ -121,8 +126,14 @@ export interface ConfigStatus {
 }
 
 /** Where each value comes from, for the admin. Never a secret's value. */
-export function describeConfig(): ConfigStatus[] {
-  return CONFIG.map((entry) => {
+/**
+ * Where each setting comes from, for Health and Settings. With `features`
+ * (the features this server registered), entries of other features are left
+ * out.
+ */
+export function describeConfig(features?: string[]): ConfigStatus[] {
+  const entries = features ? CONFIG.filter((entry) => !entry.feature || features.includes(entry.feature)) : CONFIG
+  return entries.map((entry) => {
     const locked = lockedBy(entry.setting)
     const value = configValue(entry.env)
 

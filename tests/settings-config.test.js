@@ -101,6 +101,26 @@ describe('the environment wins over settings', () => {
   })
 })
 
+describe('the status list on Health and Settings', () => {
+  test('leaves out the settings of a feature this server does not run', () => {
+    const envs = (list) => list.map((entry) => entry.env)
+    assert.ok(envs(config.describeConfig()).includes('MYSENDBOX_API_KEY'), 'unfiltered, everything')
+    const without = envs(config.describeConfig(['analytics', 'members', 'theme']))
+    assert.ok(!without.includes('MYSENDBOX_API_KEY') && !without.includes('MYSENDBOX_API_URL'))
+    assert.ok(without.includes('SITE_URL') && without.includes('S3_BUCKET'), 'core rows stay')
+    assert.ok(envs(config.describeConfig(['mysendbox'])).includes('MYSENDBOX_API_URL'))
+  })
+
+  test('both screens pass the registered features', async () => {
+    const { readFileSync } = await import('node:fs')
+    for (const file of ['src/controllers/HealthController.ts', 'src/controllers/SettingsController.ts']) {
+      const source = readFileSync(join(ROOT, file), 'utf-8')
+      assert.doesNotMatch(source, /describeConfig\(\)/, file)
+      assert.match(source, /describeConfig\(registeredFeatures\(\)\)/, file)
+    }
+  })
+})
+
 describe('the new settings', () => {
   test('secrets are declared, and fall under the export and backup rule', () => {
     for (const key of ['storage_access_key_id', 'storage_secret_access_key']) {
