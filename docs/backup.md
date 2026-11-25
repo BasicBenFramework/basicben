@@ -76,14 +76,19 @@ BACKUP_S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com   # omit for AW
 BACKUP_S3_REGION=auto
 ```
 
-Any `BACKUP_S3_*` you leave out falls back to the matching `S3_*` value, so a
-second bucket on the same account needs only `BACKUP_S3_BUCKET`. Give the
-backup key write access to the backup bucket only.
+Any `BACKUP_S3_*` you leave out falls back to the media bucket's matching
+value, so a second bucket on the same account needs only `BACKUP_S3_BUCKET`.
+Give the backup key write access to the backup bucket only.
+
+The media bucket is whichever uploads use: the `S3_*` variables when
+`S3_BUCKET` is set, otherwise the bucket in **Settings → Media Storage** (read
+from the database and decrypted with `APP_KEY`, so the command needs the same
+`APP_KEY` as the site).
 
 Without `BACKUP_S3_BUCKET`, backups go to the **media** bucket under
 `backups/`. That works, but a media bucket is usually public — an R2 bucket
-with a custom domain serves every key in it — and the script warns when
-`S3_PUBLIC_URL` suggests that is the case. The random file names make a
+with a custom domain serves every key in it — and the script warns when the
+media bucket has a public URL. The random file names make a
 backup hard to find; a private bucket makes it impossible.
 
 Prefer a lifecycle rule on the bucket (expire `backups/` after N days) over

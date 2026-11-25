@@ -98,21 +98,39 @@ export function selectForDeletion(names, keep) {
 }
 
 /**
- * Where uploads go, from the environment.
+ * Where uploads go.
  *
  * `BACKUP_S3_*` first: a backup bucket separate from the media bucket is the
  * recommended setup, because a media bucket is usually public — R2 with a
  * custom domain serves *every* key in it — and a backup holds every user's
- * address. Falling back to the media bucket's `S3_*` works, under the
- * `backups/` prefix, and is reported as `shared: true` so the CLI can say so.
+ * address. Falling back to the media bucket works, under the `backups/`
+ * prefix, and is reported as `shared: true` so the CLI can say so.
+ *
+ * The media bucket is the one uploads use: the `S3_*` variables when
+ * `S3_BUCKET` is set, otherwise the storage settings (`settings`, the shape of
+ * helpers/storage.ts's settingsStorageConfig()). Without that second source a
+ * site that set its bucket up in Settings had a media bucket the backup could
+ * not find.
  */
-export function backupStorageConfig(env = process.env) {
+export function backupStorageConfig(env = process.env, settings = null) {
   const own = Boolean(env.BACKUP_S3_BUCKET)
-  const pick = (name) => (own ? env[`BACKUP_S3_${name}`] ?? env[`S3_${name}`] : env[`S3_${name}`])
+  const fromEnv = Boolean(env.S3_BUCKET)
+  const SETTING = {
+    BUCKET: 'bucket',
+    ACCESS_KEY_ID: 'accessKeyId',
+    SECRET_ACCESS_KEY: 'secretAccessKey',
+    ENDPOINT: 'endpoint',
+    REGION: 'region',
+    PUBLIC_URL: 'publicUrl'
+  }
+  const media = (name) => (fromEnv ? env[`S3_${name}`] : settings?.[SETTING[name]] || undefined)
+  // A dedicated bucket has always borrowed any S3_* key it leaves out, with or
+  // without S3_BUCKET; the settings come after those.
+  const pick = (name) => (own ? env[`BACKUP_S3_${name}`] ?? env[`S3_${name}`] ?? media(name) : media(name))
 
   const config = {
     driver: 's3',
-    bucket: own ? env.BACKUP_S3_BUCKET : env.S3_BUCKET,
+    bucket: own ? env.BACKUP_S3_BUCKET : media('BUCKET'),
     accessKeyId: pick('ACCESS_KEY_ID'),
     secretAccessKey: pick('SECRET_ACCESS_KEY'),
     endpoint: pick('ENDPOINT'),
@@ -121,10 +139,10 @@ export function backupStorageConfig(env = process.env) {
 
   if (!config.bucket || !config.accessKeyId || !config.secretAccessKey) return null
 
-  return { config, shared: !own, publicMediaUrl: !own && Boolean(env.S3_PUBLIC_URL) }
+  const source = own ? 'env' : fromEnv ? 'env' : 'settings'
+  return { config, shared: !own, publicMediaUrl: !own && Boolean(media('PUBLIC_URL')), source }
 }
 
-/** `backups/` unless told otherwise, always ending in exactly one slash. */
 export function normalizePrefix(prefix = 'backups/') {
   const trimmed = String(prefix).replace(/^\/+|\/+$/g, '')
   if (!trimmed || trimmed.includes('..')) throw new Error('--prefix must be a plain folder name such as backups')

@@ -35,11 +35,12 @@ import { hashPassword } from '@basicbenframework/core/auth'
 import { parseArgs } from './lib/import-common.mjs'
 import { readExport } from './lib/json-import.mjs'
 import { restoreBackup, isGzip, backupStorageConfig } from './lib/backup.mjs'
+import { storageSettings } from './lib/storage-settings.mjs'
 
 async function load(file, s3Key) {
   if (s3Key) {
-    const resolved = backupStorageConfig(process.env)
-    if (!resolved) throw new Error('--s3 needs BACKUP_S3_BUCKET (or S3_BUCKET) with an access key id and secret.')
+    const resolved = backupStorageConfig(process.env, await storageSettings())
+    if (!resolved) throw new Error('--s3 needs BACKUP_S3_BUCKET, S3_BUCKET or a bucket in Settings → Media Storage, with an access key id and secret.')
     const object = await createS3Adapter(resolved.config).get(s3Key)
     return object.body
   }

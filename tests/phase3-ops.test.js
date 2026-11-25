@@ -262,6 +262,28 @@ describe('backups', () => {
     assert.strictEqual(shared.shared, true)
     assert.strictEqual(shared.publicMediaUrl, true)
 
+    const settings = { bucket: 'set-media', accessKeyId: 'sa', secretAccessKey: 'ss', endpoint: 'https://set.r2', region: 'auto', publicUrl: 'https://files.example' }
+
+    // Storage set up in Settings is the media bucket when S3_BUCKET is not set.
+    const fromSettings = backupStorageConfig({}, settings)
+    assert.strictEqual(fromSettings.config.bucket, 'set-media')
+    assert.strictEqual(fromSettings.config.secretAccessKey, 'ss')
+    assert.strictEqual(fromSettings.config.endpoint, 'https://set.r2')
+    assert.strictEqual(fromSettings.shared, true)
+    assert.strictEqual(fromSettings.publicMediaUrl, true)
+    assert.strictEqual(fromSettings.source, 'settings')
+
+    // A dedicated bucket borrows the settings' keys for what it leaves out.
+    const ownOnSettings = backupStorageConfig({ BACKUP_S3_BUCKET: 'bk' }, settings)
+    assert.strictEqual(ownOnSettings.config.bucket, 'bk')
+    assert.strictEqual(ownOnSettings.config.accessKeyId, 'sa')
+    assert.strictEqual(ownOnSettings.shared, false)
+
+    // S3_BUCKET puts the whole media group under the environment: no keys
+    // from settings are mixed into it.
+    assert.strictEqual(backupStorageConfig({ S3_BUCKET: 'env-media' }, settings), null)
+    assert.strictEqual(backupStorageConfig({ S3_BUCKET: 'm', S3_ACCESS_KEY_ID: 'a', S3_SECRET_ACCESS_KEY: 's' }, settings).config.bucket, 'm')
+
     assert.strictEqual(normalizePrefix('/backups'), 'backups/')
     assert.throws(() => normalizePrefix('../x'))
     assert.throws(() => normalizePrefix('/'))

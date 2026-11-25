@@ -45,6 +45,7 @@ import {
   pruneBucket
 } from './lib/backup.mjs'
 import { recordHeartbeat, HEARTBEATS } from '../helpers/heartbeat.ts'
+import { storageSettings } from './lib/storage-settings.mjs'
 
 const log = (line = '') => console.error(line)
 const size = (bytes) => (bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`)
@@ -66,14 +67,14 @@ async function main() {
   // rather than after a ten-minute export.
   let bucket = null
   if (flags.s3) {
-    const resolved = backupStorageConfig(process.env)
+    const resolved = backupStorageConfig(process.env, await storageSettings())
     if (!resolved) {
-      throw new Error('--s3 needs BACKUP_S3_BUCKET (or S3_BUCKET) with an access key id and secret. See docs/backup.md.')
+      throw new Error('--s3 needs BACKUP_S3_BUCKET, S3_BUCKET or a bucket in Settings → Media Storage, with an access key id and secret. See docs/backup.md.')
     }
     if (resolved.shared) {
-      log(`Uploading to the media bucket "${resolved.config.bucket}" under ${prefix}.`)
+      log(`Uploading to the media bucket "${resolved.config.bucket}"${resolved.source === 'settings' ? ' (from Settings)' : ''} under ${prefix}.`)
       if (resolved.publicMediaUrl) {
-        log('WARNING: S3_PUBLIC_URL is set, so this bucket may be publicly readable. If every key in it is')
+        log('WARNING: the media bucket has a public URL, so it may be publicly readable. If every key in it is')
         log('served publicly (R2 custom domains are), so is this backup. Set BACKUP_S3_BUCKET to a private bucket.')
       }
     }
