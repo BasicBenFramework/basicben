@@ -5,7 +5,8 @@
  * English string is the fallback, so a missing translation shows English
  * rather than a key like `posts.save_button`, and a component reads the same
  * as it did before it was translated. `tests/admin-i18n.test.js` reads every
- * `t()`/`tn()` literal in the admin and fails when a shipped locale lacks one.
+ * `t()`/`tn()` literal in the admin and notes what each locale lacks (fails on
+ * it with I18N_STRICT=1).
  *
  * ## Which language
  *

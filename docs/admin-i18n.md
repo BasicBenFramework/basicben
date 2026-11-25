@@ -40,9 +40,14 @@ date.toLocaleDateString(locale)
 - For a value from a fixed set (a status, a role), map it to literal `t()`
   calls rather than `t(status)`.
 
-`tests/admin-i18n.test.js` fails when a shipped language is missing a string
-or its placeholders differ, and when an admin file has visible English outside
-`t()`.
+`tests/admin-i18n.test.js` fails when a translation's placeholders differ
+from the English, and when an admin file has visible English outside `t()`.
+
+A language does not have to be complete. A string it lacks is shown in
+English, so a new admin string can merge before it is translated, and a new
+language can ship partly done. The test notes what each language is missing
+(`ℹ es: 3 of 915 strings not translated yet`); `I18N_STRICT=1 npm test` fails
+on it instead, for finishing a language or checking one before a release.
 
 ## Adding a language
 
@@ -52,6 +57,8 @@ or its placeholders differ, and when an admin file has visible English outside
    `{ one: '…', few: '…', many: '…', other: '…' }` — `other` is required.
 2. Add `{ code: '<code>', name: '<the language's own name>' }` to
    `ADMIN_LOCALES` in `src/client/i18n/index.ts`.
-3. `node --test tests/admin-i18n.test.js` lists anything missing.
+3. `I18N_STRICT=1 node --test tests/admin-i18n.test.js` lists everything
+   still missing. It can ship before that list is empty; what is left shows
+   in English.
 
 Each dictionary is its own chunk, loaded only when that language is chosen.

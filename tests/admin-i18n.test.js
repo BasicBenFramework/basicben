@@ -1,10 +1,17 @@
 /**
- * The admin is translatable, and every shipped language is complete.
+ * The admin is translatable, and what each language does translate is right.
  *
  * Strings are keyed on their English text (src/client/i18n), so the checks
- * here are about the source: every `t()`/`tn()` literal must have an entry in
- * every non-English dictionary with the same `{placeholders}`, and the admin's
- * files must not carry visible English that bypasses `t()` altogether.
+ * here are about the source: a translation must keep the English
+ * `{placeholders}`, and the admin's files must not carry visible English that
+ * bypasses `t()` altogether.
+ *
+ * A language may be incomplete: `t()` shows the English for a string it lacks,
+ * so a new language can ship partly done and fill in over time, and a new
+ * admin string does not have to be translated into every language before it
+ * merges. What is missing is reported as a test note; run with
+ * `I18N_STRICT=1` to fail on it instead (to finish a language, or before a
+ * release you want complete).
  *
  * The hard-coded-text check is a heuristic over JSX — text between tags and
  * the human-readable attributes — not a parser. It is strict on purpose: a
@@ -112,7 +119,7 @@ describe('admin translations', () => {
   })
 
   for (const code of shippedLocales()) {
-    test(`${code} has every string, with the same placeholders`, async () => {
+    test(`${code} keeps every placeholder, and lists what it has not translated`, async (t) => {
       const path = join(ROOT, `src/client/i18n/locales/${code}/index.ts`)
       assert.ok(existsSync(path), `no dictionary at src/client/i18n/locales/${code}/index.ts`)
       // Core's dictionary with every feature's merged over it, as setLocale does.
@@ -139,8 +146,17 @@ describe('admin translations', () => {
         }
       }
 
-      assert.deepStrictEqual(missing, [], `${missing.length} strings missing from ${code}`)
+      // A wrong placeholder breaks the sentence on screen; a missing one is English.
       assert.deepStrictEqual(mismatched, [], `placeholders differ in ${code}`)
+
+      if (missing.length) {
+        const total = usedKeys().size
+        const note = `${code}: ${missing.length} of ${total} strings not translated yet (shown in English)`
+        if (process.env.I18N_STRICT) assert.deepStrictEqual(missing, [], note)
+        t.diagnostic(note)
+        for (const line of missing.slice(0, 20)) t.diagnostic(`  ${line}`)
+        if (missing.length > 20) t.diagnostic(`  … and ${missing.length - 20} more (I18N_STRICT=1 lists them all)`)
+      }
     })
   }
 })
