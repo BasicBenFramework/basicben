@@ -64,10 +64,13 @@ if [ -n "${SMOKE_CORE_TGZ:-}" ]; then
   CORE_TGZ="$(basename "$SMOKE_CORE_TGZ")"
   echo "Using local core: $SMOKE_CORE_TGZ"
 else
-  CORE_VERSION="$(node -p "require('$ROOT_DIR/package.json').peerDependencies['@basicbenframework/core']" | tr -d '^~')"
-  (cd "$WORK_DIR" && npm pack "@basicbenframework/core@$CORE_VERSION" > /dev/null 2>&1) \
-    || fail "could not download @basicbenframework/core@$CORE_VERSION from npm"
-  CORE_TGZ="basicbenframework-core-$CORE_VERSION.tgz"
+  # The newest release the peer range accepts, which may be `^0.9.0 || ^0.10.0`:
+  # npm picks it, and prints the tarball's name.
+  CORE_RANGE="$(node -p "require('$ROOT_DIR/package.json').peerDependencies['@basicbenframework/core']")"
+  CORE_TGZ="$(cd "$WORK_DIR" && npm pack "@basicbenframework/core@$CORE_RANGE" 2>/dev/null | tail -1)" \
+    || fail "could not download @basicbenframework/core@$CORE_RANGE from npm"
+  [ -f "$WORK_DIR/$CORE_TGZ" ] || fail "could not download @basicbenframework/core@$CORE_RANGE from npm"
+  echo "Using core: $CORE_TGZ"
 fi
 
 # The CMS as it would be published: `npm pack` compiles lib/ first (prepack)
