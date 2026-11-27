@@ -117,6 +117,9 @@ const authRoutes: Record<string, RouteDefinition> = {
 
 export default createClientApp({
   layout: AppLayout,
+  // Page changes cross-fade (View Transitions; core 0.10.1). Browsers
+  // without it, and reduced motion, navigate as before. See styles.css.
+  transitions: true,
   routes: {
     ...publicRoutes,
     ...authRoutes,

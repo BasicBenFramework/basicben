@@ -65,7 +65,7 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@basicbenframework/core": "^0.10.0",
+    "@basicbenframework/core": "^0.10.1",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",

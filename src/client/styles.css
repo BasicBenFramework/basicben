@@ -44,3 +44,13 @@
     }
   }
 }
+
+/*
+ * Page transitions (transitions: true in src/routes/App.tsx): a quick
+ * cross-fade. The admin's sidebar and header are the same on both sides, so
+ * they read as still.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+}
