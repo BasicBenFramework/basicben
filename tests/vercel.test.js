@@ -30,6 +30,10 @@
  *   theme is off.
  * - `vercel.headless.json`: only the API, feeds, sitemap, robots and oEmbed
  *   reach the function, and everything else gets the SPA.
+ *
+ * Both cache /assets/ for a year: Vite names those files after their content,
+ * and Vercel otherwise serves them with max-age=0, so every load re-checked
+ * each one. HTML keeps Vercel's default, revalidated, so a deploy shows at once.
  */
 
 import { test } from 'node:test'
@@ -43,6 +47,13 @@ const read = (path) => readFileSync(join(ROOT, path), 'utf-8')
 const variants = ['vercel.json', 'vercel.headless.json'].map((name) => [name, JSON.parse(readFileSync(join(SITE, name), 'utf-8'))])
 
 for (const [name, vercel] of variants) {
+  test(`${name}: built assets are cached for a year, and nothing else is`, () => {
+    const cacheRules = (vercel.headers || []).filter((rule) => rule.headers.some((h) => h.key.toLowerCase() === 'cache-control'))
+    assert.deepEqual(cacheRules.map((rule) => rule.source), ['/assets/(.*)'])
+    const value = cacheRules[0].headers.find((h) => h.key.toLowerCase() === 'cache-control').value
+    assert.equal(value, 'public, max-age=31536000, immutable')
+  })
+
   test(`${name}: the function carries the site's and the package's config, mail and migrations`, () => {
     const include = vercel.functions?.['api/index.js']?.includeFiles
     assert.ok(include, `${name} must set functions["api/index.js"].includeFiles`)

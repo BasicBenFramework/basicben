@@ -167,6 +167,12 @@ Two things that catch people out:
 - **`/feed.xml`, `/feed.json` and `/sitemap.xml` are server-rendered** and live
   outside `/api`. A rewrite covering only `/api/*` 404s all three, and the admin
   UI still looks fine, so it is easy to miss.
+- **Built assets are cached for a year.** Both templates send
+  `Cache-Control: public, max-age=31536000, immutable` for `/assets/*`, whose
+  file names change with their content. Without it Vercel serves them with
+  `max-age=0`, so every admin load re-checks each file. Keep the rule if you
+  write your own `vercel.json`; HTML stays revalidated, so a deploy shows up at
+  once.
 - **Object storage stops being optional.** The filesystem is read-only apart
   from an ephemeral `/tmp`, so the local driver cannot accept uploads at all.
   The app warns at boot when it detects that combination. Reads are unaffected.
